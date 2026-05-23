@@ -1,26 +1,148 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --neo-bg: #f0ebe3;
+  --neo-ink: #0a0a0a;
+  --neo-lime: #a3ff12;
+  --neo-blue: #2d5bff;
+  --neo-pink: #ff3df0;
+  --neo-orange: #ff8a00;
+  --neo-purple: #7000ff;
+  --neo-border: 3px;
+  --neo-shadow: 5px 5px 0 0 #0a0a0a;
+  --neo-shadow-sm: 3px 3px 0 0 #0a0a0a;
+  --neo-radius: 10px;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-neo-bg: var(--neo-bg);
+  --color-neo-ink: var(--neo-ink);
+  --color-neo-lime: var(--neo-lime);
+  --color-neo-blue: var(--neo-blue);
+  --color-neo-pink: var(--neo-pink);
+  --color-neo-orange: var(--neo-orange);
+  --color-neo-purple: var(--neo-purple);
+  --font-sans: var(--font-space-grotesk), system-ui, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--neo-bg);
+  color: var(--neo-ink);
+  font-family: var(--font-sans);
+}
+
+.dot-grid {
+  background-image: radial-gradient(circle, #0a0a0a18 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.neo-border {
+  border: var(--neo-border) solid var(--neo-ink);
+}
+
+.neo-shadow {
+  box-shadow: var(--neo-shadow);
+}
+
+.neo-shadow-sm {
+  box-shadow: var(--neo-shadow-sm);
+}
+
+.neo-card {
+  border: var(--neo-border) solid var(--neo-ink);
+  border-radius: var(--neo-radius);
+  box-shadow: var(--neo-shadow);
+  background: white;
+}
+
+.neo-card-flat {
+  border: var(--neo-border) solid var(--neo-ink);
+  border-radius: var(--neo-radius);
+  background: white;
+}
+
+.neo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  border: var(--neo-border) solid var(--neo-ink);
+  border-radius: var(--neo-radius);
+  box-shadow: var(--neo-shadow-sm);
+  transition: transform 0.1s linear, box-shadow 0.1s linear;
+  cursor: pointer;
+}
+
+.neo-btn:hover:not(:disabled) {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--neo-shadow);
+}
+
+.neo-btn:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+
+.neo-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.neo-input {
+  width: 100%;
+  border: var(--neo-border) solid var(--neo-ink);
+  border-radius: var(--neo-radius);
+  padding: 0.625rem 0.875rem;
+  background: white;
+  font-weight: 500;
+  outline: none;
+}
+
+.neo-input:focus {
+  box-shadow: var(--neo-shadow-sm);
+}
+
+.neo-ticker {
+  background: var(--neo-ink);
+  color: var(--neo-lime);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@keyframes pulse-bar {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.ai-loading span {
+  animation: pulse-bar 1s ease-in-out infinite;
+}
+
+.ai-loading span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.ai-loading span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --neo-shadow: 3px 3px 0 0 #0a0a0a;
+  }
 }
