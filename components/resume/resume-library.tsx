@@ -14,6 +14,7 @@ import {
   useDownloadFormat,
 } from "@/components/ui/download-format-dialog";
 import { getInitialResumeLibrary } from "@/lib/onboarding-storage";
+import type { ToastType } from "@/lib/types";
 import {
   MOCK_COVER_LETTERS,
   MOCK_INTERVIEW_PREP,
@@ -24,8 +25,11 @@ import { NewCoverLetterWizard } from "@/components/resume/new-cover-letter-wizar
 import {
   ResumePreviewPanel,
   buildMockResumeContent,
+  buildMockResume,
   type GeneratedResume,
+  type ResumeDownloadContext,
 } from "@/components/resume/resume-preview-panel";
+import { exportResume } from "@/lib/pdf-export";
 import {
   CoverLetterPreviewPanel,
   buildMockCoverLetterContent,
@@ -128,12 +132,15 @@ function parseMatchJob(matchJob: string | null): { title: string; company: strin
 
 function resumeFromLibrary(doc: MockDocument): GeneratedResume {
   const { title, company } = parseMatchJob(doc.matchJob);
+  const document = buildMockResume(title, company);
   return {
     id: doc.id,
     title: doc.title,
     matchJob: doc.matchJob ?? "",
     templateName: "ATS Classic",
+    templateId: "ats-classic",
     content: buildMockResumeContent(title, company),
+    document,
     matchScore: 87,
     matchedKeywords: ["React", "TypeScript", "GraphQL", "CSS"],
     missingKeywords: ["Kubernetes", "Python"],
@@ -388,7 +395,7 @@ function DocumentCard({
 }: {
   document: MockDocument;
   kind: DocumentKind;
-  onToast: (msg: string) => void;
+  onToast: (msg: string, type?: ToastType) => void;
   onOpen?: () => void;
   onDownload?: () => void;
   onPractice?: () => void;
@@ -548,7 +555,7 @@ function DocumentSection({
   emptyActionLabel: string;
   onEmptyAction: () => void;
   onRemoveSelected: (ids: number[]) => void;
-  onToast: (msg: string) => void;
+  onToast: (msg: string, type?: ToastType) => void;
   onOpenDocument: (doc: MockDocument) => void;
   onPracticeDocument: (doc: MockDocument) => void;
   onRenameDocument: (doc: MockDocument, title: string) => void;
@@ -636,7 +643,24 @@ function DocumentSection({
   const handleDownload = async (doc: MockDocument) => {
     const format = await pickFormat(doc.title);
     if (!format) return;
-    onToast(`Downloading ${doc.title} as ${format.toUpperCase()}...`);
+
+    if (kind !== "resume") {
+      onToast(`Downloading ${doc.title} as ${format.toUpperCase()}...`);
+      return;
+    }
+
+    const { title, company } = parseMatchJob(doc.matchJob);
+    const resumeDoc = buildMockResume(title, company);
+
+    try {
+      await exportResume(null, resumeDoc, doc.title, format);
+      onToast(`Downloaded ${doc.title} as ${format.toUpperCase()}`);
+    } catch (error) {
+      onToast(
+        error instanceof Error ? error.message : "Download failed.",
+        "error",
+      );
+    }
   };
 
   const handleRename = async (doc: MockDocument) => {
@@ -925,7 +949,26 @@ export function ResumeLibraryView() {
     }
   };
 
-  const handleDownload = async (title: string) => {
+  const handleResumeDownload = async ({
+    document,
+    getExportElement,
+  }: ResumeDownloadContext) => {
+    if (!previewResume) return;
+    const format = await pickFormat(previewResume.title);
+    if (!format) return;
+
+    try {
+      await exportResume(getExportElement(), document, previewResume.title, format);
+      toast(`Downloaded ${previewResume.title} as ${format.toUpperCase()}`);
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "Download failed.",
+        "error",
+      );
+    }
+  };
+
+  const handleCoverLetterDownload = async (title: string) => {
     const format = await pickFormat(title);
     if (format) toast(`Downloading ${title} as ${format.toUpperCase()}...`);
   };
@@ -938,7 +981,7 @@ export function ResumeLibraryView() {
           resume={previewResume}
           onBack={() => setPreviewResume(null)}
           onSave={saveGeneratedResume}
-          onDownload={() => void handleDownload(previewResume.title)}
+          onDownload={(context) => void handleResumeDownload(context)}
         />
       </>
     );
@@ -952,7 +995,7 @@ export function ResumeLibraryView() {
           coverLetter={previewCoverLetter}
           onBack={() => setPreviewCoverLetter(null)}
           onSave={saveGeneratedCoverLetter}
-          onDownload={() => void handleDownload(previewCoverLetter.title)}
+          onDownload={() => void handleCoverLetterDownload(previewCoverLetter.title)}
         />
       </>
     );

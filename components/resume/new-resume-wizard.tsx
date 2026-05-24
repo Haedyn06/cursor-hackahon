@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import type { Job } from "@/lib/types/job";
 import {
   buildMockResumeContent,
+  buildMockResume,
   type GeneratedResume,
 } from "@/components/resume/resume-preview-panel";
 
@@ -188,7 +189,9 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
         title: `${jobContext.company} — ${jobContext.title}`,
         matchJob: jobContext.matchJob,
         templateName: selectedTemplate.name,
+        templateId: selectedTemplate.id,
         content: buildMockResumeContent(jobContext.title, jobContext.company),
+        document: buildMockResume(jobContext.title, jobContext.company),
         matchScore: 87,
         matchedKeywords: ["React", "TypeScript", "GraphQL", "CSS"],
         missingKeywords: ["Kubernetes", "Python"],

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AddJobForm } from "@/components/jobs/add-job-form";
 import { useToast } from "@/components/providers";
 import { NeoBadge } from "@/components/ui/neo-badge";
@@ -10,6 +10,7 @@ import { NeoInput } from "@/components/ui/neo-input";
 import { NeoTabs } from "@/components/ui/neo-tabs";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { useDownloadFormat } from "@/components/ui/download-format-dialog";
 import { cn } from "@/lib/utils";
 import {
   MatchScore,
@@ -23,13 +24,15 @@ import {
   type JobStatus,
 } from "@/lib/constants";
 import { useJobs } from "@/components/providers/jobs-provider";
-import { MOCK_RESUME } from "@/lib/mock-data";
+import { AtsResumeTemplate } from "@/components/resume/ats-resume-template";
+import { buildMockResume } from "@/components/resume/resume-preview-panel";
+import { exportResume } from "@/lib/pdf-export";
 import type { Job } from "@/lib/types/job";
-
-const RESUME_SAMPLE = MOCK_RESUME;
 
 function ResumeTab({ job }: { job: Job }) {
   const toast = useToast();
+  const { pickFormat, dialog: downloadDialog } = useDownloadFormat();
+  const exportRef = useRef<HTMLDivElement>(null);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState(job.resumeGenerated);
   const [chatInput, setChatInput] = useState("");
@@ -42,6 +45,11 @@ function ResumeTab({ job }: { job: Job }) {
     },
   ]);
   const [streaming, setStreaming] = useState(false);
+
+  const resumeDocument = useMemo(
+    () => buildMockResume(job.title, job.company),
+    [job.title, job.company],
+  );
 
   const generate = () => {
     setGenerating(true);
@@ -67,6 +75,26 @@ function ResumeTab({ job }: { job: Job }) {
       ]);
       setStreaming(false);
     }, 1400);
+  };
+
+  const handleDownload = async () => {
+    const format = await pickFormat(`${job.company} — ${job.title}`);
+    if (!format) return;
+
+    try {
+      await exportResume(
+        exportRef.current,
+        resumeDocument,
+        `${job.company}-${job.title}`,
+        format,
+      );
+      toast(`Downloaded resume as ${format.toUpperCase()}`);
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "Download failed.",
+        "error",
+      );
+    }
   };
 
   if (!generated && !generating) {
@@ -114,7 +142,9 @@ function ResumeTab({ job }: { job: Job }) {
   }
 
   return (
-    <div className="flex flex-1 overflow-hidden">
+    <>
+      {downloadDialog}
+      <div className="flex flex-1 overflow-hidden">
       <div className="flex-1 overflow-y-auto border-r-2 border-[var(--foreground)] p-6">
         <div className="mb-5 flex items-center gap-4">
           <MatchScore score={job.matchScore ?? 87} size="lg" />
@@ -136,14 +166,18 @@ function ResumeTab({ job }: { job: Job }) {
             </div>
           </div>
         </div>
-        <div className="rounded-xl bg-white p-8 text-[13px] leading-relaxed whitespace-pre-line neo-border">
-          {RESUME_SAMPLE}
+        <div className="overflow-x-auto pb-4">
+          <AtsResumeTemplate
+            ref={exportRef}
+            document={resumeDocument}
+            variant="screen"
+          />
         </div>
         <div className="mt-4 flex gap-2.5">
           <NeoButton variant="mint" size="sm" onClick={() => toast("Resume saved!")}>
             Save to Library
           </NeoButton>
-          <NeoButton variant="secondary" size="sm" onClick={() => toast("Downloading PDF...")}>
+          <NeoButton variant="secondary" size="sm" onClick={() => void handleDownload()}>
             Download PDF
           </NeoButton>
           <NeoButton variant="secondary" size="sm" onClick={generate}>
@@ -193,6 +227,7 @@ function ResumeTab({ job }: { job: Job }) {
         </div>
       </div>
     </div>
+    </>
   );
 }
 
