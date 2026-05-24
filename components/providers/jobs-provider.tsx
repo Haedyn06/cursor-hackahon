@@ -46,7 +46,9 @@ export function JobsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    void refresh();
+    queueMicrotask(() => {
+      void refresh();
+    });
   }, [refresh]);
 
   const createJob = useCallback(async (input: CreateJobInput) => {

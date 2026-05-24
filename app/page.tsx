@@ -1,4 +1,9 @@
+"use client";
+
 import Link from "next/link";
+import { UserButton, useAuth } from "@clerk/nextjs";
+import { useState } from "react";
+import { AuthModal } from "@/components/auth/auth-modal";
 import { Logo } from "@/components/layout/logo";
 import { NeoButton } from "@/components/ui/neo-button";
 import { NeoBadge } from "@/components/ui/neo-badge";
@@ -34,21 +39,21 @@ const providers = [
 ];
 
 export default function LandingPage() {
+  const { isSignedIn } = useAuth();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-[var(--background)]">
       <nav className="sticky top-0 z-10 flex h-16 items-center justify-between border-b-[2.5px] border-[var(--foreground)] bg-white px-10">
         <Logo />
         <div className="flex items-center gap-3">
-          <Link href="/onboarding">
-            <NeoButton variant="secondary" size="sm">
-              See how it works
-            </NeoButton>
-          </Link>
-          <Link href="/onboarding">
-            <NeoButton variant="primary" size="sm">
+          {isSignedIn ? (
+            <UserButton />
+          ) : (
+            <NeoButton variant="primary" size="sm" onClick={() => setAuthModalOpen(true)}>
               Sign up free →
             </NeoButton>
-          </Link>
+          )}
         </div>
       </nav>
 
@@ -71,11 +76,14 @@ export default function LandingPage() {
           tailored resume in seconds. Track every application in one place.
         </p>
         <div className="flex flex-wrap justify-center gap-3">
-          <Link href="/onboarding">
-            <NeoButton variant="primary" size="lg" className="px-8 py-3.5 text-base">
-              Get started free →
-            </NeoButton>
-          </Link>
+          <NeoButton
+            variant="primary"
+            size="lg"
+            className="px-8 py-3.5 text-base"
+            onClick={() => setAuthModalOpen(true)}
+          >
+            Get started free →
+          </NeoButton>
           <Link href="/onboarding">
             <NeoButton variant="secondary" size="lg" className="px-8 py-3.5 text-base">
               Watch demo
@@ -88,7 +96,7 @@ export default function LandingPage() {
             { n: "10×", label: "faster resume tailoring" },
             { n: "94%", label: "ATS pass rate" },
             { n: "Free", label: "to start, BYOK" },
-          ].map((s, i) => (
+          ].map((s) => (
             <div
               key={s.n}
               className="border-t border-b border-r-[2.5px] border-[var(--foreground)] bg-white px-10 py-5 text-center first:rounded-l-2xl first:border-l-[2.5px] last:rounded-r-2xl"
@@ -177,6 +185,12 @@ export default function LandingPage() {
           © 2025 Rezume. Built for the next generation of job seekers.
         </p>
       </footer>
+      <AuthModal
+        open={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        fallbackRedirectUrl="/onboarding"
+        signUpFallbackRedirectUrl="/onboarding"
+      />
     </div>
   );
 }

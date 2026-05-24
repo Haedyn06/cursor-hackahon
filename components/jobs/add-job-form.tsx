@@ -211,11 +211,13 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
 
   useEffect(() => {
     if (!open) {
-      setMode("ai");
-      setJobUrl("");
-      setAnalyzing(false);
-      setAnalyzed(false);
-      setForm(EMPTY_FORM);
+      queueMicrotask(() => {
+        setMode("ai");
+        setJobUrl("");
+        setAnalyzing(false);
+        setAnalyzed(false);
+        setForm(EMPTY_FORM);
+      });
     }
   }, [open]);
 
