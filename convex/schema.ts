@@ -17,6 +17,7 @@ export default defineSchema({
     fullName: v.string(),
     location: v.string(),
     email: v.string(),
+    phone: v.optional(v.string()),
     linkedin: v.string(),
     github: v.string(),
     portfolio: v.string(),
@@ -24,6 +25,13 @@ export default defineSchema({
     experienceLevel: v.string(),
     about: v.string(),
     updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  profileLinks: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    url: v.string(),
+    position: v.number(),
   }).index("by_userId", ["userId"]),
 
   profileSkills: defineTable({
@@ -41,6 +49,21 @@ export default defineSchema({
     company: v.string(),
     dates: v.string(),
     bullets: v.string(),
+  }).index("by_userId", ["userId"]),
+
+  profileLanguages: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    level: v.string(),
+    position: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  profileCertifications: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    issuer: v.string(),
+    date: v.string(),
+    position: v.number(),
   }).index("by_userId", ["userId"]),
 
   aiProviderConnections: defineTable({

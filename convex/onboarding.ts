@@ -14,13 +14,33 @@ const profileValidator = v.object({
   fullName: v.string(),
   location: v.string(),
   email: v.string(),
+  phone: v.string(),
   linkedin: v.string(),
   github: v.string(),
   portfolio: v.string(),
   targetRole: v.string(),
   experienceLevel: v.string(),
   about: v.string(),
+  links: v.array(
+    v.object({
+      name: v.string(),
+      url: v.string(),
+    }),
+  ),
   skills: v.array(v.string()),
+  languages: v.array(
+    v.object({
+      name: v.string(),
+      level: v.string(),
+    }),
+  ),
+  certifications: v.array(
+    v.object({
+      name: v.string(),
+      issuer: v.string(),
+      date: v.string(),
+    }),
+  ),
   experienceEntries: v.array(
     v.object({
       title: v.string(),
@@ -65,8 +85,11 @@ export const getOnboardingState = query({
       return {
         user: null,
         profile: null,
+        links: [],
         skills: [],
         experienceEntries: [],
+        languages: [],
+        certifications: [],
         providerConnections: [],
         importedResumes: [],
       };
@@ -77,6 +100,11 @@ export const getOnboardingState = query({
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .unique();
 
+    const links = await ctx.db
+      .query("profileLinks")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .take(100);
+
     const skills = await ctx.db
       .query("profileSkills")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
@@ -86,6 +114,16 @@ export const getOnboardingState = query({
       .query("profileExperienceEntries")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .take(50);
+
+    const languages = await ctx.db
+      .query("profileLanguages")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .take(100);
+
+    const certifications = await ctx.db
+      .query("profileCertifications")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .take(100);
 
     const providerConnections = await ctx.db
       .query("aiProviderConnections")
@@ -100,8 +138,11 @@ export const getOnboardingState = query({
     return {
       user,
       profile,
+      links,
       skills,
       experienceEntries,
+      languages,
+      certifications,
       providerConnections,
       importedResumes,
     };
@@ -158,6 +199,7 @@ export const saveProfile = mutation({
       fullName: args.profile.fullName,
       location: args.profile.location,
       email: args.profile.email,
+      phone: args.profile.phone,
       linkedin: args.profile.linkedin,
       github: args.profile.github,
       portfolio: args.profile.portfolio,
@@ -173,6 +215,23 @@ export const saveProfile = mutation({
       await ctx.db.insert("profiles", profileData);
     }
 
+    const existingLinks = await ctx.db
+      .query("profileLinks")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .take(200);
+    for (const row of existingLinks) {
+      await ctx.db.delete(row._id);
+    }
+
+    for (const [position, link] of args.profile.links.entries()) {
+      await ctx.db.insert("profileLinks", {
+        userId: user._id,
+        name: link.name,
+        url: link.url,
+        position,
+      });
+    }
+
     const existingSkills = await ctx.db
       .query("profileSkills")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
@@ -185,6 +244,41 @@ export const saveProfile = mutation({
       await ctx.db.insert("profileSkills", {
         userId: user._id,
         name: skill,
+        position,
+      });
+    }
+
+    const existingLanguages = await ctx.db
+      .query("profileLanguages")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .take(100);
+    for (const row of existingLanguages) {
+      await ctx.db.delete(row._id);
+    }
+
+    for (const [position, language] of args.profile.languages.entries()) {
+      await ctx.db.insert("profileLanguages", {
+        userId: user._id,
+        name: language.name,
+        level: language.level,
+        position,
+      });
+    }
+
+    const existingCertifications = await ctx.db
+      .query("profileCertifications")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .take(100);
+    for (const row of existingCertifications) {
+      await ctx.db.delete(row._id);
+    }
+
+    for (const [position, certification] of args.profile.certifications.entries()) {
+      await ctx.db.insert("profileCertifications", {
+        userId: user._id,
+        name: certification.name,
+        issuer: certification.issuer,
+        date: certification.date,
         position,
       });
     }

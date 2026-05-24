@@ -12,7 +12,12 @@ import { NeoCard } from "@/components/ui/neo-card";
 import { NeoInput } from "@/components/ui/neo-input";
 import { NeoTabs } from "@/components/ui/neo-tabs";
 import { ProgressSteps } from "@/components/ui/progress-steps";
-import { SectionHeader } from "@/components/ui/match-score";
+import { useConfirm } from "@/components/ui/confirm-dialog";
+import {
+  CollapsibleSection,
+  ProfileFormEntry,
+  ProfileSectionStack,
+} from "@/components/ui/collapsible-section";
 import { API_PROVIDERS, OAUTH_PROVIDERS } from "@/lib/constants";
 
 type ResumeItem = {
@@ -219,10 +224,20 @@ function OAuthCard({
   );
 }
 
+const LANGUAGE_LEVELS = [
+  "Native",
+  "Fluent",
+  "Professional",
+  "Conversational",
+  "Basic",
+];
+
 const defaultProfile = {
   name: "",
   location: "",
   email: "",
+  phone: "",
+  links: [{ id: 1, name: "", url: "" }],
   linkedin: "",
   github: "",
   portfolio: "",
@@ -230,12 +245,15 @@ const defaultProfile = {
   experience: "",
   about: "",
   skills: [] as string[],
+  languages: [{ id: 1, name: "", level: "Conversational" }],
+  certifications: [{ id: 1, name: "", issuer: "", date: "" }],
   experience_entries: [{ id: 1, title: "", company: "", dates: "", bullets: "" }],
 };
 
 type ProfileState = typeof defaultProfile;
 
 function AIAutoFillZone({ onFill }: { onFill: (data: Partial<ProfileState>) => void }) {
+  const { confirm, dialog } = useConfirm();
   const [dragOver, setDragOver] = useState(false);
   const [files, setFiles] = useState<{ name: string; type: string; size: number }[]>([]);
   const [pastedText, setPastedText] = useState("");
@@ -276,6 +294,12 @@ function AIAutoFillZone({ onFill }: { onFill: (data: Partial<ProfileState>) => v
         name: "Alex Johnson",
         location: "San Francisco, CA",
         email: "alex@example.com",
+        phone: "(415) 555-0123",
+        links: [
+          { id: 1, name: "LinkedIn", url: "linkedin.com/in/alexj" },
+          { id: 2, name: "GitHub", url: "github.com/alexj" },
+          { id: 3, name: "Portfolio", url: "alexj.dev" },
+        ],
         linkedin: "linkedin.com/in/alexj",
         github: "github.com/alexj",
         portfolio: "alexj.dev",
@@ -284,12 +308,21 @@ function AIAutoFillZone({ onFill }: { onFill: (data: Partial<ProfileState>) => v
         about:
           "Frontend engineer with 4 years building React + TypeScript apps. Passionate about accessibility and developer experience. Looking for a senior IC role at a product-led company.",
         skills: ["React", "TypeScript", "GraphQL", "CSS", "Next.js", "Jest", "Node.js"],
+        languages: [
+          { id: 1, name: "English", level: "Native" },
+          { id: 2, name: "Spanish", level: "Conversational" },
+        ],
+        certifications: [
+          { id: 1, name: "Meta Front-End Developer", issuer: "Meta", date: "2023" },
+        ],
       });
     }, 2400);
   };
 
   return (
-    <NeoCard className="mb-1 transition-colors duration-200" style={{ background: done ? "var(--mint-l)" : "#ffffff", borderWidth: done ? "2.5px" : undefined }}>
+    <>
+      {dialog}
+      <NeoCard className="mb-1 transition-colors duration-200" style={{ background: done ? "var(--mint-l)" : "#ffffff", borderWidth: done ? "2.5px" : undefined }}>
       <div className="mb-3 flex items-center gap-2.5">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--lav)] text-lg neo-border-sm">✦</div>
         <div className="min-w-0 flex-1">
@@ -331,7 +364,19 @@ function AIAutoFillZone({ onFill }: { onFill: (data: Partial<ProfileState>) => v
               {files.map((f, i) => (
                 <NeoBadge key={`${f.name}-${i}`} color="var(--mint-l)">
                   {fileIcon(f.type)} {f.name}
-                  <button type="button" onClick={() => removeFile(i)} className="ml-1 cursor-pointer border-none bg-transparent p-0 text-[#888]">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const confirmed = await confirm({
+                        title: "Remove file?",
+                        message: `Remove "${f.name}" from the upload list?`,
+                        confirmLabel: "Remove",
+                      });
+                      if (!confirmed) return;
+                      removeFile(i);
+                    }}
+                    className="ml-1 cursor-pointer border-none bg-transparent p-0 text-[#888]"
+                  >
                     ✕
                   </button>
                 </NeoBadge>
@@ -363,8 +408,9 @@ function AIAutoFillZone({ onFill }: { onFill: (data: Partial<ProfileState>) => v
         </>
       )}
 
-      {done && <p className="text-[13px] font-medium text-[#555]">✓ Filled: name, location, email, LinkedIn, GitHub, target role, experience level, about, and 7 skills.</p>}
+      {done && <p className="text-[13px] font-medium text-[#555]">✓ Filled: name, location, email, phone, links, target role, experience level, about, 7 skills, languages, and certifications.</p>}
     </NeoCard>
+    </>
   );
 }
 
@@ -521,6 +567,7 @@ export default function OnboardingPage() {
   const generateResumeUploadUrl = useMutation(api.onboarding.generateResumeUploadUrl);
   const savePastedResumeMutation = useMutation(api.onboarding.savePastedResume);
 
+  const { confirm, dialog } = useConfirm();
   const [step, setStep] = useState(1);
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
   const [providerType, setProviderType] = useState<"apikey" | "oauth">("apikey");
@@ -564,6 +611,17 @@ export default function OnboardingPage() {
           name: onboardingState.profile.fullName,
           location: onboardingState.profile.location,
           email: onboardingState.profile.email,
+          phone: onboardingState.profile.phone ?? "",
+          links:
+            (onboardingState.links ?? []).length > 0
+              ? [...(onboardingState.links ?? [])]
+                  .sort((a, b) => a.position - b.position)
+                  .map((link, index) => ({
+                    id: index + 1,
+                    name: link.name,
+                    url: link.url,
+                  }))
+              : defaultProfile.links,
           linkedin: onboardingState.profile.linkedin,
           github: onboardingState.profile.github,
           portfolio: onboardingState.profile.portfolio,
@@ -573,6 +631,27 @@ export default function OnboardingPage() {
           skills: [...onboardingState.skills]
             .sort((a, b) => a.position - b.position)
             .map((skill) => skill.name),
+          languages:
+            (onboardingState.languages ?? []).length > 0
+              ? [...(onboardingState.languages ?? [])]
+                  .sort((a, b) => a.position - b.position)
+                  .map((language, index) => ({
+                    id: index + 1,
+                    name: language.name,
+                    level: language.level,
+                  }))
+              : defaultProfile.languages,
+          certifications:
+            (onboardingState.certifications ?? []).length > 0
+              ? [...(onboardingState.certifications ?? [])]
+                  .sort((a, b) => a.position - b.position)
+                  .map((certification, index) => ({
+                    id: index + 1,
+                    name: certification.name,
+                    issuer: certification.issuer,
+                    date: certification.date,
+                  }))
+              : defaultProfile.certifications,
           experience_entries:
             onboardingState.experienceEntries.length > 0
               ? [...onboardingState.experienceEntries]
@@ -608,7 +687,12 @@ export default function OnboardingPage() {
     });
   }, [hydrated, onboardingState]);
   const setProfileField =
-    (field: keyof Omit<ProfileState, "skills" | "experience_entries">) =>
+    (
+      field: keyof Omit<
+        ProfileState,
+        "skills" | "experience_entries" | "languages" | "certifications" | "links"
+      >,
+    ) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       setProfile((p) => ({ ...p, [field]: e.target.value }));
     };
@@ -629,6 +713,112 @@ export default function OnboardingPage() {
       ...p,
       experience_entries: [...p.experience_entries, { id: Date.now(), title: "", company: "", dates: "", bullets: "" }],
     }));
+  };
+
+  const removeExperienceEntry = (id: number) => {
+    setProfile((p) => {
+      if (p.experience_entries.length <= 1) return p;
+      return {
+        ...p,
+        experience_entries: p.experience_entries.filter((entry) => entry.id !== id),
+      };
+    });
+  };
+
+  const updateLanguageEntry = (
+    id: number,
+    field: keyof ProfileState["languages"][number],
+    value: string,
+  ) => {
+    setProfile((p) => ({
+      ...p,
+      languages: p.languages.map((entry) =>
+        entry.id === id ? { ...entry, [field]: value } : entry,
+      ),
+    }));
+  };
+
+  const addLanguageEntry = () => {
+    setProfile((p) => ({
+      ...p,
+      languages: [
+        ...p.languages,
+        { id: Date.now(), name: "", level: "Conversational" },
+      ],
+    }));
+  };
+
+  const removeLanguageEntry = (id: number) => {
+    setProfile((p) => {
+      if (p.languages.length <= 1) return p;
+      return {
+        ...p,
+        languages: p.languages.filter((entry) => entry.id !== id),
+      };
+    });
+  };
+
+  const updateCertificationEntry = (
+    id: number,
+    field: keyof ProfileState["certifications"][number],
+    value: string,
+  ) => {
+    setProfile((p) => ({
+      ...p,
+      certifications: p.certifications.map((entry) =>
+        entry.id === id ? { ...entry, [field]: value } : entry,
+      ),
+    }));
+  };
+
+  const addCertificationEntry = () => {
+    setProfile((p) => ({
+      ...p,
+      certifications: [
+        ...p.certifications,
+        { id: Date.now(), name: "", issuer: "", date: "" },
+      ],
+    }));
+  };
+
+  const removeCertificationEntry = (id: number) => {
+    setProfile((p) => {
+      if (p.certifications.length <= 1) return p;
+      return {
+        ...p,
+        certifications: p.certifications.filter((entry) => entry.id !== id),
+      };
+    });
+  };
+
+  const updateLinkEntry = (
+    id: number,
+    field: keyof ProfileState["links"][number],
+    value: string,
+  ) => {
+    setProfile((p) => ({
+      ...p,
+      links: p.links.map((entry) =>
+        entry.id === id ? { ...entry, [field]: value } : entry,
+      ),
+    }));
+  };
+
+  const addLinkEntry = () => {
+    setProfile((p) => ({
+      ...p,
+      links: [...p.links, { id: Date.now(), name: "", url: "" }],
+    }));
+  };
+
+  const removeLinkEntry = (id: number) => {
+    setProfile((p) => {
+      if (p.links.length <= 1) return p;
+      return {
+        ...p,
+        links: p.links.filter((entry) => entry.id !== id),
+      };
+    });
   };
 
   const handleAIFill = (data: Partial<ProfileState>) => {
@@ -726,13 +916,27 @@ export default function OnboardingPage() {
           fullName: profile.name,
           location: profile.location,
           email: profile.email,
+          phone: profile.phone,
           linkedin: profile.linkedin,
           github: profile.github,
           portfolio: profile.portfolio,
           targetRole: profile.targetRole,
           experienceLevel: profile.experience,
           about: profile.about,
+          links: profile.links.map((entry) => ({
+            name: entry.name,
+            url: entry.url,
+          })),
           skills: profile.skills,
+          languages: profile.languages.map((entry) => ({
+            name: entry.name,
+            level: entry.level,
+          })),
+          certifications: profile.certifications.map((entry) => ({
+            name: entry.name,
+            issuer: entry.issuer,
+            date: entry.date,
+          })),
           experienceEntries: profile.experience_entries.map((entry) => ({
             title: entry.title,
             company: entry.company,
@@ -784,6 +988,7 @@ export default function OnboardingPage() {
         <div className="w-[120px]" />
       </div>
 
+      {dialog}
       <div className="mx-auto w-full max-w-[800px] flex-1 px-6 py-12">
         {step === 1 && (
           <div>
@@ -871,30 +1076,60 @@ export default function OnboardingPage() {
 
             <AIAutoFillZone onFill={handleAIFill} />
 
-            <div className="flex flex-col gap-5">
-              <NeoCard>
-                <SectionHeader label="Personal Info" color="var(--mint)" />
+            <ProfileSectionStack className="mt-2">
+              <CollapsibleSection
+                label="Personal Info"
+                description="Your name and how employers can reach you"
+                color="var(--mint)"
+                defaultOpen={false}
+              >
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <NeoInput label="Full Name" placeholder="Alex Johnson" value={profile.name} onChange={setProfileField("name")} />
                   <NeoInput label="Location" placeholder="San Francisco, CA" value={profile.location} onChange={setProfileField("location")} />
                   <NeoInput label="Email" placeholder="alex@example.com" type="email" value={profile.email} onChange={setProfileField("email")} />
-                  <NeoInput label="LinkedIn" placeholder="linkedin.com/in/yourname" value={profile.linkedin} onChange={setProfileField("linkedin")} />
-                  <NeoInput label="GitHub" placeholder="github.com/yourname" value={profile.github} onChange={setProfileField("github")} />
-                  <NeoInput label="Portfolio" placeholder="yoursite.com" value={profile.portfolio} onChange={setProfileField("portfolio")} />
+                  <NeoInput label="Phone" placeholder="(415) 555-0123" type="tel" value={profile.phone} onChange={setProfileField("phone")} />
                 </div>
-              </NeoCard>
+              </CollapsibleSection>
 
-              <NeoCard>
-                <SectionHeader label="Target Role" color="var(--lav)" />
-                <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <CollapsibleSection
+                label="Links"
+                description="LinkedIn, portfolio, GitHub, and other profiles"
+                color="var(--lav)"
+                defaultOpen={false}
+                action={<NeoButton variant="secondary" size="sm" onClick={addLinkEntry}>+ Add</NeoButton>}
+              >
+                <div className="flex flex-col gap-3">
+                  {profile.links.map((entry) => (
+                    <ProfileFormEntry key={entry.id}>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <NeoInput label="Name" placeholder="e.g. LinkedIn" value={entry.name} onChange={(e) => updateLinkEntry(entry.id, "name", e.target.value)} />
+                        <NeoInput label="URL" placeholder="https://..." value={entry.url} onChange={(e) => updateLinkEntry(entry.id, "url", e.target.value)} />
+                      </div>
+                      {profile.links.length > 1 && (
+                        <button type="button" onClick={async () => {
+                          const confirmed = await confirm({ title: "Remove link?", message: `Remove "${entry.name || "this link"}"? This can't be undone.`, confirmLabel: "Remove" });
+                          if (!confirmed) return;
+                          removeLinkEntry(entry.id);
+                        }} className="mt-3 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]">
+                          Remove link
+                        </button>
+                      )}
+                    </ProfileFormEntry>
+                  ))}
+                </div>
+              </CollapsibleSection>
+
+              <CollapsibleSection
+                label="Target Role & Skills"
+                description="What you're looking for and your top skills"
+                color="var(--yellow)"
+                defaultOpen={false}
+              >
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <NeoInput label="Target Role" placeholder="e.g. Frontend Engineer" value={profile.targetRole} onChange={setProfileField("targetRole")} />
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold">Experience Level</label>
-                    <select
-                      value={profile.experience}
-                      onChange={(e) => setProfile((p) => ({ ...p, experience: e.target.value }))}
-                      className="rounded-full bg-white px-4 py-2.5 font-sans text-sm outline-none neo-border"
-                    >
+                    <select value={profile.experience} onChange={(e) => setProfile((p) => ({ ...p, experience: e.target.value }))} className="rounded-full bg-white px-4 py-2.5 font-sans text-sm outline-none neo-border">
                       <option value="">Select...</option>
                       <option>Internship</option>
                       <option>Entry Level (0-2 yrs)</option>
@@ -905,66 +1140,107 @@ export default function OnboardingPage() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold">Top Skills</label>
-                  <div className="flex min-h-11 flex-wrap gap-1.5 rounded-xl bg-white px-3 py-2 neo-border-sm">
+                  <div className="flex min-h-11 flex-wrap gap-1.5 rounded-xl bg-[var(--background)] px-3 py-2 neo-border-sm">
                     {profile.skills.map((s) => (
-                      <NeoBadge
-                        key={s}
-                        color="var(--mint)"
-                        className="cursor-pointer"
-                        onClick={() => setProfile((p) => ({ ...p, skills: p.skills.filter((x) => x !== s) }))}
-                      >
+                      <NeoBadge key={s} color="var(--mint)" className="cursor-pointer" onClick={async () => {
+                        const confirmed = await confirm({ title: "Remove skill?", message: `Remove "${s}" from your skills?`, confirmLabel: "Remove" });
+                        if (!confirmed) return;
+                        setProfile((p) => ({ ...p, skills: p.skills.filter((x) => x !== s) }));
+                      }}>
                         {s} ✕
                       </NeoBadge>
                     ))}
-                    <input
-                      placeholder="Add skill, press Enter..."
-                      value={newSkill}
-                      onChange={(e) => setNewSkill(e.target.value)}
-                      onKeyDown={addSkill}
-                      className="min-w-[120px] flex-1 border-none bg-transparent font-sans text-[13px] outline-none"
-                    />
+                    <input placeholder="Add skill, press Enter..." value={newSkill} onChange={(e) => setNewSkill(e.target.value)} onKeyDown={addSkill} className="min-w-[120px] flex-1 border-none bg-transparent font-sans text-[13px] outline-none" />
                   </div>
                 </div>
-              </NeoCard>
+              </CollapsibleSection>
 
-              <NeoCard>
-                <SectionHeader label="About You" color="var(--peach)" />
-                <NeoInput placeholder="3-5 sentences about yourself. The AI uses this as context for every resume it generates — be specific!" multiline rows={4} value={profile.about} onChange={setProfileField("about")} />
-              </NeoCard>
+              <CollapsibleSection label="About You" description="A short summary the AI uses for every application" color="var(--peach)" defaultOpen={false}>
+                <NeoInput label="Professional summary" placeholder="3-5 sentences about yourself. The AI uses this as context for every resume it generates — be specific!" multiline rows={4} value={profile.about} onChange={setProfileField("about")} />
+              </CollapsibleSection>
 
-              <NeoCard>
-                <SectionHeader label="Work Experience" color="var(--lav)" />
-                {profile.experience_entries.map((entry, i) => (
-                  <div key={entry.id} className={i < profile.experience_entries.length - 1 ? "mb-6" : ""}>
-                    {i > 0 && <div className="mb-6 h-0.5 bg-[#eeeeee]" aria-hidden />}
-                    <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <NeoInput label="Job Title" placeholder="Frontend Engineer" value={entry.title} onChange={(e) => updateExperienceEntry(entry.id, "title", e.target.value)} />
-                      <NeoInput label="Company" placeholder="Acme Corp" value={entry.company} onChange={(e) => updateExperienceEntry(entry.id, "company", e.target.value)} />
-                      <NeoInput label="Dates" placeholder="Jan 2023 – Present" value={entry.dates} onChange={(e) => updateExperienceEntry(entry.id, "dates", e.target.value)} />
-                    </div>
-                    <NeoInput
-                      label="Bullet Points (aim for 10–15 per role)"
-                      placeholder={"• Led migration from Vue to React, improving velocity by 40%\n• Built real-time dashboard using WebSockets..."}
-                      multiline
-                      rows={6}
-                      value={entry.bullets}
-                      onChange={(e) => updateExperienceEntry(entry.id, "bullets", e.target.value)}
-                    />
-                    <p className="mt-1.5 text-[11px] text-[#888]">📌 More bullets = more AI context. Trim later.</p>
-                  </div>
-                ))}
-                <NeoButton variant="secondary" size="sm" className="mt-4" onClick={addExperienceEntry}>
-                  + Add another role
-                </NeoButton>
-              </NeoCard>
+              <CollapsibleSection label="Work Experience" description="Roles, companies, and bullet points for your resume" color="var(--lav)" defaultOpen={false} action={<NeoButton variant="secondary" size="sm" onClick={addExperienceEntry}>+ Add role</NeoButton>}>
+                <div className="flex flex-col gap-3">
+                  {profile.experience_entries.map((entry) => (
+                    <ProfileFormEntry key={entry.id}>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <NeoInput label="Job Title" placeholder="Frontend Engineer" value={entry.title} onChange={(e) => updateExperienceEntry(entry.id, "title", e.target.value)} />
+                        <NeoInput label="Company" placeholder="Acme Corp" value={entry.company} onChange={(e) => updateExperienceEntry(entry.id, "company", e.target.value)} />
+                        <NeoInput label="Dates" placeholder="Jan 2023 – Present" value={entry.dates} onChange={(e) => updateExperienceEntry(entry.id, "dates", e.target.value)} className="sm:col-span-2" />
+                      </div>
+                      <NeoInput label="Bullet Points (aim for 10–15 per role)" placeholder={"• Led migration from Vue to React, improving velocity by 40%\n• Built real-time dashboard using WebSockets..."} multiline rows={6} value={entry.bullets} onChange={(e) => updateExperienceEntry(entry.id, "bullets", e.target.value)} />
+                      <p className="text-[11px] font-medium text-[#888]">More bullets give the AI more context — you can trim later.</p>
+                      {profile.experience_entries.length > 1 && (
+                        <button type="button" onClick={async () => {
+                          const confirmed = await confirm({ title: "Remove role?", message: `Remove "${entry.title || "this role"}"? This can't be undone.`, confirmLabel: "Remove" });
+                          if (!confirmed) return;
+                          removeExperienceEntry(entry.id);
+                        }} className="cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]">
+                          Remove role
+                        </button>
+                      )}
+                    </ProfileFormEntry>
+                  ))}
+                </div>
+              </CollapsibleSection>
 
-              <div className="flex justify-between">
+              <CollapsibleSection label="Languages" description="Languages you speak and your proficiency level" color="var(--lav-l)" defaultOpen={false} action={<NeoButton variant="secondary" size="sm" onClick={addLanguageEntry}>+ Add</NeoButton>}>
+                <div className="flex flex-col gap-3">
+                  {profile.languages.map((entry) => (
+                    <ProfileFormEntry key={entry.id}>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <NeoInput label="Language" placeholder="e.g. English" value={entry.name} onChange={(e) => updateLanguageEntry(entry.id, "name", e.target.value)} />
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-xs font-bold">Proficiency</label>
+                          <select value={entry.level} onChange={(e) => updateLanguageEntry(entry.id, "level", e.target.value)} className="rounded-full bg-white px-4 py-2.5 font-sans text-sm outline-none neo-border">
+                            {LANGUAGE_LEVELS.map((level) => <option key={level}>{level}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      {profile.languages.length > 1 && (
+                        <button type="button" onClick={async () => {
+                          const confirmed = await confirm({ title: "Remove language?", message: `Remove "${entry.name || "this language"}"? This can't be undone.`, confirmLabel: "Remove" });
+                          if (!confirmed) return;
+                          removeLanguageEntry(entry.id);
+                        }} className="mt-3 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]">
+                          Remove language
+                        </button>
+                      )}
+                    </ProfileFormEntry>
+                  ))}
+                </div>
+              </CollapsibleSection>
+
+              <CollapsibleSection label="Certifications" description="Professional certs, licenses, and credentials" color="var(--peach-l)" defaultOpen={false} action={<NeoButton variant="secondary" size="sm" onClick={addCertificationEntry}>+ Add</NeoButton>}>
+                <div className="flex flex-col gap-3">
+                  {profile.certifications.map((entry) => (
+                    <ProfileFormEntry key={entry.id}>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <NeoInput label="Certification" placeholder="e.g. AWS Solutions Architect" value={entry.name} onChange={(e) => updateCertificationEntry(entry.id, "name", e.target.value)} />
+                        <NeoInput label="Issuer" placeholder="e.g. Amazon Web Services" value={entry.issuer} onChange={(e) => updateCertificationEntry(entry.id, "issuer", e.target.value)} />
+                        <NeoInput label="Date earned" placeholder="e.g. 2024" value={entry.date} onChange={(e) => updateCertificationEntry(entry.id, "date", e.target.value)} />
+                      </div>
+                      {profile.certifications.length > 1 && (
+                        <button type="button" onClick={async () => {
+                          const confirmed = await confirm({ title: "Remove certification?", message: `Remove "${entry.name || "this certification"}"? This can't be undone.`, confirmLabel: "Remove" });
+                          if (!confirmed) return;
+                          removeCertificationEntry(entry.id);
+                        }} className="mt-3 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]">
+                          Remove certification
+                        </button>
+                      )}
+                    </ProfileFormEntry>
+                  ))}
+                </div>
+              </CollapsibleSection>
+
+              <div className="flex justify-between pt-2">
                 <NeoButton variant="secondary" onClick={() => setStep(1)}>← Back</NeoButton>
                 <NeoButton variant="primary" onClick={() => void handleSaveProfile()}>
                   {savingStep === 2 ? "Saving..." : "Save & Continue →"}
                 </NeoButton>
               </div>
-            </div>
+            </ProfileSectionStack>
           </div>
         )}
 
