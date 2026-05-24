@@ -33,10 +33,10 @@ import { computeResumeMatchForDescription } from "@/lib/jobs/resume-flow";
 import {
   CoverLetterPreviewPanel,
   buildMockCoverLetterContent,
+  jobContextFromMatchJob,
   type GeneratedCoverLetter,
 } from "@/components/resume/cover-letter-preview-panel";
 import { NewInterviewPrepWizard } from "@/components/resume/new-interview-prep-wizard";
-import { ImportResumePanel } from "@/components/resumes/import-resume-panel";
 import {
   InterviewPrepPreviewPanel,
   buildMockInterviewPrep,
@@ -186,6 +186,7 @@ function coverLetterFromLibrary(
     title: doc.title,
     matchJob: doc.matchJob ?? "",
     content: buildMockCoverLetterContent(title, company),
+    jobContext: jobContextFromMatchJob(doc.matchJob ?? ""),
   };
 }
 
@@ -1148,10 +1149,6 @@ export function ResumeLibraryView() {
           </div>
           <div className="p-6">
             {activeTab === "resumes" && (
-              <>
-                <div className="mb-6">
-                  <ImportResumePanel />
-                </div>
               <DocumentSection
                 kind="resume"
                 documents={resumeDocuments}
@@ -1181,7 +1178,6 @@ export function ResumeLibraryView() {
                   )
                 }
               />
-              </>
             )}
             {activeTab === "cover-letters" && (
               <DocumentSection

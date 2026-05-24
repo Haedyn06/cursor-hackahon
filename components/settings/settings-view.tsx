@@ -1,11 +1,14 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
+import { useClerk, useUser } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
+import { useRouter } from "next/navigation";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { api } from "@/convex/_generated/api";
 import { API_PROVIDERS, OAUTH_PROVIDERS } from "@/lib/constants";
 import { useToast } from "@/components/providers";
+import { useJobs } from "@/components/providers/jobs-provider";
+import { useResumeBuilderLibrary } from "@/components/providers/resume-builder-library-provider";
 import { NeoBadge } from "@/components/ui/neo-badge";
 import { NeoButton } from "@/components/ui/neo-button";
 import { NeoCard } from "@/components/ui/neo-card";
@@ -20,9 +23,28 @@ import {
   type AiSession,
 } from "@/lib/ai/session";
 import type { ApiProviderId } from "@/lib/ai/types";
+import { clearLocalAppData } from "@/lib/settings/client-data";
 
 const PROVIDERS = API_PROVIDERS;
 const OAUTH = OAUTH_PROVIDERS;
+
+const NOTIFICATION_ITEMS = [
+  {
+    key: "resumeComplete" as const,
+    label: "Resume generation complete",
+    desc: "Get notified when your AI resume is ready",
+  },
+  {
+    key: "applicationReminders" as const,
+    label: "Application reminders",
+    desc: "Reminders to follow up on applications",
+  },
+  {
+    key: "weeklySummary" as const,
+    label: "Weekly summary",
+    desc: "A digest of your job hunt activity",
+  },
+];
 
 function SettingsSection({
   title,
@@ -43,10 +65,20 @@ function SettingsSection({
 
 export function SettingsView() {
   const toast = useToast();
+  const router = useRouter();
   const { user } = useUser();
+  const { openUserProfile, signOut } = useClerk();
+  const { refresh: refreshJobs } = useJobs();
+  const { clearLibrary } = useResumeBuilderLibrary();
   const onboardingState = useQuery(api.onboarding.getOnboardingState);
+  const notificationPreferences = useQuery(api.settings.getNotificationPreferences);
   const saveProviderConnections = useMutation(api.onboarding.saveProviderConnections);
   const disconnectProviderConnection = useMutation(api.onboarding.disconnectProviderConnection);
+  const updateNotificationPreferences = useMutation(
+    api.settings.updateNotificationPreferences,
+  );
+  const deleteAllResumeData = useMutation(api.settings.deleteAllResumeData);
+  const deleteAccountMutation = useMutation(api.settings.deleteAccount);
   const [showProviderUI, setShowProviderUI] = useState(false);
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
   const [providerType, setProviderType] = useState<"apikey" | "oauth">("apikey");
@@ -56,6 +88,7 @@ export function SettingsView() {
   const [aiSession, setAiSession] = useState<AiSession | null>(() => loadAiSession());
   const [openProviderMenu, setOpenProviderMenu] = useState<string | null>(null);
   const [showDangerConfirm, setShowDangerConfirm] = useState<string | null>(null);
+  const [dangerLoading, setDangerLoading] = useState(false);
   const syncedSessionRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -149,6 +182,93 @@ export function SettingsView() {
   const accountName = user?.fullName ?? onboardingState?.user?.name ?? "—";
   const accountEmail =
     user?.primaryEmailAddress?.emailAddress ?? onboardingState?.user?.email ?? "—";
+  const memberSince = user?.createdAt
+    ? new Date(user.createdAt).toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : onboardingState?.user?.createdAt
+      ? new Date(onboardingState.user.createdAt).toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })
+      : null;
+
+  const handleNotificationToggle = async (
+    key: (typeof NOTIFICATION_ITEMS)[number]["key"],
+  ) => {
+    if (!notificationPreferences) return;
+
+    const nextValue = !notificationPreferences[key];
+    try {
+      await updateNotificationPreferences({ [key]: nextValue });
+      toast("Notification preference saved.");
+    } catch (error) {
+      toast(
+        error instanceof Error
+          ? error.message
+          : "Could not update notification preference.",
+        "error",
+      );
+    }
+  };
+
+  const handleDeleteResumeData = async () => {
+    setDangerLoading(true);
+    try {
+      const result = await deleteAllResumeData({});
+      clearLibrary();
+      await refreshJobs();
+      setShowDangerConfirm(null);
+      toast(
+        `Removed ${result.deletedJobs} job${result.deletedJobs === 1 ? "" : "s"} and ${result.deletedImportedResumes} imported resume${result.deletedImportedResumes === 1 ? "" : "s"}. Your profile was kept.`,
+        "warn",
+      );
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "Failed to delete resume data.",
+        "error",
+      );
+    } finally {
+      setDangerLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDangerLoading(true);
+    try {
+      await deleteAccountMutation({});
+      clearLocalAppData();
+      setShowDangerConfirm(null);
+
+      if (user) {
+        await user.delete();
+      } else {
+        await signOut();
+      }
+
+      router.push("/");
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "Failed to delete account.",
+        "error",
+      );
+    } finally {
+      setDangerLoading(false);
+    }
+  };
+
+  const handleDangerConfirm = async (action: string) => {
+    if (action === "delete-resumes") {
+      await handleDeleteResumeData();
+      return;
+    }
+    if (action === "delete-account") {
+      await handleDeleteAccount();
+    }
+  };
 
   const handleVerify = async (providerId: ApiProviderId) => {
     const apiKey = apiKeys[providerId]?.trim();
@@ -512,38 +632,38 @@ export function SettingsView() {
                 </div>
               </div>
             </div>
+            {memberSince ? (
+              <p className="mb-4 text-xs font-medium text-[#888]">
+                Member since {memberSince}
+              </p>
+            ) : null}
             <p className="mb-4 text-xs text-[#888]">
-              Name and email are managed through your auth provider (Clerk).
+              Name, email, and password are managed through your auth provider (Clerk).
             </p>
-            <NeoButton
-              variant="secondary"
-              size="sm"
-              onClick={() => toast("Redirecting to change password...")}
-            >
-              Change password →
-            </NeoButton>
+            <div className="flex flex-wrap gap-2">
+              <NeoButton
+                variant="secondary"
+                size="sm"
+                onClick={() => openUserProfile?.()}
+              >
+                Manage account →
+              </NeoButton>
+              <NeoButton
+                variant="secondary"
+                size="sm"
+                onClick={() => openUserProfile?.()}
+              >
+                Change password →
+              </NeoButton>
+            </div>
           </NeoCard>
         </SettingsSection>
 
         <SettingsSection title="Notifications">
           <NeoCard>
-            {[
-              {
-                label: "Resume generation complete",
-                desc: "Get notified when your AI resume is ready",
-                on: true,
-              },
-              {
-                label: "Application reminders",
-                desc: "Reminders to follow up on applications",
-                on: false,
-              },
-              {
-                label: "Weekly summary",
-                desc: "A digest of your job hunt activity",
-                on: true,
-              },
-            ].map((item, i, arr) => (
+            {NOTIFICATION_ITEMS.map((item, i, arr) => {
+              const enabled = notificationPreferences?.[item.key] ?? false;
+              return (
               <div
                 key={item.label}
                 className="flex items-center justify-between py-3"
@@ -559,17 +679,21 @@ export function SettingsView() {
                   <div className="mt-0.5 text-xs text-[#888]">{item.desc}</div>
                 </div>
                 <button
-                  onClick={() => toast("Preference updated")}
-                  className="relative h-6 w-11 shrink-0 cursor-pointer rounded-full neo-border-sm"
-                  style={{ background: item.on ? "var(--mint)" : "#dddddd" }}
+                  type="button"
+                  aria-pressed={enabled}
+                  disabled={!notificationPreferences}
+                  onClick={() => void handleNotificationToggle(item.key)}
+                  className="relative h-6 w-11 shrink-0 cursor-pointer rounded-full neo-border-sm disabled:cursor-not-allowed disabled:opacity-60"
+                  style={{ background: enabled ? "var(--mint)" : "#dddddd" }}
                 >
                   <div
                     className="absolute top-0.5 h-4 w-4 rounded-full bg-white neo-border-sm transition-[left]"
-                    style={{ left: item.on ? 22 : 2 }}
+                    style={{ left: enabled ? 22 : 2 }}
                   />
                 </button>
               </div>
-            ))}
+            );
+            })}
           </NeoCard>
         </SettingsSection>
 
@@ -608,12 +732,10 @@ export function SettingsView() {
                       <NeoButton
                         variant="danger"
                         size="sm"
-                        onClick={() => {
-                          setShowDangerConfirm(null);
-                          toast("Deleted.", "error");
-                        }}
+                        disabled={dangerLoading}
+                        onClick={() => void handleDangerConfirm(item.action)}
                       >
-                        Confirm
+                        {dangerLoading ? "Deleting…" : "Confirm"}
                       </NeoButton>
                     </div>
                   ) : (

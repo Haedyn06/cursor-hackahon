@@ -43,6 +43,15 @@ export function buildLibraryCoverLetterFromJob(
     title: `${job.company} — Cover Letter`,
     matchJob: jobMatchLabel(job.position, job.company),
     content,
+    jobContext: {
+      position: job.position,
+      company: job.company,
+      jobDesc: job.jobDesc,
+      location: job.location || undefined,
+      incomeRange: job.incomeRange || undefined,
+      workType: job.workType || undefined,
+      environmentType: job.environmentType || undefined,
+    },
   };
 }
 

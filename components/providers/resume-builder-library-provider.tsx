@@ -16,6 +16,7 @@ import type { MockDocument } from "@/lib/mock-data";
 import {
   loadBuilderLibrary,
   persistBuilderLibrary,
+  clearBuilderLibrary,
   upsertGeneratedCoverLetter,
   upsertGeneratedInterviewPrep,
   upsertGeneratedResume,
@@ -36,6 +37,7 @@ type ResumeBuilderLibraryContextValue = {
   setResumes: (updater: (items: MockDocument[]) => MockDocument[]) => void;
   setCoverLetters: (updater: (items: MockDocument[]) => MockDocument[]) => void;
   setInterviewPrep: (updater: (items: MockDocument[]) => MockDocument[]) => void;
+  clearLibrary: () => void;
 };
 
 const ResumeBuilderLibraryContext =
@@ -109,6 +111,10 @@ export function ResumeBuilderLibraryProvider({ children }: { children: ReactNode
     [],
   );
 
+  const clearLibrary = useCallback(() => {
+    setStore(clearBuilderLibrary());
+  }, []);
+
   const value = useMemo(
     () => ({
       hydrated,
@@ -124,6 +130,7 @@ export function ResumeBuilderLibraryProvider({ children }: { children: ReactNode
       setResumes,
       setCoverLetters,
       setInterviewPrep,
+      clearLibrary,
     }),
     [
       hydrated,
@@ -134,6 +141,7 @@ export function ResumeBuilderLibraryProvider({ children }: { children: ReactNode
       setResumes,
       setCoverLetters,
       setInterviewPrep,
+      clearLibrary,
     ],
   );
 
