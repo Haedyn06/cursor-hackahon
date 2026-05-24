@@ -13,10 +13,10 @@ import {
   DownloadIcon,
   useDownloadFormat,
 } from "@/components/ui/download-format-dialog";
+import { getInitialResumeLibrary } from "@/lib/onboarding-storage";
 import {
   MOCK_COVER_LETTERS,
   MOCK_INTERVIEW_PREP,
-  MOCK_RESUMES,
   type MockDocument,
 } from "@/lib/mock-data";
 import { NewResumeWizard } from "@/components/resume/new-resume-wizard";
@@ -847,7 +847,7 @@ export function ResumeLibraryView() {
   const [interviewViewMode, setInterviewViewMode] = useState<"grid" | "list">(
     "list",
   );
-  const [resumes, setResumes] = useState(() => structuredClone(MOCK_RESUMES));
+  const [resumes, setResumes] = useState(() => getInitialResumeLibrary());
   const [coverLetters, setCoverLetters] = useState(() =>
     structuredClone(MOCK_COVER_LETTERS),
   );

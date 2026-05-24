@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/layout/logo";
 
@@ -151,6 +152,107 @@ const PAGE_TITLES: Record<string, string> = {
   settings: "Settings",
 };
 
+function UserMenu() {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label="Account menu"
+        className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-[var(--lav)] font-heading text-sm font-extrabold neo-border-sm transition-transform duration-150 hover:scale-105"
+      >
+        AJ
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="absolute top-[calc(100%+8px)] right-0 z-[200] min-w-[160px] overflow-hidden rounded-xl bg-white p-1.5 shadow-[4px_4px_0_#1a1a1a] neo-border"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              router.push("/settings");
+            }}
+            className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg border-none bg-transparent px-3.5 py-2.5 text-left font-sans text-[13px] font-bold text-[var(--foreground)] transition-colors hover:bg-[var(--mint-l)]"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+            Settings
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              router.push("/");
+            }}
+            className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg border-none bg-transparent px-3.5 py-2.5 text-left font-sans text-[13px] font-bold text-[#cc0000] transition-colors hover:bg-[var(--peach-l)]"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            Log out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const segment = pathname.split("/")[1] ?? "jobs";
@@ -165,36 +267,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {title}
           </div>
           <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="inline-flex cursor-pointer items-center gap-1 rounded-full border-2 border-[var(--foreground)] bg-white px-3 py-[5px] font-sans text-[11px] font-bold text-[#888] transition-colors duration-150 hover:bg-[var(--background)]"
-            >
-              <span className="tracking-widest">···</span>
-              Landing
-            </Link>
-            <Link
-              href="/onboarding"
-              className="inline-flex cursor-pointer items-center gap-1 rounded-full border-2 border-[var(--foreground)] bg-white px-3 py-[5px] font-sans text-[11px] font-bold text-[#888] transition-colors duration-150 hover:bg-[var(--background)]"
-            >
-              <svg
-                width="11"
-                height="11"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                <polyline points="1 4 1 10 7 10" />
-                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-              </svg>
-              Onboarding
-            </Link>
-            <div className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-[var(--lav)] font-heading text-sm font-extrabold neo-border-sm">
-              AJ
-            </div>
+            <UserMenu />
           </div>
         </div>
         <div className="flex flex-1 overflow-hidden">{children}</div>

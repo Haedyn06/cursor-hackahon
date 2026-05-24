@@ -6,9 +6,13 @@ import { NeoBadge } from "@/components/ui/neo-badge";
 import { NeoButton } from "@/components/ui/neo-button";
 import { NeoCard } from "@/components/ui/neo-card";
 import { NeoInput } from "@/components/ui/neo-input";
-import { SectionHeader } from "@/components/ui/match-score";
+import {
+  CollapsibleSection,
+  ProfileFormEntry,
+  ProfileSectionStack,
+} from "@/components/ui/collapsible-section";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { MOCK_PROFILE } from "@/lib/mock-data";
+import { getInitialProfile } from "@/lib/onboarding-storage";
 
 const NAV_ITEMS = [
   { id: "personal", label: "Personal Info" },
@@ -87,7 +91,10 @@ export function ProfileView() {
   const [activeSection, setActiveSection] = useState("personal");
   const [newSkill, setNewSkill] = useState("");
   const [exportFormat, setExportFormat] = useState<"pdf" | "docx" | "txt">("pdf");
-  const [profile, setProfile] = useState(() => structuredClone(MOCK_PROFILE));
+  const [profile, setProfile] = useState(() => getInitialProfile());
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(NAV_ITEMS.map((item) => [item.id, true])),
+  );
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Record<string, unknown> | null>(
     null,
@@ -120,8 +127,13 @@ export function ProfileView() {
     toast(`Export as ${exportFormat.toUpperCase()} — coming soon!`);
   };
 
+  const setSectionOpen = (id: string, open: boolean) => {
+    setOpenSections((prev) => ({ ...prev, [id]: open }));
+  };
+
   const scrollTo = (id: string) => {
     setActiveSection(id);
+    setSectionOpen(id, true);
     document.getElementById(`section-${id}`)?.scrollIntoView({
       block: "start",
       behavior: "smooth",
@@ -231,9 +243,15 @@ export function ProfileView() {
             </div>
           </NeoCard>
 
-          <div id="section-personal" className="mb-8">
-            <SectionHeader label="Personal Info" color="var(--mint)" />
-            <NeoCard>
+          <ProfileSectionStack>
+          <CollapsibleSection
+            id="section-personal"
+            label="Personal Info"
+            description="Name, contact details, and professional summary"
+            color="var(--mint)"
+            open={openSections.personal}
+            onOpenChange={(open) => setSectionOpen("personal", open)}
+          >
               {isEditing("personal") && editDraft ? (
                 <>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -357,35 +375,37 @@ export function ProfileView() {
                   </div>
                 </>
               )}
-            </NeoCard>
-          </div>
+          </CollapsibleSection>
 
-          <div id="section-links" className="mb-8">
-            <SectionHeader
-              label="Links"
-              color="var(--lav)"
-              action={
-                <NeoButton
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    const newLink = { id: Date.now(), name: "", url: "" };
-                    setProfile((p) => ({
-                      ...p,
-                      links: [...p.links, newLink],
-                    }));
-                    startEdit(`link-${newLink.id}`, { name: "", url: "" });
-                  }}
-                >
-                  + Add Link
-                </NeoButton>
-              }
-            />
+          <CollapsibleSection
+            id="section-links"
+            label="Links"
+            description="LinkedIn, portfolio, and other profile URLs"
+            color="var(--lav)"
+            open={openSections.links}
+            onOpenChange={(open) => setSectionOpen("links", open)}
+            action={
+              <NeoButton
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const newLink = { id: Date.now(), name: "", url: "" };
+                  setProfile((p) => ({
+                    ...p,
+                    links: [...p.links, newLink],
+                  }));
+                  startEdit(`link-${newLink.id}`, { name: "", url: "" });
+                }}
+              >
+                + Add Link
+              </NeoButton>
+            }
+          >
             {profile.links.map((link) => {
               const linkKey = `link-${link.id}`;
               const editing = isEditing(linkKey) && editDraft;
               return (
-              <NeoCard key={link.id} className="mb-3">
+              <ProfileFormEntry key={link.id}>
                 {editing ? (
                   <>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -466,38 +486,41 @@ export function ProfileView() {
                     </div>
                   </div>
                 )}
-              </NeoCard>
+              </ProfileFormEntry>
             );
             })}
-          </div>
+          </CollapsibleSection>
 
-          <div id="section-experience" className="mb-8">
-            <SectionHeader
-              label="Work Experience"
-              color="var(--lav)"
-              action={
-                <NeoButton
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    const newEntry = {
-                      id: Date.now(),
-                      title: "New Role",
-                      company: "",
-                      dates: "",
-                      bullets: [],
-                    };
-                    setProfile((p) => ({
-                      ...p,
-                      experience_entries: [...p.experience_entries, newEntry],
-                    }));
-                    startEdit(`experience-${newEntry.id}`, newEntry);
-                  }}
-                >
-                  + Add Role
-                </NeoButton>
-              }
-            />
+          <CollapsibleSection
+            id="section-experience"
+            label="Work Experience"
+            description="Roles, companies, and resume bullet points"
+            color="var(--lav)"
+            open={openSections.experience}
+            onOpenChange={(open) => setSectionOpen("experience", open)}
+            action={
+              <NeoButton
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const newEntry = {
+                    id: Date.now(),
+                    title: "New Role",
+                    company: "",
+                    dates: "",
+                    bullets: [],
+                  };
+                  setProfile((p) => ({
+                    ...p,
+                    experience_entries: [...p.experience_entries, newEntry],
+                  }));
+                  startEdit(`experience-${newEntry.id}`, newEntry);
+                }}
+              >
+                + Add Role
+              </NeoButton>
+            }
+          >
             {profile.experience_entries.map((entry) => {
               const entryKey = `experience-${entry.id}`;
               const editing = isEditing(entryKey) && editDraft;
@@ -505,7 +528,7 @@ export function ProfileView() {
               const draftBullets = (editDraft?.bullets as BulletDraft[] | undefined) ?? [];
 
               return (
-              <NeoCard key={entry.id} className="mb-4">
+              <ProfileFormEntry key={entry.id}>
                 {editing ? (
                   <>
                     <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -680,43 +703,46 @@ export function ProfileView() {
                     </div>
                   </>
                 )}
-              </NeoCard>
+              </ProfileFormEntry>
             );
             })}
-          </div>
+          </CollapsibleSection>
 
-          <div id="section-projects" className="mb-8">
-            <SectionHeader
-              label="Projects"
-              color="var(--peach)"
-              action={
-                <NeoButton
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    const newProj = {
-                      id: Date.now(),
-                      title: "New Project",
-                      url: "",
-                      desc: "",
-                      active: true,
-                    };
-                    setProfile((p) => ({
-                      ...p,
-                      projects: [...p.projects, newProj],
-                    }));
-                    startEdit(`project-${newProj.id}`, newProj);
-                  }}
-                >
-                  + Add Project
-                </NeoButton>
-              }
-            />
+          <CollapsibleSection
+            id="section-projects"
+            label="Projects"
+            description="Side projects and open-source work"
+            color="var(--peach)"
+            open={openSections.projects}
+            onOpenChange={(open) => setSectionOpen("projects", open)}
+            action={
+              <NeoButton
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const newProj = {
+                    id: Date.now(),
+                    title: "New Project",
+                    url: "",
+                    desc: "",
+                    active: true,
+                  };
+                  setProfile((p) => ({
+                    ...p,
+                    projects: [...p.projects, newProj],
+                  }));
+                  startEdit(`project-${newProj.id}`, newProj);
+                }}
+              >
+                + Add Project
+              </NeoButton>
+            }
+          >
             {profile.projects.map((proj) => {
               const projKey = `project-${proj.id}`;
               const editing = isEditing(projKey) && editDraft;
               return (
-              <NeoCard key={proj.id} className="mb-3">
+              <ProfileFormEntry key={proj.id}>
                 {editing ? (
                   <>
                     <div className="grid grid-cols-1 gap-3">
@@ -823,14 +849,19 @@ export function ProfileView() {
                     </div>
                   </div>
                 )}
-              </NeoCard>
+              </ProfileFormEntry>
             );
             })}
-          </div>
+          </CollapsibleSection>
 
-          <div id="section-skills" className="mb-8">
-            <SectionHeader label="Skills" color="var(--yellow)" />
-            <NeoCard>
+          <CollapsibleSection
+            id="section-skills"
+            label="Skills"
+            description="Technologies and tools you work with"
+            color="var(--yellow)"
+            open={openSections.skills}
+            onOpenChange={(open) => setSectionOpen("skills", open)}
+          >
               <div className="flex min-h-12 flex-wrap gap-2 rounded-xl bg-white px-3 py-2 neo-border-sm">
                 {profile.skills.map((s) => (
                   <NeoBadge
@@ -873,39 +904,41 @@ export function ProfileView() {
                   className="min-w-[140px] flex-1 border-none bg-transparent font-sans text-[13px] outline-none"
                 />
               </div>
-            </NeoCard>
-          </div>
+          </CollapsibleSection>
 
-          <div id="section-languages" className="mb-8">
-            <SectionHeader
-              label="Languages"
-              color="var(--lav-l)"
-              action={
-                <NeoButton
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    const newLang = {
-                      id: Date.now(),
-                      name: "",
-                      level: "Conversational",
-                    };
-                    setProfile((p) => ({
-                      ...p,
-                      languages: [...p.languages, newLang],
-                    }));
-                    startEdit(`language-${newLang.id}`, newLang);
-                  }}
-                >
-                  + Add Language
-                </NeoButton>
-              }
-            />
+          <CollapsibleSection
+            id="section-languages"
+            label="Languages"
+            description="Spoken languages and proficiency levels"
+            color="var(--lav-l)"
+            open={openSections.languages}
+            onOpenChange={(open) => setSectionOpen("languages", open)}
+            action={
+              <NeoButton
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const newLang = {
+                    id: Date.now(),
+                    name: "",
+                    level: "Conversational",
+                  };
+                  setProfile((p) => ({
+                    ...p,
+                    languages: [...p.languages, newLang],
+                  }));
+                  startEdit(`language-${newLang.id}`, newLang);
+                }}
+              >
+                + Add Language
+              </NeoButton>
+            }
+          >
             {profile.languages.map((lang) => {
               const langKey = `language-${lang.id}`;
               const editing = isEditing(langKey) && editDraft;
               return (
-              <NeoCard key={lang.id} className="mb-3">
+              <ProfileFormEntry key={lang.id}>
                 {editing ? (
                   <>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -992,42 +1025,45 @@ export function ProfileView() {
                     </div>
                   </div>
                 )}
-              </NeoCard>
+              </ProfileFormEntry>
             );
             })}
-          </div>
+          </CollapsibleSection>
 
-          <div id="section-certifications" className="mb-8">
-            <SectionHeader
-              label="Certifications"
-              color="var(--peach-l)"
-              action={
-                <NeoButton
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    const newCert = {
-                      id: Date.now(),
-                      name: "",
-                      issuer: "",
-                      date: "",
-                    };
-                    setProfile((p) => ({
-                      ...p,
-                      certifications: [...p.certifications, newCert],
-                    }));
-                    startEdit(`cert-${newCert.id}`, newCert);
-                  }}
-                >
-                  + Add Certification
-                </NeoButton>
-              }
-            />
+          <CollapsibleSection
+            id="section-certifications"
+            label="Certifications"
+            description="Professional credentials and licenses"
+            color="var(--peach-l)"
+            open={openSections.certifications}
+            onOpenChange={(open) => setSectionOpen("certifications", open)}
+            action={
+              <NeoButton
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const newCert = {
+                    id: Date.now(),
+                    name: "",
+                    issuer: "",
+                    date: "",
+                  };
+                  setProfile((p) => ({
+                    ...p,
+                    certifications: [...p.certifications, newCert],
+                  }));
+                  startEdit(`cert-${newCert.id}`, newCert);
+                }}
+              >
+                + Add Certification
+              </NeoButton>
+            }
+          >
             {profile.certifications.map((cert) => {
               const certKey = `cert-${cert.id}`;
               const editing = isEditing(certKey) && editDraft;
               return (
-              <NeoCard key={cert.id} className="mb-3">
+              <ProfileFormEntry key={cert.id}>
                 {editing ? (
                   <>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1119,43 +1155,46 @@ export function ProfileView() {
                     </div>
                   </div>
                 )}
-              </NeoCard>
+              </ProfileFormEntry>
             );
             })}
-          </div>
+          </CollapsibleSection>
 
-          <div id="section-education" className="mb-8">
-            <SectionHeader
-              label="Education"
-              color="var(--mint-l)"
-              action={
-                <NeoButton
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    const newEdu = {
-                      id: Date.now(),
-                      degree: "New Degree",
-                      school: "",
-                      dates: "",
-                      gpa: "",
-                    };
-                    setProfile((p) => ({
-                      ...p,
-                      education: [...p.education, newEdu],
-                    }));
-                    startEdit(`education-${newEdu.id}`, newEdu);
-                  }}
-                >
-                  + Add Education
-                </NeoButton>
-              }
-            />
+          <CollapsibleSection
+            id="section-education"
+            label="Education"
+            description="Degrees, schools, and academic details"
+            color="var(--mint-l)"
+            open={openSections.education}
+            onOpenChange={(open) => setSectionOpen("education", open)}
+            action={
+              <NeoButton
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const newEdu = {
+                    id: Date.now(),
+                    degree: "New Degree",
+                    school: "",
+                    dates: "",
+                    gpa: "",
+                  };
+                  setProfile((p) => ({
+                    ...p,
+                    education: [...p.education, newEdu],
+                  }));
+                  startEdit(`education-${newEdu.id}`, newEdu);
+                }}
+              >
+                + Add Education
+              </NeoButton>
+            }
+          >
             {profile.education.map((edu) => {
               const eduKey = `education-${edu.id}`;
               const editing = isEditing(eduKey) && editDraft;
               return (
-              <NeoCard key={edu.id} className="mb-3">
+              <ProfileFormEntry key={edu.id}>
                 {editing ? (
                   <>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1256,13 +1295,19 @@ export function ProfileView() {
                     </div>
                   </div>
                 )}
-              </NeoCard>
+              </ProfileFormEntry>
             );
             })}
-          </div>
+          </CollapsibleSection>
 
-          <div id="section-library" className="mb-8">
-            <SectionHeader label="Resume Library" color="var(--lav)" />
+          <CollapsibleSection
+            id="section-library"
+            label="Resume Library"
+            description="Saved resumes tied to your applications"
+            color="var(--lav)"
+            open={openSections.library}
+            onOpenChange={(open) => setSectionOpen("library", open)}
+          >
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {profile.resumeLibrary.map((resume) => (
                 <NeoCard key={resume.id} className="p-4">
@@ -1293,7 +1338,8 @@ export function ProfileView() {
                 </NeoCard>
               ))}
             </div>
-          </div>
+          </CollapsibleSection>
+          </ProfileSectionStack>
         </div>
       </div>
     </div>
