@@ -76,6 +76,12 @@ export function CollapsibleSection({
     onOpenChange?.(next);
   };
 
+  const expand = () => {
+    if (open) return;
+    if (controlledOpen === undefined) setInternalOpen(true);
+    onOpenChange?.(true);
+  };
+
   return (
     <div id={id} className={cn("scroll-mt-24", className)}>
       <div
@@ -124,7 +130,10 @@ export function CollapsibleSection({
             {action && (
               <div
                 className="shrink-0 border-l-2 border-[var(--foreground)]/10 pl-3"
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  expand();
+                }}
                 onKeyDown={(e) => e.stopPropagation()}
                 role="presentation"
               >

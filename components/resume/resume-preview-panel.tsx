@@ -1,27 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { NeoBadge } from "@/components/ui/neo-badge";
 import { NeoButton } from "@/components/ui/neo-button";
 import { MatchScore } from "@/components/ui/match-score";
-import { MOCK_RESUME } from "@/lib/mock-data";
+import { AtsResumeTemplate } from "@/components/resume/ats-resume-template";
+import {
+  buildResumeDocument,
+  parseResumeText,
+  resumeDocumentToPlainText,
+  type ResumeDocument,
+} from "@/lib/resume-document";
 
 export type GeneratedResume = {
   id: number;
   title: string;
   matchJob: string;
   templateName: string;
+  templateId?: string;
   content: string;
+  document?: ResumeDocument;
   matchScore: number;
   matchedKeywords: string[];
   missingKeywords: string[];
+};
+
+export type ResumeDownloadContext = {
+  document: ResumeDocument;
+  getExportElement: () => HTMLElement | null;
 };
 
 type ResumePreviewPanelProps = {
   resume: GeneratedResume;
   onBack: () => void;
   onSave: (resume: GeneratedResume) => void;
-  onDownload: () => void;
+  onDownload: (context: ResumeDownloadContext) => void | Promise<void>;
 };
 
 export function ResumePreviewPanel({
@@ -30,8 +43,23 @@ export function ResumePreviewPanel({
   onSave,
   onDownload,
 }: ResumePreviewPanelProps) {
+  const exportRef = useRef<HTMLDivElement>(null);
   const [editing, setEditing] = useState(false);
   const [content, setContent] = useState(resume.content);
+
+  const resumeDocument = useMemo(
+    () => (editing ? parseResumeText(content) : resume.document ?? parseResumeText(content)),
+    [content, editing, resume.document],
+  );
+
+  const persistContent = () => {
+    const parsed = parseResumeText(content);
+    return {
+      ...resume,
+      content,
+      document: parsed,
+    };
+  };
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-[var(--background)]">
@@ -66,7 +94,7 @@ export function ResumePreviewPanel({
                 variant="mint"
                 size="sm"
                 onClick={() => {
-                  onSave({ ...resume, content });
+                  onSave(persistContent());
                   setEditing(false);
                 }}
               >
@@ -78,13 +106,22 @@ export function ResumePreviewPanel({
               <NeoButton variant="secondary" size="sm" onClick={() => setEditing(true)}>
                 Edit
               </NeoButton>
-              <NeoButton variant="secondary" size="sm" onClick={onDownload}>
+              <NeoButton
+                variant="secondary"
+                size="sm"
+                onClick={() =>
+                  void onDownload({
+                    document: resumeDocument,
+                    getExportElement: () => exportRef.current,
+                  })
+                }
+              >
                 Download
               </NeoButton>
               <NeoButton
                 variant="mint"
                 size="sm"
-                onClick={() => onSave({ ...resume, content })}
+                onClick={() => onSave(persistContent())}
               >
                 Save to Library
               </NeoButton>
@@ -95,7 +132,7 @@ export function ResumePreviewPanel({
 
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 overflow-y-auto p-8">
-          <div className="mx-auto max-w-[720px]">
+          <div className="mx-auto max-w-[900px]">
             <div className="mb-6 flex items-start gap-4 rounded-2xl bg-white p-5 neo-border">
               <MatchScore score={resume.matchScore} size="lg" />
               <div className="flex-1">
@@ -124,8 +161,12 @@ export function ResumePreviewPanel({
                 className="min-h-[520px] w-full resize-y rounded-xl bg-white p-8 font-sans text-[13px] leading-relaxed outline-none neo-border"
               />
             ) : (
-              <div className="rounded-xl bg-white p-8 text-[13px] leading-relaxed whitespace-pre-line neo-border">
-                {content}
+              <div className="overflow-x-auto pb-4">
+                <AtsResumeTemplate
+                  ref={exportRef}
+                  document={resumeDocument}
+                  variant="screen"
+                />
               </div>
             )}
           </div>
@@ -136,8 +177,9 @@ export function ResumePreviewPanel({
 }
 
 export function buildMockResumeContent(jobTitle: string, company: string): string {
-  return MOCK_RESUME.replace(
-    "Frontend Engineer with 4 years",
-    `${jobTitle} candidate with 4 years`,
-  ).replace("Acme Corp", company);
+  return resumeDocumentToPlainText(buildResumeDocument(jobTitle, company));
+}
+
+export function buildMockResume(jobTitle: string, company: string): ResumeDocument {
+  return buildResumeDocument(jobTitle, company);
 }

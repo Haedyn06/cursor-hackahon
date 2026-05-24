@@ -1,18 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useToast } from "@/components/providers";
 import { NeoBadge } from "@/components/ui/neo-badge";
 import { NeoButton } from "@/components/ui/neo-button";
 import { NeoCard } from "@/components/ui/neo-card";
 import { NeoInput } from "@/components/ui/neo-input";
+import { verifyApiKey } from "@/lib/ai/client";
+import { AI_PROVIDER_CONFIGS } from "@/lib/ai/providers";
+import {
+  clearAiSession,
+  loadAiSession,
+  maskApiKey,
+  saveAiSession,
+  type AiSession,
+} from "@/lib/ai/session";
+import type { ApiProviderId } from "@/lib/ai/types";
+import { API_PROVIDERS } from "@/lib/constants";
 
-const PROVIDERS = [
-  { id: "openai", name: "OpenAI", desc: "GPT-4o & o1", badge: "Pay-as-you-go", color: "var(--mint)" },
-  { id: "anthropic", name: "Anthropic", desc: "Claude 3.5 Sonnet", badge: "Free tier", color: "var(--lav)" },
-  { id: "groq", name: "Groq", desc: "Llama 3.3 — ultra fast", badge: "Free tier", color: "var(--peach)" },
-  { id: "gemini", name: "Gemini", desc: "Gemini 1.5 Pro", badge: "Free tier", color: "var(--yellow)" },
-];
+const PROVIDERS = API_PROVIDERS.map((provider) => ({
+  id: provider.id,
+  name: provider.name,
+  desc: provider.desc,
+  badge: provider.badge,
+  color: provider.color,
+}));
 
 const OAUTH = [
   { id: "copilot", name: "GitHub Copilot", desc: "GPT-4o via GitHub", badge: "OAuth", color: "var(--mint)" },
@@ -41,26 +53,60 @@ export function SettingsView() {
   const [showProviderUI, setShowProviderUI] = useState(false);
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
   const [providerType, setProviderType] = useState<"apikey" | "oauth">("apikey");
-  const [apiKey, setApiKey] = useState("");
-  const [verified, setVerified] = useState(false);
-  const [verifying, setVerifying] = useState(false);
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+  const [verified, setVerified] = useState<Record<string, boolean>>({});
+  const [verifyingProvider, setVerifyingProvider] = useState<string | null>(null);
+  const [aiSession, setAiSession] = useState<AiSession | null>(null);
   const [showDangerConfirm, setShowDangerConfirm] = useState<string | null>(null);
   const [oauthConnected, setOauthConnected] = useState<Record<string, boolean>>({});
 
-  const currentProvider = {
-    name: "Anthropic",
-    model: "claude-3-5-sonnet-20241022",
-    maskedKey: "sk-ant-••••••••••••••••••XK4D",
-    color: "var(--lav)",
-  };
+  useEffect(() => {
+    const session = loadAiSession();
+    if (!session) return;
+    setAiSession(session);
+    setVerified({ [session.providerId]: true });
+    setApiKeys((keys) => ({ ...keys, [session.providerId]: session.apiKey }));
+  }, []);
 
-  const handleVerify = () => {
-    if (!apiKey.trim()) return;
-    setVerifying(true);
-    setTimeout(() => {
-      setVerifying(false);
-      setVerified(true);
-    }, 1500);
+  const activeProvider = aiSession
+    ? PROVIDERS.find((provider) => provider.id === aiSession.providerId)
+    : null;
+
+  const currentProvider = activeProvider
+    ? {
+        name: activeProvider.name,
+        model: aiSession?.model ?? AI_PROVIDER_CONFIGS[aiSession!.providerId].defaultModel,
+        maskedKey: maskApiKey(aiSession?.apiKey ?? ""),
+        color: activeProvider.color,
+      }
+    : null;
+
+  const handleVerify = async (providerId: ApiProviderId) => {
+    const apiKey = apiKeys[providerId]?.trim();
+    if (!apiKey) return;
+
+    setVerifyingProvider(providerId);
+    try {
+      const result = await verifyApiKey(providerId, apiKey);
+      const session: AiSession = {
+        providerId: result.providerId,
+        apiKey,
+        model: result.model,
+        verifiedAt: new Date().toISOString(),
+      };
+      saveAiSession(session);
+      setAiSession(session);
+      setVerified({ [providerId]: true });
+      setShowProviderUI(false);
+      toast(`${AI_PROVIDER_CONFIGS[providerId].name} connected!`);
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "Could not verify API key.",
+        "error",
+      );
+    } finally {
+      setVerifyingProvider(null);
+    }
   };
 
   return (
@@ -71,45 +117,70 @@ export function SettingsView() {
         </h1>
 
         <SettingsSection title="AI Provider">
-          <NeoCard className="mb-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5">
-                <div
-                  className="flex h-11 w-11 items-center justify-center rounded-xl font-heading text-base font-extrabold neo-border"
-                  style={{ background: currentProvider.color }}
-                >
-                  {currentProvider.name[0]}
+          {currentProvider ? (
+            <NeoCard className="mb-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div
+                    className="flex h-11 w-11 items-center justify-center rounded-xl font-heading text-base font-extrabold neo-border"
+                    style={{ background: currentProvider.color }}
+                  >
+                    {currentProvider.name[0]}
+                  </div>
+                  <div>
+                    <div className="text-base font-extrabold">{currentProvider.name}</div>
+                    <div className="mt-0.5 text-xs font-medium text-[#888]">
+                      {currentProvider.model}
+                    </div>
+                    <div className="mt-0.5 font-mono text-xs text-[#aaa]">
+                      {currentProvider.maskedKey}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-base font-extrabold">{currentProvider.name}</div>
-                  <div className="mt-0.5 text-xs font-medium text-[#888]">
-                    {currentProvider.model}
-                  </div>
-                  <div className="mt-0.5 font-mono text-xs text-[#aaa]">
-                    {currentProvider.maskedKey}
-                  </div>
+                <div className="flex shrink-0 gap-2">
+                  <NeoButton
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setShowProviderUI(!showProviderUI)}
+                  >
+                    Change provider
+                  </NeoButton>
+                  <NeoButton
+                    variant="danger"
+                    size="sm"
+                    onClick={() => {
+                      clearAiSession();
+                      setAiSession(null);
+                      setVerified({});
+                      toast("Provider disconnected", "warn");
+                    }}
+                  >
+                    Disconnect
+                  </NeoButton>
                 </div>
               </div>
-              <div className="flex shrink-0 gap-2">
+            </NeoCard>
+          ) : (
+            <NeoCard className="mb-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <div className="text-base font-extrabold">No provider connected</div>
+                  <div className="mt-1 text-xs font-medium text-[#888]">
+                    Add an API key to enable AI features.
+                  </div>
+                </div>
                 <NeoButton
                   variant="secondary"
                   size="sm"
-                  onClick={() => setShowProviderUI(!showProviderUI)}
+                  onClick={() => setShowProviderUI(true)}
                 >
-                  Change provider
-                </NeoButton>
-                <NeoButton
-                  variant="danger"
-                  size="sm"
-                  onClick={() => toast("Provider disconnected", "warn")}
-                >
-                  Disconnect
+                  Connect provider
                 </NeoButton>
               </div>
-            </div>
-          </NeoCard>
+            </NeoCard>
+          )}
 
-          {showProviderUI && (
+          {(showProviderUI || !currentProvider) && (
             <div className="mt-4">
               <div className="mb-4 flex w-fit overflow-hidden rounded-full neo-border">
                 {(
@@ -140,6 +211,11 @@ export function SettingsView() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   {PROVIDERS.map((prov) => {
                     const isExpanded = expandedProvider === prov.id;
+                    const apiKey = apiKeys[prov.id] ?? "";
+                    const isVerified = !!verified[prov.id];
+                    const isVerifying = verifyingProvider === prov.id;
+                    const keyUrl = AI_PROVIDER_CONFIGS[prov.id].keyUrl;
+
                     return (
                       <div
                         key={prov.id}
@@ -167,7 +243,9 @@ export function SettingsView() {
                         {isExpanded && (
                           <div className="border-t-2 border-[var(--foreground)] px-4 pb-4">
                             <a
-                              href="#"
+                              href={keyUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               className="my-2 block text-[11px] font-bold"
                             >
                               Get API Key ↗
@@ -176,14 +254,17 @@ export function SettingsView() {
                               placeholder={`Paste ${prov.name} API key...`}
                               value={apiKey}
                               onChange={(e) => {
-                                setApiKey(e.target.value);
-                                setVerified(false);
+                                setApiKeys((keys) => ({
+                                  ...keys,
+                                  [prov.id]: e.target.value,
+                                }));
+                                setVerified((state) => ({ ...state, [prov.id]: false }));
                               }}
                               type="password"
                               className="text-[13px]"
                             />
                             <div className="mt-2">
-                              {verified ? (
+                              {isVerified ? (
                                 <NeoBadge color="var(--mint)" className="px-3.5 py-1.5 text-xs">
                                   ✓ Connected!
                                 </NeoBadge>
@@ -191,10 +272,10 @@ export function SettingsView() {
                                 <NeoButton
                                   variant="secondary"
                                   size="sm"
-                                  disabled={verifying || !apiKey.trim()}
-                                  onClick={handleVerify}
+                                  disabled={isVerifying || !apiKey.trim()}
+                                  onClick={() => handleVerify(prov.id)}
                                 >
-                                  {verifying ? "Verifying..." : "Verify key →"}
+                                  {isVerifying ? "Verifying..." : "Verify key →"}
                                 </NeoButton>
                               )}
                             </div>

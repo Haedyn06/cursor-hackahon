@@ -8,12 +8,14 @@ import { ProgressSteps } from "@/components/ui/progress-steps";
 import { SlideOver } from "@/components/ui/slide-over";
 import { useToast } from "@/components/providers";
 import { useJobs } from "@/components/providers/jobs-provider";
+import { generateTailoredResume as generateTailoredResumeApi } from "@/lib/ai/client";
+import { loadAiSession } from "@/lib/ai/session";
+import { buildStoredResumeUpdate } from "@/lib/jobs/persist-generated-content";
+import { getInitialProfile } from "@/lib/onboarding-storage";
+import { resumeDocumentToPlainText } from "@/lib/resume-document";
 import { cn } from "@/lib/utils";
 import type { Job } from "@/lib/types/job";
-import {
-  buildMockResumeContent,
-  type GeneratedResume,
-} from "@/components/resume/resume-preview-panel";
+import type { GeneratedResume } from "@/components/resume/resume-preview-panel";
 
 const WIZARD_STEPS = ["Select job", "Template", "Generate"];
 
@@ -95,7 +97,7 @@ function SourceCard({
 
 export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardProps) {
   const toast = useToast();
-  const { jobs } = useJobs();
+  const { jobs, updateJob } = useJobs();
 
   const [step, setStep] = useState(1);
   const [jobSource, setJobSource] = useState<JobSource>(null);
@@ -111,6 +113,8 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
   });
   const [selectedTemplateId, setSelectedTemplateId] = useState(DEFAULT_TEMPLATE_ID);
   const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const aiSession = open ? loadAiSession() : null;
 
   useEffect(() => {
     if (!open) {
@@ -125,6 +129,7 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
         setManualForm({ title: "", company: "", jd: "" });
         setSelectedTemplateId(DEFAULT_TEMPLATE_ID);
         setGenerating(false);
+        setGenerateError(null);
       });
     }
   }, [open]);
@@ -133,12 +138,20 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
   const selectedTemplate =
     RESUME_TEMPLATES.find((t) => t.id === selectedTemplateId) ?? RESUME_TEMPLATES[0];
 
-  const resolvedJob = (): { title: string; company: string; matchJob: string } | null => {
+  const resolvedJob = (): {
+    title: string;
+    company: string;
+    matchJob: string;
+    description: string;
+  } | null => {
     if (jobSource === "saved" && selectedJob) {
       return {
         title: selectedJob.title,
         company: selectedJob.company,
         matchJob: `${selectedJob.title} @ ${selectedJob.company}`,
+        description:
+          selectedJob.jd.trim() ||
+          `${selectedJob.title} at ${selectedJob.company}`,
       };
     }
     if (jobSource === "new") {
@@ -147,6 +160,7 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
           title: DEMO_EXTRACT.title,
           company: DEMO_EXTRACT.company,
           matchJob: `${DEMO_EXTRACT.title} @ ${DEMO_EXTRACT.company}`,
+          description: DEMO_EXTRACT.jd,
         };
       }
       if (newJobMode === "manual" && manualForm.title && manualForm.company) {
@@ -154,6 +168,9 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
           title: manualForm.title,
           company: manualForm.company,
           matchJob: `${manualForm.title} @ ${manualForm.company}`,
+          description:
+            manualForm.jd.trim() ||
+            `${manualForm.title} at ${manualForm.company}`,
         };
       }
     }
@@ -179,24 +196,74 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
     }, 1800);
   };
 
-  const handleGenerate = () => {
-    if (!jobContext) return;
-    setStep(3);
+  const handleGenerate = async () => {
+    if (!jobContext) {
+      toast("Select a job first.", "error");
+      return;
+    }
+
+    const session = loadAiSession();
+    if (!session) {
+      const message = "No AI provider connected. Go to Settings and verify your API key.";
+      setGenerateError(message);
+      toast(message, "error");
+      return;
+    }
+
+    setGenerateError(null);
     setGenerating(true);
-    setTimeout(() => {
-      setGenerating(false);
+
+    try {
+      const profile = getInitialProfile();
+      const result = await generateTailoredResumeApi({
+        providerId: session.providerId,
+        apiKey: session.apiKey,
+        model: session.model,
+        job: {
+          title: jobContext.title,
+          company: jobContext.company,
+          description: jobContext.description,
+        },
+        profile,
+      });
+
+      const content = resumeDocumentToPlainText(result.resume);
+
       onComplete({
         id: Date.now(),
         title: `${jobContext.company} — ${jobContext.title}`,
         matchJob: jobContext.matchJob,
         templateName: selectedTemplate.name,
-        content: buildMockResumeContent(jobContext.title, jobContext.company),
-        matchScore: 87,
-        matchedKeywords: ["React", "TypeScript", "GraphQL", "CSS"],
-        missingKeywords: ["Kubernetes", "Python"],
+        templateId: selectedTemplate.id,
+        content,
+        document: result.resume,
+        matchScore: result.matchScore,
+        matchedKeywords: result.matchedKeywords,
+        missingKeywords: result.missingKeywords,
       });
-      onClose();
-    }, 2400);
+
+      if (jobSource === "saved" && selectedJobId) {
+        await updateJob(
+          selectedJobId,
+          buildStoredResumeUpdate({
+            document: result.resume,
+            matchScore: result.matchScore,
+            matchedKeywords: result.matchedKeywords,
+            missingKeywords: result.missingKeywords,
+          }),
+        );
+        toast("Resume generated and saved to job!");
+      } else {
+        toast("Resume generated!");
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to generate resume.";
+      setGenerateError(message);
+      toast(message, "error");
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const renderSavedJobs = () => (
@@ -396,6 +463,40 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
 
       {step === 2 && (
         <div className="animate-tab-panel flex flex-col gap-4">
+          {!aiSession && (
+            <div className="rounded-xl bg-[var(--peach)] px-4 py-3 text-xs font-bold neo-border-sm">
+              No AI provider connected. Open Settings, paste your Groq key, and click Verify.
+            </div>
+          )}
+
+          {generateError && (
+            <div className="rounded-xl bg-[var(--red-l)] px-4 py-3 text-xs font-bold text-[#800] neo-border-sm">
+              {generateError}
+            </div>
+          )}
+
+          {generating && (
+            <div className="flex flex-col items-center gap-3 rounded-xl bg-[var(--lav-l)] px-4 py-6 text-center neo-border-sm">
+              <div className="flex h-14 w-14 animate-pulse-soft items-center justify-center rounded-2xl bg-[var(--lav)] text-2xl neo-border-sm">
+                ✦
+              </div>
+              <div className="font-heading text-lg font-extrabold">
+                Generating your resume...
+              </div>
+              <div className="flex flex-wrap justify-center gap-1.5">
+                {["Reading job description", "Analyzing profile", "Tailoring bullets", "Scoring match"].map(
+                  (s) => (
+                    <NeoBadge key={s} color="var(--lav-l)" className="text-[10px]">
+                      {s}
+                    </NeoBadge>
+                  ),
+                )}
+              </div>
+            </div>
+          )}
+
+          {!generating && (
+            <>
           <p className="text-[13px] font-medium text-[#666]">
             Choose a template.{" "}
             <span className="font-bold text-[var(--foreground)]">
@@ -446,38 +547,20 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
           )}
 
           <div className="flex justify-between gap-2 pt-2">
-            <NeoButton variant="secondary" size="sm" onClick={() => setStep(1)}>
+            <NeoButton variant="secondary" size="sm" onClick={() => setStep(1)} disabled={generating}>
               ← Back
             </NeoButton>
-            <NeoButton variant="primary" size="sm" onClick={handleGenerate}>
-              ✦ Generate Resume
+            <NeoButton
+              variant="primary"
+              size="sm"
+              disabled={generating || !aiSession}
+              onClick={() => void handleGenerate()}
+            >
+              {generating ? "Generating..." : "✦ Generate Resume"}
             </NeoButton>
           </div>
-        </div>
-      )}
-
-      {step === 3 && generating && (
-        <div className="animate-tab-panel flex flex-col items-center gap-4 py-10 text-center">
-          <div className="flex h-[72px] w-[72px] animate-pulse-soft items-center justify-center rounded-[20px] bg-[var(--lav)] text-[32px] neo-border">
-            ✦
-          </div>
-          <div className="font-heading text-[22px] font-extrabold">
-            Generating your resume...
-          </div>
-          <div className="flex flex-wrap justify-center gap-1.5">
-            {["Analyzing JD", "Matching skills", "Crafting bullets", "Formatting"].map(
-              (s, i) => (
-                <NeoBadge
-                  key={s}
-                  color="var(--lav-l)"
-                  className="animate-fade-in text-[11px]"
-                  style={{ animationDelay: `${i * 0.3}s` }}
-                >
-                  {s}
-                </NeoBadge>
-              ),
-            )}
-          </div>
+            </>
+          )}
         </div>
       )}
     </SlideOver>

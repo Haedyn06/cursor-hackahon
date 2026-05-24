@@ -17,7 +17,19 @@ export class JobsServiceError extends Error {
 }
 
 async function readJobs(): Promise<Job[]> {
-  return readJsonFile<Job[]>(JOBS_FILE);
+  const jobs = await readJsonFile<Job[]>(JOBS_FILE);
+  return jobs.map(normalizeJob);
+}
+
+function normalizeJob(job: Job): Job {
+  return {
+    ...job,
+    storedResume: job.storedResume ?? null,
+    coverLetterGenerated: job.coverLetterGenerated ?? false,
+    storedCoverLetter: job.storedCoverLetter ?? null,
+    interviewPrepGenerated: job.interviewPrepGenerated ?? false,
+    storedInterviewPrep: job.storedInterviewPrep ?? null,
+  };
 }
 
 async function writeJobs(jobs: Job[]): Promise<void> {
@@ -58,6 +70,11 @@ export async function createJob(input: CreateJobInput): Promise<Job> {
     matchedKeywords: [],
     missingKeywords: [],
     resumeGenerated: false,
+    storedResume: null,
+    coverLetterGenerated: false,
+    storedCoverLetter: null,
+    interviewPrepGenerated: false,
+    storedInterviewPrep: null,
     salary: input.salary?.trim() || "$0",
     deadline: input.deadline ?? null,
     dateApplied: null,

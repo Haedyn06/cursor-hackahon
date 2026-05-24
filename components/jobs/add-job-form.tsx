@@ -7,6 +7,8 @@ import { NeoInput } from "@/components/ui/neo-input";
 import { SlideOver } from "@/components/ui/slide-over";
 import { useToast } from "@/components/providers";
 import { useJobs } from "@/components/providers/jobs-provider";
+import { loadAiSession } from "@/lib/ai/session";
+import { isIndeedJobUrl } from "@/lib/scrape/indeed";
 import { cn } from "@/lib/utils";
 import type { CreateJobInput } from "@/lib/types/job";
 
@@ -25,23 +27,6 @@ const EMPTY_FORM = {
   url: "",
   jd: "",
   source: "LinkedIn",
-};
-
-const DEMO_EXTRACT = {
-  title: "Frontend Engineer",
-  company: "Stripe",
-  url: "https://stripe.com/jobs/listing/frontend-engineer",
-  source: "LinkedIn",
-  jd: `We're looking for a Frontend Engineer to join our team and help shape the future of online commerce.
-
-You'll work on building and improving web products that millions of users interact with daily.
-
-Requirements:
-• 3+ years of frontend experience
-• Strong proficiency in React, TypeScript
-• Experience with CSS and modern styling approaches
-• Knowledge of web performance optimization
-• Experience with REST APIs and GraphQL`,
 };
 
 type AddMode = "ai" | "manual";
@@ -201,13 +186,15 @@ function JobFormFields({
 
 export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
   const toast = useToast();
-  const { createJob } = useJobs();
+  const { createJob, importJobFromUrl } = useJobs();
   const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState<AddMode>("ai");
   const [jobUrl, setJobUrl] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [analyzed, setAnalyzed] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
+  const aiSession = open ? loadAiSession() : null;
 
   useEffect(() => {
     if (!open) {
@@ -215,6 +202,7 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
         setMode("ai");
         setJobUrl("");
         setAnalyzing(false);
+        setAnalyzeError(null);
         setAnalyzed(false);
         setForm(EMPTY_FORM);
       });
@@ -255,18 +243,45 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
     ) =>
       setForm((p) => ({ ...p, [key]: e.target.value }));
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!jobUrl.trim()) return;
+
+    const indeed = isIndeedJobUrl(jobUrl);
+    const session = loadAiSession();
+
+    if (!indeed && !session) {
+      const message = "No AI provider connected. Go to Settings and verify your API key.";
+      setAnalyzeError(message);
+      toast(message, "error");
+      return;
+    }
+
+    setAnalyzeError(null);
     setAnalyzing(true);
-    setTimeout(() => {
-      setAnalyzing(false);
-      setAnalyzed(true);
-      setForm({
-        ...DEMO_EXTRACT,
+
+    try {
+      const job = await importJobFromUrl({
         url: jobUrl.trim(),
+        ...(session
+          ? {
+              providerId: session.providerId,
+              apiKey: session.apiKey,
+              model: session.model,
+            }
+          : {}),
       });
-      toast("Job details extracted!");
-    }, 2200);
+
+      onCreated?.(job);
+      toast(`${job.title} @ ${job.company} imported!`);
+      onClose();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to import job posting.";
+      setAnalyzeError(message);
+      toast(message, "error");
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   const handleModeChange = (next: AddMode) => {
@@ -288,6 +303,24 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
 
       {mode === "ai" && !analyzed && (
         <div key="ai-entry" className="animate-tab-panel flex flex-col gap-4">
+          {!aiSession && !isIndeedJobUrl(jobUrl) && (
+            <div className="rounded-xl bg-[var(--peach)] px-4 py-3 text-xs font-bold neo-border-sm">
+              Connect an AI provider in Settings first — we use it to read non-Indeed job pages.
+            </div>
+          )}
+
+          {isIndeedJobUrl(jobUrl) && (
+            <div className="rounded-xl bg-[var(--mint-l)] px-4 py-3 text-xs font-bold neo-border-sm">
+              Indeed link detected — uses browser scraper (no AI key needed).
+            </div>
+          )}
+
+          {analyzeError && (
+            <div className="rounded-xl bg-[var(--red-l)] px-4 py-3 text-xs font-bold text-[#800] neo-border-sm">
+              {analyzeError}
+            </div>
+          )}
+
           <div className="rounded-2xl bg-[var(--lav-l)] p-4 neo-border">
             <div className="mb-3 flex items-center gap-2.5">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--lav)] text-lg neo-border-sm">
@@ -353,20 +386,23 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
 
             {analyzing && (
               <div className="mt-3 flex flex-wrap gap-1.5 animate-fade-in">
-                {["Fetching page", "Parsing JD", "Extracting keywords"].map(
-                  (step, i) => (
-                    <NeoBadge
-                      key={step}
-                      color={i === 0 ? "var(--mint)" : "#ffffff"}
-                      className={cn(
-                        "text-[10px]",
-                        i > 0 && "animate-pulse-soft",
-                      )}
-                    >
-                      {i === 0 ? "✓" : "…"} {step}
-                    </NeoBadge>
-                  ),
-                )}
+                {[
+                  "Fetching page",
+                  "Extracting text",
+                  "AI analysis",
+                  "Saving job",
+                ].map((step, i) => (
+                  <NeoBadge
+                    key={step}
+                    color={i === 0 ? "var(--mint)" : "#ffffff"}
+                    className={cn(
+                      "text-[10px]",
+                      i > 0 && "animate-pulse-soft",
+                    )}
+                  >
+                    {i === 0 ? "✓" : "…"} {step}
+                  </NeoBadge>
+                ))}
               </div>
             )}
           </div>
@@ -381,17 +417,17 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
             </button>
             <NeoButton
               variant="primary"
-              disabled={!canAnalyze || analyzing}
-              onClick={handleAnalyze}
+              disabled={!canAnalyze || analyzing || (!aiSession && !isIndeedJobUrl(jobUrl))}
+              onClick={() => void handleAnalyze()}
               className="transition-neo"
             >
               {analyzing ? (
                 <span className="flex items-center gap-2">
                   <span className="inline-block h-3.5 w-3.5 animate-spin-slow rounded-full border-2 border-[#aaa] border-t-white" />
-                  Analyzing…
+                  Importing…
                 </span>
               ) : (
-                "✦ Analyze & fill form →"
+                "✦ Scrape & import job →"
               )}
             </NeoButton>
           </div>
