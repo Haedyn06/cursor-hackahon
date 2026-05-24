@@ -1,7 +1,10 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
+import { useMutation, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { api } from "@/convex/_generated/api";
 import { Logo } from "@/components/layout/logo";
 import { NeoButton } from "@/components/ui/neo-button";
 import { NeoBadge } from "@/components/ui/neo-badge";
@@ -10,11 +13,47 @@ import { NeoInput } from "@/components/ui/neo-input";
 import { NeoTabs } from "@/components/ui/neo-tabs";
 import { ProgressSteps } from "@/components/ui/progress-steps";
 import { SectionHeader } from "@/components/ui/match-score";
-import {
-  API_PROVIDERS,
-  OAUTH_PROVIDERS,
-} from "@/lib/constants";
-import { MOCK_ONBOARDING_RESUMES } from "@/lib/mock-data";
+import { API_PROVIDERS, OAUTH_PROVIDERS } from "@/lib/constants";
+
+type ResumeItem = {
+  id: number;
+  storageId?: string;
+  file: string;
+  aiName: string;
+  naming: boolean;
+  mimeType?: string;
+  sizeBytes?: number;
+  sourceType: "upload" | "paste";
+  status: "pending" | "imported" | "parsed" | "failed";
+};
+
+function toResumeDisplayName(fileName: string) {
+  return fileName.replace(/\.[^.]+$/, "");
+}
+
+function makeResumeItem(partial: Omit<ResumeItem, "id">): ResumeItem {
+  return {
+    id: Date.now() + Math.floor(Math.random() * 1000),
+    ...partial,
+  };
+}
+
+async function uploadResumeFile(uploadUrl: string, file: File) {
+  const result = await fetch(uploadUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": file.type || "application/octet-stream",
+    },
+    body: file,
+  });
+
+  if (!result.ok) {
+    throw new Error("Upload failed");
+  }
+
+  const { storageId } = await result.json();
+  return storageId as string;
+}
 
 function ApiKeyCard({
   prov,
@@ -151,8 +190,7 @@ function OAuthCard({
       {expanded && (
         <div className="border-t-2 border-[var(--foreground)] px-[18px] pb-[18px]">
           <p className="my-3 text-xs leading-relaxed font-medium text-[#666]">
-            No API key needed — connect via OAuth. We only request permission to
-            use the AI model endpoint.
+            No API key needed — connect via OAuth. We only request permission to use the AI model endpoint.
           </p>
           {connected ? (
             <NeoBadge color="var(--mint)" className="px-3.5 py-1.5 text-xs">
@@ -192,22 +230,14 @@ const defaultProfile = {
   experience: "",
   about: "",
   skills: [] as string[],
-  experience_entries: [
-    { id: 1, title: "", company: "", dates: "", bullets: "" },
-  ],
+  experience_entries: [{ id: 1, title: "", company: "", dates: "", bullets: "" }],
 };
 
 type ProfileState = typeof defaultProfile;
 
-function AIAutoFillZone({
-  onFill,
-}: {
-  onFill: (data: Partial<ProfileState>) => void;
-}) {
+function AIAutoFillZone({ onFill }: { onFill: (data: Partial<ProfileState>) => void }) {
   const [dragOver, setDragOver] = useState(false);
-  const [files, setFiles] = useState<
-    { name: string; type: string; size: number }[]
-  >([]);
+  const [files, setFiles] = useState<{ name: string; type: string; size: number }[]>([]);
   const [pastedText, setPastedText] = useState("");
   const [extracting, setExtracting] = useState(false);
   const [done, setDone] = useState(false);
@@ -216,18 +246,12 @@ function AIAutoFillZone({
     e.preventDefault();
     setDragOver(false);
     const dropped = Array.from(e.dataTransfer.files);
-    setFiles((prev) => [
-      ...prev,
-      ...dropped.map((f) => ({ name: f.name, type: f.type, size: f.size })),
-    ]);
+    setFiles((prev) => [...prev, ...dropped.map((f) => ({ name: f.name, type: f.type, size: f.size }))]);
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files ?? []);
-    setFiles((prev) => [
-      ...prev,
-      ...picked.map((f) => ({ name: f.name, type: f.type, size: f.size })),
-    ]);
+    setFiles((prev) => [...prev, ...picked.map((f) => ({ name: f.name, type: f.type, size: f.size }))]);
   };
 
   const removeFile = (index: number) => {
@@ -259,39 +283,18 @@ function AIAutoFillZone({
         experience: "Mid Level (2-5 yrs)",
         about:
           "Frontend engineer with 4 years building React + TypeScript apps. Passionate about accessibility and developer experience. Looking for a senior IC role at a product-led company.",
-        skills: [
-          "React",
-          "TypeScript",
-          "GraphQL",
-          "CSS",
-          "Next.js",
-          "Jest",
-          "Node.js",
-        ],
+        skills: ["React", "TypeScript", "GraphQL", "CSS", "Next.js", "Jest", "Node.js"],
       });
     }, 2400);
   };
 
   return (
-    <NeoCard
-      className="mb-1 transition-colors duration-200"
-      style={{
-        background: done ? "var(--mint-l)" : "#ffffff",
-        borderWidth: done ? "2.5px" : undefined,
-      }}
-    >
+    <NeoCard className="mb-1 transition-colors duration-200" style={{ background: done ? "var(--mint-l)" : "#ffffff", borderWidth: done ? "2.5px" : undefined }}>
       <div className="mb-3 flex items-center gap-2.5">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--lav)] text-lg neo-border-sm">
-          ✦
-        </div>
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--lav)] text-lg neo-border-sm">✦</div>
         <div className="min-w-0 flex-1">
-          <div className="font-heading text-[17px] font-extrabold">
-            AI Auto-Fill
-          </div>
-          <div className="text-xs font-medium text-[#666]">
-            Drop anything — resume, LinkedIn screenshot, bio, notes — AI will
-            fill the form for you.
-          </div>
+          <div className="font-heading text-[17px] font-extrabold">AI Auto-Fill</div>
+          <div className="text-xs font-medium text-[#666]">Drop anything — resume, LinkedIn screenshot, bio, notes — AI will fill the form for you.</div>
         </div>
         {done && (
           <NeoBadge color="var(--mint)" className="ml-auto shrink-0 text-xs">
@@ -310,29 +313,14 @@ function AIAutoFillZone({
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
             className="mb-2.5 flex flex-col items-center gap-2 rounded-xl border-[2.5px] border-dashed px-4 py-5 text-center transition-all duration-150"
-            style={{
-              borderColor: dragOver ? "var(--foreground)" : "#cccccc",
-              background: dragOver ? "var(--lav-l)" : "var(--background)",
-            }}
+            style={{ borderColor: dragOver ? "var(--foreground)" : "#cccccc", background: dragOver ? "var(--lav-l)" : "var(--background)" }}
           >
             <div className="text-[28px]">📎</div>
             <div className="text-sm font-bold">Drop files here</div>
-            <div className="text-xs text-[#888]">
-              PDF, DOCX, PNG, JPG, screenshots — anything
-            </div>
+            <div className="text-xs text-[#888]">PDF, DOCX, PNG, JPG, screenshots — anything</div>
             <label className="cursor-pointer">
-              <input
-                type="file"
-                multiple
-                className="hidden"
-                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt"
-                onChange={handleFileInput}
-              />
-              <NeoButton
-                variant="secondary"
-                size="sm"
-                className="pointer-events-none"
-              >
+              <input type="file" multiple className="hidden" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt" onChange={handleFileInput} />
+              <NeoButton variant="secondary" size="sm" className="pointer-events-none">
                 Browse files
               </NeoButton>
             </label>
@@ -343,11 +331,7 @@ function AIAutoFillZone({
               {files.map((f, i) => (
                 <NeoBadge key={`${f.name}-${i}`} color="var(--mint-l)">
                   {fileIcon(f.type)} {f.name}
-                  <button
-                    type="button"
-                    onClick={() => removeFile(i)}
-                    className="ml-1 cursor-pointer border-none bg-transparent p-0 text-[#888]"
-                  >
+                  <button type="button" onClick={() => removeFile(i)} className="ml-1 cursor-pointer border-none bg-transparent p-0 text-[#888]">
                     ✕
                   </button>
                 </NeoBadge>
@@ -365,11 +349,7 @@ function AIAutoFillZone({
           />
 
           <div className="flex justify-end">
-            <NeoButton
-              variant="primary"
-              disabled={!canExtract || extracting}
-              onClick={handleExtract}
-            >
+            <NeoButton variant="primary" disabled={!canExtract || extracting} onClick={handleExtract}>
               {extracting ? (
                 <span className="flex items-center gap-2">
                   <span className="inline-block h-3.5 w-3.5 animate-spin-slow rounded-full border-2 border-[#aaa] border-t-[var(--foreground)]" />
@@ -383,23 +363,63 @@ function AIAutoFillZone({
         </>
       )}
 
-      {done && (
-        <p className="text-[13px] font-medium text-[#555]">
-          ✓ Filled: name, location, email, LinkedIn, GitHub, target role,
-          experience level, about, and 7 skills.
-        </p>
-      )}
+      {done && <p className="text-[13px] font-medium text-[#555]">✓ Filled: name, location, email, LinkedIn, GitHub, target role, experience level, about, and 7 skills.</p>}
     </NeoCard>
   );
 }
 
-function MultiResumeImport() {
+function MultiResumeImport({
+  resumes,
+  setResumes,
+  pasteText,
+  setPasteText,
+  onUploadFiles,
+  onSavePastedResume,
+  savingPaste,
+}: {
+  resumes: ResumeItem[];
+  setResumes: React.Dispatch<React.SetStateAction<ResumeItem[]>>;
+  pasteText: string;
+  setPasteText: React.Dispatch<React.SetStateAction<string>>;
+  onUploadFiles: (files: File[]) => Promise<void>;
+  onSavePastedResume: () => Promise<void>;
+  savingPaste: boolean;
+}) {
   const [activeTab, setActiveTab] = useState("upload");
   const [dragOver, setDragOver] = useState(false);
-  const [pasteText, setPasteText] = useState("");
-  const [resumes, setResumes] = useState(() =>
-    structuredClone(MOCK_ONBOARDING_RESUMES),
-  );
+  const [uploading, setUploading] = useState(false);
+
+  const handleFiles = async (files: File[]) => {
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      await onUploadFiles(files);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDropFiles = async (event: React.DragEvent) => {
+    event.preventDefault();
+    setDragOver(false);
+    await handleFiles(Array.from(event.dataTransfer.files));
+  };
+
+  const handleFileInput = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    await handleFiles(Array.from(event.target.files ?? []));
+    event.target.value = "";
+  };
+
+  const removeResume = (id: number) => {
+    setResumes((prev) => prev.filter((resume) => resume.id !== id));
+  };
+
+  const renameResume = (id: number, value: string) => {
+    setResumes((prev) => prev.map((resume) => (resume.id === id ? { ...resume, aiName: value, naming: false } : resume)));
+  };
+
+  const canSavePaste = pasteText.trim().length > 20;
+  const uploadBusy = uploading || savingPaste;
 
   return (
     <NeoCard>
@@ -421,55 +441,41 @@ function MultiResumeImport() {
               setDragOver(true);
             }}
             onDragLeave={() => setDragOver(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragOver(false);
-            }}
+            onDrop={handleDropFiles}
             className="mb-4 rounded-[14px] border-[2.5px] border-dashed px-6 py-8 text-center transition-all"
-            style={{
-              borderColor: dragOver ? "var(--foreground)" : "#cccccc",
-              background: dragOver ? "var(--mint-l)" : "var(--background)",
-            }}
+            style={{ borderColor: dragOver ? "var(--foreground)" : "#cccccc", background: dragOver ? "var(--mint-l)" : "var(--background)" }}
           >
             <div className="mb-2 text-4xl">📄</div>
             <div className="mb-1 text-[15px] font-bold">Drop resumes here</div>
-            <div className="mb-4 text-[13px] text-[#888]">
-              PDF or DOCX — add as many as you have. AI will name each one.
-            </div>
+            <div className="mb-4 text-[13px] text-[#888]">PDF or DOCX — upload files into Convex storage.</div>
             <label className="cursor-pointer">
-              <input type="file" multiple className="hidden" accept=".pdf,.doc,.docx" />
+              <input type="file" multiple className="hidden" accept=".pdf,.doc,.docx" onChange={handleFileInput} />
               <NeoButton variant="secondary" size="sm" className="pointer-events-none">
-                Browse files
+                {uploadBusy ? "Uploading..." : "Browse files"}
               </NeoButton>
             </label>
           </div>
 
           {resumes.length > 0 && (
             <div className="flex flex-col gap-2.5">
-              <div className="mb-0.5 text-xs font-bold text-[#888]">
-                {resumes.length} RESUMES IMPORTED
-              </div>
+              <div className="mb-0.5 text-xs font-bold text-[#888]">{resumes.length} RESUMES IMPORTED</div>
               {resumes.map((r) => (
-                <div
-                  key={r.id}
-                  className="flex items-center gap-2.5 rounded-xl bg-white px-3.5 py-3 neo-border-sm"
-                >
-                  <div className="flex h-11 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--lav-l)] text-base neo-border-sm">
-                    📄
-                  </div>
+                <div key={r.id} className="flex items-center gap-2.5 rounded-xl bg-white px-3.5 py-3 neo-border-sm">
+                  <div className="flex h-11 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--lav-l)] text-base neo-border-sm">📄</div>
                   <div className="min-w-0 flex-1">
                     <div className="mb-0.5 truncate text-xs text-[#888]">{r.file}</div>
                     <div className="flex items-center gap-1.5">
-                      <NeoBadge color="var(--mint)" className="text-[10px]">
-                        ✦ AI
+                      <NeoBadge color={r.sourceType === "paste" ? "var(--lav)" : "var(--mint)"} className="text-[10px]">
+                        {r.sourceType === "paste" ? "✎ Paste" : "✦ AI"}
                       </NeoBadge>
                       <input
-                        defaultValue={r.aiName}
+                        value={r.aiName}
+                        onChange={(e) => renameResume(r.id, e.target.value)}
                         className="w-full border-none border-b-2 border-[var(--foreground)] bg-transparent font-sans text-[13px] font-bold outline-none"
                       />
                     </div>
                   </div>
-                  <button className="cursor-pointer border-none bg-transparent p-1 text-base text-[#aaa]">
+                  <button type="button" onClick={() => removeResume(r.id)} className="cursor-pointer border-none bg-transparent p-1 text-base text-[#aaa]">
                     ✕
                   </button>
                 </div>
@@ -481,9 +487,7 @@ function MultiResumeImport() {
 
       {activeTab === "paste" && (
         <div>
-          <p className="mb-2.5 text-[13px] font-medium text-[#666]">
-            Paste resume text below. AI will extract and name it automatically.
-          </p>
+          <p className="mb-2.5 text-[13px] font-medium text-[#666]">Paste resume text below. AI will extract and name it automatically.</p>
           <NeoInput
             placeholder="Paste resume text here..."
             multiline
@@ -492,18 +496,31 @@ function MultiResumeImport() {
             onChange={(e) => setPasteText(e.target.value)}
             className="rounded-xl"
           />
+          <div className="mt-3 flex justify-end">
+            <NeoButton variant="secondary" size="sm" disabled={!canSavePaste || savingPaste} onClick={onSavePastedResume}>
+              {savingPaste ? "Saving..." : "Save pasted resume →"}
+            </NeoButton>
+          </div>
         </div>
       )}
 
-      <p className="mt-3.5 text-xs font-medium text-[#888]">
-        🔒 Text is extracted and saved to your profile. Original files are discarded.
-      </p>
+      <p className="mt-3.5 text-xs font-medium text-[#888]">🔒 Uploaded files are stored in Convex storage. Pasted text is saved as metadata only.</p>
     </NeoCard>
   );
 }
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { isLoaded, isSignedIn } = useAuth();
+  const onboardingState = useQuery(api.onboarding.getOnboardingState);
+  const initializeOnboarding = useMutation(api.onboarding.initializeOnboarding);
+  const saveProviderConnections = useMutation(api.onboarding.saveProviderConnections);
+  const saveProfileMutation = useMutation(api.onboarding.saveProfile);
+  const saveImportedResumesMutation = useMutation(api.onboarding.saveImportedResumes);
+  const completeOnboarding = useMutation(api.onboarding.completeOnboarding);
+  const generateResumeUploadUrl = useMutation(api.onboarding.generateResumeUploadUrl);
+  const savePastedResumeMutation = useMutation(api.onboarding.savePastedResume);
+
   const [step, setStep] = useState(1);
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
   const [providerType, setProviderType] = useState<"apikey" | "oauth">("apikey");
@@ -512,7 +529,84 @@ export default function OnboardingPage() {
   const [oauthConnected, setOauthConnected] = useState<Record<string, boolean>>({});
   const [newSkill, setNewSkill] = useState("");
   const [profile, setProfile] = useState<ProfileState>(defaultProfile);
+  const [resumes, setResumes] = useState<ResumeItem[]>([]);
+  const [pasteText, setPasteText] = useState("");
+  const [savingPaste, setSavingPaste] = useState(false);
+  const [savingStep, setSavingStep] = useState<1 | 2 | 3 | null>(null);
+  const [hydrated, setHydrated] = useState(false);
 
+  useEffect(() => {
+    if (isSignedIn) {
+      void initializeOnboarding({});
+    }
+  }, [initializeOnboarding, isSignedIn]);
+
+  useEffect(() => {
+    if (!onboardingState || hydrated) return;
+
+    queueMicrotask(() => {
+      if (onboardingState.providerConnections.length > 0) {
+        const nextVerified: Record<string, boolean> = {};
+        const nextOauth: Record<string, boolean> = {};
+        for (const connection of onboardingState.providerConnections) {
+          if (connection.connectionType === "apikey") {
+            nextVerified[connection.providerId] = connection.status === "connected";
+          } else {
+            nextOauth[connection.providerId] = connection.status === "connected";
+          }
+        }
+        setVerified(nextVerified);
+        setOauthConnected(nextOauth);
+      }
+
+      if (onboardingState.profile) {
+        setProfile({
+          name: onboardingState.profile.fullName,
+          location: onboardingState.profile.location,
+          email: onboardingState.profile.email,
+          linkedin: onboardingState.profile.linkedin,
+          github: onboardingState.profile.github,
+          portfolio: onboardingState.profile.portfolio,
+          targetRole: onboardingState.profile.targetRole,
+          experience: onboardingState.profile.experienceLevel,
+          about: onboardingState.profile.about,
+          skills: [...onboardingState.skills]
+            .sort((a, b) => a.position - b.position)
+            .map((skill) => skill.name),
+          experience_entries:
+            onboardingState.experienceEntries.length > 0
+              ? [...onboardingState.experienceEntries]
+                  .sort((a, b) => a.position - b.position)
+                  .map((entry, index) => ({
+                    id: index + 1,
+                    title: entry.title,
+                    company: entry.company,
+                    dates: entry.dates,
+                    bullets: entry.bullets,
+                  }))
+              : defaultProfile.experience_entries,
+        });
+      }
+
+      if (onboardingState.importedResumes.length > 0) {
+        setResumes(
+          onboardingState.importedResumes.map((resume, index) => ({
+            id: index + 1,
+            storageId: resume.storageId,
+            file: resume.fileName,
+            aiName: resume.displayName,
+            naming: false,
+            mimeType: resume.mimeType,
+            sizeBytes: resume.sizeBytes,
+            sourceType: resume.sourceType,
+            status: resume.status,
+          })),
+        );
+      }
+
+      setHydrated(true);
+    });
+  }, [hydrated, onboardingState]);
   const setProfileField =
     (field: keyof Omit<ProfileState, "skills" | "experience_entries">) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -526,19 +620,14 @@ export default function OnboardingPage() {
   ) => {
     setProfile((p) => ({
       ...p,
-      experience_entries: p.experience_entries.map((entry) =>
-        entry.id === id ? { ...entry, [field]: value } : entry,
-      ),
+      experience_entries: p.experience_entries.map((entry) => (entry.id === id ? { ...entry, [field]: value } : entry)),
     }));
   };
 
   const addExperienceEntry = () => {
     setProfile((p) => ({
       ...p,
-      experience_entries: [
-        ...p.experience_entries,
-        { id: Date.now(), title: "", company: "", dates: "", bullets: "" },
-      ],
+      experience_entries: [...p.experience_entries, { id: Date.now(), title: "", company: "", dates: "", bullets: "" }],
     }));
   };
 
@@ -547,34 +636,151 @@ export default function OnboardingPage() {
   };
 
   const addSkill = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (
-      (e.key === "Enter" || e.key === ",") &&
-      newSkill.trim() &&
-      !profile.skills.includes(newSkill.trim())
-    ) {
+    if ((e.key === "Enter" || e.key === ",") && newSkill.trim() && !profile.skills.includes(newSkill.trim())) {
       e.preventDefault();
-      setProfile((p) => ({
-        ...p,
-        skills: [...p.skills, newSkill.trim()],
-      }));
+      setProfile((p) => ({ ...p, skills: [...p.skills, newSkill.trim()] }));
       setNewSkill("");
     }
   };
 
-  const anyConnected =
-    Object.values(verified).some(Boolean) ||
-    Object.values(oauthConnected).some(Boolean);
+  const anyConnected = useMemo(
+    () => Object.values(verified).some(Boolean) || Object.values(oauthConnected).some(Boolean),
+    [oauthConnected, verified],
+  );
 
-  const finish = () => router.push("/jobs");
+  const handleUploadFiles = async (files: File[]) => {
+    const uploaded: ResumeItem[] = [];
+    for (const file of files) {
+      const uploadUrl = await generateResumeUploadUrl({});
+      const storageId = await uploadResumeFile(uploadUrl, file);
+      uploaded.push(
+        makeResumeItem({
+          storageId,
+          file: file.name,
+          aiName: toResumeDisplayName(file.name),
+          naming: true,
+          mimeType: file.type || undefined,
+          sizeBytes: file.size,
+          sourceType: "upload",
+          status: "imported",
+        }),
+      );
+    }
+    setResumes((prev) => [...prev, ...uploaded]);
+  };
+
+  const handleSavePastedResume = async () => {
+    const trimmed = pasteText.trim();
+    if (trimmed.length <= 20) return;
+    setSavingPaste(true);
+    try {
+      const displayName = `Pasted resume ${resumes.filter((resume) => resume.sourceType === "paste").length + 1}`;
+      await savePastedResumeMutation({ fileName: `${displayName}.txt`, displayName });
+      setResumes((prev) => [
+        ...prev,
+        makeResumeItem({
+          file: `${displayName}.txt`,
+          aiName: displayName,
+          naming: false,
+          sourceType: "paste",
+          status: "imported",
+        }),
+      ]);
+      setPasteText("");
+    } finally {
+      setSavingPaste(false);
+    }
+  };
+
+  const handleContinueFromProviders = async (nextStep: number) => {
+    setSavingStep(1);
+    try {
+      await saveProviderConnections({
+        connections: [
+          ...API_PROVIDERS.filter((provider) => verified[provider.id]).map((provider) => ({
+            providerId: provider.id,
+            providerName: provider.name,
+            connectionType: "apikey" as const,
+            status: "connected" as const,
+            lastVerifiedAt: Date.now(),
+          })),
+          ...OAUTH_PROVIDERS.filter((provider) => oauthConnected[provider.id]).map((provider) => ({
+            providerId: provider.id,
+            providerName: provider.name,
+            connectionType: "oauth" as const,
+            status: "connected" as const,
+          })),
+        ],
+      });
+      setStep(nextStep);
+    } finally {
+      setSavingStep(null);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    setSavingStep(2);
+    try {
+      await saveProfileMutation({
+        profile: {
+          fullName: profile.name,
+          location: profile.location,
+          email: profile.email,
+          linkedin: profile.linkedin,
+          github: profile.github,
+          portfolio: profile.portfolio,
+          targetRole: profile.targetRole,
+          experienceLevel: profile.experience,
+          about: profile.about,
+          skills: profile.skills,
+          experienceEntries: profile.experience_entries.map((entry) => ({
+            title: entry.title,
+            company: entry.company,
+            dates: entry.dates,
+            bullets: entry.bullets,
+          })),
+        },
+      });
+      setStep(3);
+    } finally {
+      setSavingStep(null);
+    }
+  };
+
+  const finish = async () => {
+    setSavingStep(3);
+    try {
+      await saveImportedResumesMutation({
+        resumes: resumes.map((resume) => ({
+          storageId: resume.storageId as never,
+          fileName: resume.file,
+          displayName: resume.aiName,
+          mimeType: resume.mimeType,
+          sizeBytes: resume.sizeBytes,
+          sourceType: resume.sourceType,
+          status: resume.status,
+        })),
+      });
+      await completeOnboarding({});
+      router.push("/jobs");
+    } finally {
+      setSavingStep(null);
+    }
+  };
+
+  if (isLoaded && !isSignedIn) {
+    router.push("/");
+  }
+
+  if (!isLoaded || onboardingState === undefined || onboardingState === null || !hydrated) {
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--background)]">
       <div className="flex h-16 items-center justify-between border-b-[2.5px] border-[var(--foreground)] bg-white px-10">
         <Logo />
-        <ProgressSteps
-          steps={["Connect AI", "Build Profile", "Import Resumes"]}
-          currentStep={step}
-        />
+        <ProgressSteps steps={["Connect AI", "Build Profile", "Import Resumes"]} currentStep={step} />
         <div className="w-[120px]" />
       </div>
 
@@ -582,25 +788,16 @@ export default function OnboardingPage() {
         {step === 1 && (
           <div>
             <div className="mb-10 text-center">
-              <NeoBadge color="var(--mint)" className="mb-4">
-                Step 1 of 3
-              </NeoBadge>
-              <h1 className="mb-2.5 font-heading text-[40px] font-extrabold tracking-tight">
-                Connect your AI
-              </h1>
-              <p className="text-base font-medium text-[#555]">
-                Choose how you want to power Rezume — paste an API key or connect
-                via OAuth.
-              </p>
+              <NeoBadge color="var(--mint)" className="mb-4">Step 1 of 3</NeoBadge>
+              <h1 className="mb-2.5 font-heading text-[40px] font-extrabold tracking-tight">Connect your AI</h1>
+              <p className="text-base font-medium text-[#555]">Choose how you want to power Rezume — paste an API key or connect via OAuth.</p>
             </div>
 
             <div className="mx-auto mb-7 flex w-fit overflow-hidden rounded-full neo-border">
-              {(
-                [
-                  ["apikey", "🔑  API Key"],
-                  ["oauth", "🔗  OAuth / SSO"],
-                ] as const
-              ).map(([v, l]) => (
+              {([
+                ["apikey", "🔑  API Key"],
+                ["oauth", "🔗  OAuth / SSO"],
+              ] as const).map(([v, l]) => (
                 <button
                   key={v}
                   onClick={() => {
@@ -608,11 +805,7 @@ export default function OnboardingPage() {
                     setExpandedProvider(null);
                   }}
                   className="cursor-pointer border-none px-7 py-2.5 font-sans text-sm font-bold"
-                  style={{
-                    background:
-                      providerType === v ? "var(--foreground)" : "#ffffff",
-                    color: providerType === v ? "#ffffff" : "var(--foreground)",
-                  }}
+                  style={{ background: providerType === v ? "var(--foreground)" : "#ffffff", color: providerType === v ? "#ffffff" : "var(--foreground)" }}
                 >
                   {l}
                 </button>
@@ -626,20 +819,14 @@ export default function OnboardingPage() {
                     key={prov.id}
                     prov={prov}
                     expanded={expandedProvider === prov.id}
-                    onExpand={() =>
-                      setExpandedProvider(
-                        expandedProvider === prov.id ? null : prov.id,
-                      )
-                    }
+                    onExpand={() => setExpandedProvider(expandedProvider === prov.id ? null : prov.id)}
                     apiKey={apiKeys[prov.id] ?? ""}
                     setApiKey={(v) => {
                       setApiKeys((k) => ({ ...k, [prov.id]: v }));
                       setVerified((k) => ({ ...k, [prov.id]: false }));
                     }}
                     verified={!!verified[prov.id]}
-                    onVerify={() =>
-                      setVerified((k) => ({ ...k, [prov.id]: true }))
-                    }
+                    onVerify={() => setVerified((k) => ({ ...k, [prov.id]: true }))}
                   />
                 ))}
               </div>
@@ -647,24 +834,16 @@ export default function OnboardingPage() {
 
             {providerType === "oauth" && (
               <>
-                <div className="mb-4 rounded-xl bg-[var(--lav-l)] px-4 py-2.5 text-[13px] font-medium text-[#555] neo-border-sm">
-                  🔒 OAuth connection never shares your code or files.
-                </div>
+                <div className="mb-4 rounded-xl bg-[var(--lav-l)] px-4 py-2.5 text-[13px] font-medium text-[#555] neo-border-sm">🔒 OAuth connection never shares your code or files.</div>
                 <div className="mb-7 grid grid-cols-1 gap-3.5 sm:grid-cols-3">
                   {OAUTH_PROVIDERS.map((prov) => (
                     <OAuthCard
                       key={prov.id}
                       prov={prov}
                       expanded={expandedProvider === prov.id}
-                      onExpand={() =>
-                        setExpandedProvider(
-                          expandedProvider === prov.id ? null : prov.id,
-                        )
-                      }
+                      onExpand={() => setExpandedProvider(expandedProvider === prov.id ? null : prov.id)}
                       connected={!!oauthConnected[prov.id]}
-                      onConnect={() =>
-                        setOauthConnected((k) => ({ ...k, [prov.id]: true }))
-                      }
+                      onConnect={() => setOauthConnected((k) => ({ ...k, [prov.id]: true }))}
                     />
                   ))}
                 </div>
@@ -672,15 +851,11 @@ export default function OnboardingPage() {
             )}
 
             <div className="flex justify-end gap-3">
-              <NeoButton variant="secondary" size="sm" onClick={() => setStep(2)}>
+              <NeoButton variant="secondary" size="sm" onClick={() => void handleContinueFromProviders(2)}>
                 Skip for now
               </NeoButton>
-              <NeoButton
-                variant="primary"
-                onClick={() => setStep(2)}
-                disabled={!anyConnected}
-              >
-                Continue →
+              <NeoButton variant="primary" onClick={() => void handleContinueFromProviders(2)} disabled={!anyConnected || savingStep === 1}>
+                {savingStep === 1 ? "Saving..." : "Continue →"}
               </NeoButton>
             </div>
           </div>
@@ -689,15 +864,9 @@ export default function OnboardingPage() {
         {step === 2 && (
           <div>
             <div className="mb-9 text-center">
-              <NeoBadge color="var(--lav)" className="mb-4">
-                Step 2 of 3 — Most Important
-              </NeoBadge>
-              <h1 className="mb-2.5 font-heading text-[40px] font-extrabold tracking-tight">
-                Build your ultimate profile
-              </h1>
-              <p className="text-base font-medium text-[#555]">
-                More detail here = better resumes. You only do this once.
-              </p>
+              <NeoBadge color="var(--lav)" className="mb-4">Step 2 of 3 — Most Important</NeoBadge>
+              <h1 className="mb-2.5 font-heading text-[40px] font-extrabold tracking-tight">Build your ultimate profile</h1>
+              <p className="text-base font-medium text-[#555]">More detail here = better resumes. You only do this once.</p>
             </div>
 
             <AIAutoFillZone onFill={handleAIFill} />
@@ -706,62 +875,24 @@ export default function OnboardingPage() {
               <NeoCard>
                 <SectionHeader label="Personal Info" color="var(--mint)" />
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <NeoInput
-                    label="Full Name"
-                    placeholder="Alex Johnson"
-                    value={profile.name}
-                    onChange={setProfileField("name")}
-                  />
-                  <NeoInput
-                    label="Location"
-                    placeholder="San Francisco, CA"
-                    value={profile.location}
-                    onChange={setProfileField("location")}
-                  />
-                  <NeoInput
-                    label="Email"
-                    placeholder="alex@example.com"
-                    type="email"
-                    value={profile.email}
-                    onChange={setProfileField("email")}
-                  />
-                  <NeoInput
-                    label="LinkedIn"
-                    placeholder="linkedin.com/in/yourname"
-                    value={profile.linkedin}
-                    onChange={setProfileField("linkedin")}
-                  />
-                  <NeoInput
-                    label="GitHub"
-                    placeholder="github.com/yourname"
-                    value={profile.github}
-                    onChange={setProfileField("github")}
-                  />
-                  <NeoInput
-                    label="Portfolio"
-                    placeholder="yoursite.com"
-                    value={profile.portfolio}
-                    onChange={setProfileField("portfolio")}
-                  />
+                  <NeoInput label="Full Name" placeholder="Alex Johnson" value={profile.name} onChange={setProfileField("name")} />
+                  <NeoInput label="Location" placeholder="San Francisco, CA" value={profile.location} onChange={setProfileField("location")} />
+                  <NeoInput label="Email" placeholder="alex@example.com" type="email" value={profile.email} onChange={setProfileField("email")} />
+                  <NeoInput label="LinkedIn" placeholder="linkedin.com/in/yourname" value={profile.linkedin} onChange={setProfileField("linkedin")} />
+                  <NeoInput label="GitHub" placeholder="github.com/yourname" value={profile.github} onChange={setProfileField("github")} />
+                  <NeoInput label="Portfolio" placeholder="yoursite.com" value={profile.portfolio} onChange={setProfileField("portfolio")} />
                 </div>
               </NeoCard>
 
               <NeoCard>
                 <SectionHeader label="Target Role" color="var(--lav)" />
                 <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <NeoInput
-                    label="Target Role"
-                    placeholder="e.g. Frontend Engineer"
-                    value={profile.targetRole}
-                    onChange={setProfileField("targetRole")}
-                  />
+                  <NeoInput label="Target Role" placeholder="e.g. Frontend Engineer" value={profile.targetRole} onChange={setProfileField("targetRole")} />
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold">Experience Level</label>
                     <select
                       value={profile.experience}
-                      onChange={(e) =>
-                        setProfile((p) => ({ ...p, experience: e.target.value }))
-                      }
+                      onChange={(e) => setProfile((p) => ({ ...p, experience: e.target.value }))}
                       className="rounded-full bg-white px-4 py-2.5 font-sans text-sm outline-none neo-border"
                     >
                       <option value="">Select...</option>
@@ -780,12 +911,7 @@ export default function OnboardingPage() {
                         key={s}
                         color="var(--mint)"
                         className="cursor-pointer"
-                        onClick={() =>
-                          setProfile((p) => ({
-                            ...p,
-                            skills: p.skills.filter((x) => x !== s),
-                          }))
-                        }
+                        onClick={() => setProfile((p) => ({ ...p, skills: p.skills.filter((x) => x !== s) }))}
                       >
                         {s} ✕
                       </NeoBadge>
@@ -803,90 +929,39 @@ export default function OnboardingPage() {
 
               <NeoCard>
                 <SectionHeader label="About You" color="var(--peach)" />
-                <NeoInput
-                  placeholder="3-5 sentences about yourself. The AI uses this as context for every resume it generates — be specific!"
-                  multiline
-                  rows={4}
-                  value={profile.about}
-                  onChange={setProfileField("about")}
-                />
+                <NeoInput placeholder="3-5 sentences about yourself. The AI uses this as context for every resume it generates — be specific!" multiline rows={4} value={profile.about} onChange={setProfileField("about")} />
               </NeoCard>
 
               <NeoCard>
                 <SectionHeader label="Work Experience" color="var(--lav)" />
                 {profile.experience_entries.map((entry, i) => (
-                  <div
-                    key={entry.id}
-                    className={
-                      i < profile.experience_entries.length - 1 ? "mb-6" : ""
-                    }
-                  >
-                    {i > 0 && (
-                      <div className="mb-6 h-0.5 bg-[#eeeeee]" aria-hidden />
-                    )}
+                  <div key={entry.id} className={i < profile.experience_entries.length - 1 ? "mb-6" : ""}>
+                    {i > 0 && <div className="mb-6 h-0.5 bg-[#eeeeee]" aria-hidden />}
                     <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <NeoInput
-                        label="Job Title"
-                        placeholder="Frontend Engineer"
-                        value={entry.title}
-                        onChange={(e) =>
-                          updateExperienceEntry(entry.id, "title", e.target.value)
-                        }
-                      />
-                      <NeoInput
-                        label="Company"
-                        placeholder="Acme Corp"
-                        value={entry.company}
-                        onChange={(e) =>
-                          updateExperienceEntry(
-                            entry.id,
-                            "company",
-                            e.target.value,
-                          )
-                        }
-                      />
-                      <NeoInput
-                        label="Dates"
-                        placeholder="Jan 2023 – Present"
-                        value={entry.dates}
-                        onChange={(e) =>
-                          updateExperienceEntry(entry.id, "dates", e.target.value)
-                        }
-                      />
+                      <NeoInput label="Job Title" placeholder="Frontend Engineer" value={entry.title} onChange={(e) => updateExperienceEntry(entry.id, "title", e.target.value)} />
+                      <NeoInput label="Company" placeholder="Acme Corp" value={entry.company} onChange={(e) => updateExperienceEntry(entry.id, "company", e.target.value)} />
+                      <NeoInput label="Dates" placeholder="Jan 2023 – Present" value={entry.dates} onChange={(e) => updateExperienceEntry(entry.id, "dates", e.target.value)} />
                     </div>
                     <NeoInput
                       label="Bullet Points (aim for 10–15 per role)"
-                      placeholder={
-                        "• Led migration from Vue to React, improving velocity by 40%\n• Built real-time dashboard using WebSockets..."
-                      }
+                      placeholder={"• Led migration from Vue to React, improving velocity by 40%\n• Built real-time dashboard using WebSockets..."}
                       multiline
                       rows={6}
                       value={entry.bullets}
-                      onChange={(e) =>
-                        updateExperienceEntry(entry.id, "bullets", e.target.value)
-                      }
+                      onChange={(e) => updateExperienceEntry(entry.id, "bullets", e.target.value)}
                     />
-                    <p className="mt-1.5 text-[11px] text-[#888]">
-                      📌 More bullets = more AI context. Trim later.
-                    </p>
+                    <p className="mt-1.5 text-[11px] text-[#888]">📌 More bullets = more AI context. Trim later.</p>
                   </div>
                 ))}
-                <NeoButton
-                  variant="secondary"
-                  size="sm"
-                  className="mt-4"
-                  onClick={addExperienceEntry}
-                >
+                <NeoButton variant="secondary" size="sm" className="mt-4" onClick={addExperienceEntry}>
                   + Add another role
                 </NeoButton>
               </NeoCard>
 
               <div className="flex justify-between">
-                <NeoButton variant="secondary" onClick={() => setStep(1)}>
-                  ← Back
-                </NeoButton>
-                <NeoButton variant="primary" onClick={() => setStep(3)}>
-                  Save & Continue →
+                <NeoButton variant="secondary" onClick={() => setStep(1)}>← Back</NeoButton>
+                <NeoButton variant="primary" onClick={() => void handleSaveProfile()}>
+                  {savingStep === 2 ? "Saving..." : "Save & Continue →"}
                 </NeoButton>
               </div>
             </div>
@@ -896,30 +971,27 @@ export default function OnboardingPage() {
         {step === 3 && (
           <div>
             <div className="mb-10 text-center">
-              <NeoBadge color="var(--peach)" className="mb-4">
-                Step 3 of 3 — Almost done!
-              </NeoBadge>
-              <h1 className="mb-2.5 font-heading text-[40px] font-extrabold tracking-tight">
-                Import your resumes
-              </h1>
-              <p className="text-base font-medium text-[#555]">
-                Add all the resumes you have. AI will name each one.
-              </p>
+              <NeoBadge color="var(--peach)" className="mb-4">Step 3 of 3 — Almost done!</NeoBadge>
+              <h1 className="mb-2.5 font-heading text-[40px] font-extrabold tracking-tight">Import your resumes</h1>
+              <p className="text-base font-medium text-[#555]">Add all the resumes you have. AI will name each one.</p>
             </div>
-            <MultiResumeImport />
+            <MultiResumeImport
+              resumes={resumes}
+              setResumes={setResumes}
+              pasteText={pasteText}
+              setPasteText={setPasteText}
+              onUploadFiles={handleUploadFiles}
+              onSavePastedResume={handleSavePastedResume}
+              savingPaste={savingPaste}
+            />
             <div className="mt-6 flex items-center justify-between">
-              <NeoButton variant="secondary" onClick={() => setStep(2)}>
-                ← Back
-              </NeoButton>
+              <NeoButton variant="secondary" onClick={() => setStep(2)}>← Back</NeoButton>
               <div className="flex items-center gap-3">
-                <button
-                  onClick={finish}
-                  className="cursor-pointer border-none bg-transparent text-[13px] font-semibold text-[#888] underline"
-                >
+                <button onClick={() => void finish()} className="cursor-pointer border-none bg-transparent text-[13px] font-semibold text-[#888] underline">
                   Skip
                 </button>
-                <NeoButton variant="primary" onClick={finish}>
-                  Finish setup →
+                <NeoButton variant="primary" onClick={() => void finish()}>
+                  {savingStep === 3 ? "Saving..." : "Finish setup →"}
                 </NeoButton>
               </div>
             </div>
