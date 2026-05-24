@@ -86,15 +86,17 @@ export function NewCoverLetterWizard({
 
   useEffect(() => {
     if (!open) {
-      setStep(1);
-      setJobSource(null);
-      setSelectedJobId(null);
-      setNewJobMode("link");
-      setJobUrl("");
-      setAnalyzing(false);
-      setAnalyzed(false);
-      setManualForm({ title: "", company: "", jd: "" });
-      setGenerating(false);
+      queueMicrotask(() => {
+        setStep(1);
+        setJobSource(null);
+        setSelectedJobId(null);
+        setNewJobMode("link");
+        setJobUrl("");
+        setAnalyzing(false);
+        setAnalyzed(false);
+        setManualForm({ title: "", company: "", jd: "" });
+        setGenerating(false);
+      });
     }
   }, [open]);
 

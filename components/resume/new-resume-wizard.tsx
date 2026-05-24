@@ -114,16 +114,18 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
 
   useEffect(() => {
     if (!open) {
-      setStep(1);
-      setJobSource(null);
-      setSelectedJobId(null);
-      setNewJobMode("link");
-      setJobUrl("");
-      setAnalyzing(false);
-      setAnalyzed(false);
-      setManualForm({ title: "", company: "", jd: "" });
-      setSelectedTemplateId(DEFAULT_TEMPLATE_ID);
-      setGenerating(false);
+      queueMicrotask(() => {
+        setStep(1);
+        setJobSource(null);
+        setSelectedJobId(null);
+        setNewJobMode("link");
+        setJobUrl("");
+        setAnalyzing(false);
+        setAnalyzed(false);
+        setManualForm({ title: "", company: "", jd: "" });
+        setSelectedTemplateId(DEFAULT_TEMPLATE_ID);
+        setGenerating(false);
+      });
     }
   }, [open]);
 
