@@ -49,6 +49,22 @@ const profileValidator = v.object({
       bullets: v.string(),
     }),
   ),
+  projects: v.array(
+    v.object({
+      title: v.string(),
+      url: v.string(),
+      desc: v.string(),
+      active: v.boolean(),
+    }),
+  ),
+  education: v.array(
+    v.object({
+      degree: v.string(),
+      school: v.string(),
+      dates: v.string(),
+      gpa: v.string(),
+    }),
+  ),
 });
 
 const importedResumeValidator = v.object({
@@ -64,6 +80,16 @@ const importedResumeValidator = v.object({
     v.literal("parsed"),
     v.literal("failed"),
   ),
+});
+
+const profileSourceMaterialValidator = v.object({
+  storageId: v.optional(v.id("_storage")),
+  label: v.string(),
+  fileName: v.string(),
+  mimeType: v.optional(v.string()),
+  sizeBytes: v.optional(v.number()),
+  sourceKind: v.union(v.literal("autofill"), v.literal("import")),
+  inputKind: v.union(v.literal("upload"), v.literal("paste")),
 });
 
 export const getOnboardingState = query({
@@ -90,8 +116,11 @@ export const getOnboardingState = query({
         experienceEntries: [],
         languages: [],
         certifications: [],
+        projects: [],
+        education: [],
         providerConnections: [],
         importedResumes: [],
+        profileSourceMaterials: [],
       };
     }
 
@@ -125,6 +154,16 @@ export const getOnboardingState = query({
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .take(100);
 
+    const projects = await ctx.db
+      .query("profileProjects")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .take(100);
+
+    const education = await ctx.db
+      .query("profileEducation")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .take(100);
+
     const providerConnections = await ctx.db
       .query("aiProviderConnections")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
@@ -135,6 +174,11 @@ export const getOnboardingState = query({
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .take(50);
 
+    const profileSourceMaterials = await ctx.db
+      .query("profileSourceMaterials")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .take(100);
+
     return {
       user,
       profile,
@@ -143,8 +187,11 @@ export const getOnboardingState = query({
       experienceEntries,
       languages,
       certifications,
+      projects,
+      education,
       providerConnections,
       importedResumes,
+      profileSourceMaterials,
     };
   },
 });
@@ -175,6 +222,27 @@ export const saveProviderConnections = mutation({
         lastVerifiedAt: connection.lastVerifiedAt,
         updatedAt: now,
       });
+    }
+
+    return { ok: true };
+  },
+});
+
+export const disconnectProviderConnection = mutation({
+  args: {
+    providerId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await ensureCurrentUser(ctx);
+    const existing = await ctx.db
+      .query("aiProviderConnections")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .take(100);
+
+    for (const row of existing) {
+      if (row.providerId === args.providerId) {
+        await ctx.db.delete(row._id);
+      }
     }
 
     return { ok: true };
@@ -302,6 +370,44 @@ export const saveProfile = mutation({
       });
     }
 
+    const existingProjects = await ctx.db
+      .query("profileProjects")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .take(100);
+    for (const row of existingProjects) {
+      await ctx.db.delete(row._id);
+    }
+
+    for (const [position, project] of args.profile.projects.entries()) {
+      await ctx.db.insert("profileProjects", {
+        userId: user._id,
+        position,
+        title: project.title,
+        url: project.url,
+        desc: project.desc,
+        active: project.active,
+      });
+    }
+
+    const existingEducation = await ctx.db
+      .query("profileEducation")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .take(100);
+    for (const row of existingEducation) {
+      await ctx.db.delete(row._id);
+    }
+
+    for (const [position, education] of args.profile.education.entries()) {
+      await ctx.db.insert("profileEducation", {
+        userId: user._id,
+        position,
+        degree: education.degree,
+        school: education.school,
+        dates: education.dates,
+        gpa: education.gpa,
+      });
+    }
+
     return { ok: true };
   },
 });
@@ -314,19 +420,58 @@ export const generateResumeUploadUrl = mutation({
   },
 });
 
+export const saveProfileSourceMaterial = mutation({
+  args: {
+    material: profileSourceMaterialValidator,
+  },
+  handler: async (ctx, args) => {
+    const { user } = await ensureCurrentUser(ctx);
+    await ctx.db.insert("profileSourceMaterials", {
+      userId: user._id,
+      storageId: args.material.storageId,
+      label: args.material.label,
+      fileName: args.material.fileName,
+      mimeType: args.material.mimeType,
+      sizeBytes: args.material.sizeBytes,
+      sourceKind: args.material.sourceKind,
+      inputKind: args.material.inputKind,
+      createdAt: Date.now(),
+    });
+    return { ok: true };
+  },
+});
+
+export const listProfileSourceMaterials = query({
+  args: {},
+  handler: async (ctx) => {
+    const { user } = await getCurrentUserOrThrow(ctx);
+    return await ctx.db
+      .query("profileSourceMaterials")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .take(100);
+  },
+});
+
 export const saveImportedResumes = mutation({
   args: {
     resumes: v.array(importedResumeValidator),
   },
   handler: async (ctx, args) => {
     const { user } = await ensureCurrentUser(ctx);
+    const incomingStorageIds = new Set(
+      args.resumes
+        .map((resume) => resume.storageId)
+        .filter((storageId): storageId is NonNullable<typeof storageId> =>
+          Boolean(storageId),
+        ),
+    );
     const existing = await ctx.db
       .query("importedResumes")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .take(100);
 
     for (const row of existing) {
-      if (row.storageId) {
+      if (row.storageId && !incomingStorageIds.has(row.storageId)) {
         await ctx.storage.delete(row.storageId);
       }
       await ctx.db.delete(row._id);
@@ -364,7 +509,14 @@ export const deleteImportedResume = mutation({
     }
 
     if (resume.storageId) {
-      await ctx.storage.delete(resume.storageId);
+      const sourceMaterial = await ctx.db
+        .query("profileSourceMaterials")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .filter((q) => q.eq(q.field("storageId"), resume.storageId))
+        .first();
+      if (!sourceMaterial) {
+        await ctx.storage.delete(resume.storageId);
+      }
     }
 
     await ctx.db.delete(resume._id);
@@ -394,16 +546,22 @@ export const renameImportedResume = mutation({
 
 export const savePastedResume = mutation({
   args: {
+    storageId: v.optional(v.id("_storage")),
     fileName: v.string(),
     displayName: v.string(),
+    mimeType: v.optional(v.string()),
+    sizeBytes: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { user } = await ensureCurrentUser(ctx);
     const now = Date.now();
     await ctx.db.insert("importedResumes", {
       userId: user._id,
+      storageId: args.storageId,
       fileName: args.fileName,
       displayName: args.displayName,
+      mimeType: args.mimeType,
+      sizeBytes: args.sizeBytes,
       sourceType: "paste",
       status: "imported",
       createdAt: now,
@@ -423,7 +581,14 @@ export const clearImportedResumes = mutation({
 
     for (const row of existing) {
       if (row.storageId) {
-        await ctx.storage.delete(row.storageId);
+        const sourceMaterial = await ctx.db
+          .query("profileSourceMaterials")
+          .withIndex("by_userId", (q) => q.eq("userId", user._id))
+          .filter((q) => q.eq(q.field("storageId"), row.storageId))
+          .first();
+        if (!sourceMaterial) {
+          await ctx.storage.delete(row.storageId);
+        }
       }
       await ctx.db.delete(row._id);
     }
@@ -439,6 +604,21 @@ export const getResumeDownloadUrl = mutation({
   handler: async (ctx, args) => {
     await getCurrentUserOrThrow(ctx);
     return await ctx.storage.getUrl(args.storageId);
+  },
+});
+
+export const getProfileSourceDownloadUrl = mutation({
+  args: {
+    sourceMaterialId: v.id("profileSourceMaterials"),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await getCurrentUserOrThrow(ctx);
+    const material = await ctx.db.get(args.sourceMaterialId);
+    if (!material || material.userId !== user._id || !material.storageId) {
+      throw new Error("Source material not found");
+    }
+
+    return await ctx.storage.getUrl(material.storageId);
   },
 });
 

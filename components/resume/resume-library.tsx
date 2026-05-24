@@ -8,6 +8,7 @@ import { useToast } from "@/components/providers";
 import { NeoButton } from "@/components/ui/neo-button";
 import { NeoCard } from "@/components/ui/neo-card";
 import { cn } from "@/lib/utils";
+import type { ToastType } from "@/lib/types";
 import { NeoTabs } from "@/components/ui/neo-tabs";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useRenamePrompt } from "@/components/ui/prompt-dialog";

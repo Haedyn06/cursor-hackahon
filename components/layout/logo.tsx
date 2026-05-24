@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { RezumeLogo } from "@/components/layout/rezume-logo";
 
 type LogoProps = {
   size?: "icon" | "sm" | "md";
@@ -7,29 +8,27 @@ type LogoProps = {
   className?: string;
 };
 
+const LOGO_SIZE = {
+  icon: 36,
+  sm: 32,
+  md: 40,
+} as const;
+
 export function Logo({ size = "md", href, className }: LogoProps) {
-  const sz = size === "icon" ? 36 : size === "sm" ? 32 : 40;
-  const fs = Math.round(sz * 0.52);
+  const dimension = LOGO_SIZE[size];
 
   const inner = (
-    <div className={cn("flex items-center gap-2", className)}>
-      <div
-        className="flex shrink-0 items-center justify-center rounded-[10px] font-heading font-extrabold text-[var(--foreground)] neo-border select-none"
-        style={{
-          width: sz,
-          height: sz,
-          background: "var(--mint)",
-          fontSize: fs,
-        }}
-      >
-        R
-      </div>
+    <div className={cn("flex items-center gap-2.5", className)}>
+      <RezumeLogo
+        className="shrink-0"
+        style={{ width: dimension, height: dimension }}
+      />
       {size !== "icon" && (
         <span
           className="font-heading font-extrabold tracking-tight text-[var(--foreground)]"
           style={{ fontSize: size === "sm" ? 18 : 22 }}
         >
-          ezume
+          Rezume
         </span>
       )}
     </div>

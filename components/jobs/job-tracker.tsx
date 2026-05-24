@@ -1,6 +1,8 @@
 "use client";
 
+import { useMutation, useQuery } from "convex/react";
 import { useEffect, useRef, useState } from "react";
+import { api } from "@/convex/_generated/api";
 import { AddJobForm } from "@/components/jobs/add-job-form";
 import { useToast } from "@/components/providers";
 import { NeoBadge } from "@/components/ui/neo-badge";
@@ -29,6 +31,8 @@ import { AtsResumeTemplate } from "@/components/resume/ats-resume-template";
 import { generateTailoredResume, refineTailoredResume, generateTailoredCoverLetter, refineTailoredCoverLetter, generateInterviewPrepGuide, refineInterviewPrepGuide } from "@/lib/ai/client";
 import { loadAiSession } from "@/lib/ai/session";
 import { getInitialProfile } from "@/lib/onboarding-storage";
+import { prepareSourceMaterialInputs } from "@/lib/profile/source-material-input";
+import { matchExistingResumeToJob, getResumeTabEmptyState } from "@/lib/jobs/resume-flow";
 import type { JobStoredCoverLetter } from "@/lib/types/job-cover-letter";
 import { hasStoredCoverLetter } from "@/lib/types/job-cover-letter";
 import type { JobStoredInterviewPrep } from "@/lib/types/job-interview-prep";
@@ -48,11 +52,27 @@ function ResumeTab({ job }: { job: Job }) {
   const { confirm, dialog: confirmDialog } = useConfirm();
   const { updateJob } = useJobs();
   const { pickFormat, dialog: downloadDialog } = useDownloadFormat();
+  const onboardingState = useQuery(api.onboarding.getOnboardingState);
+  const getProfileSourceDownloadUrl = useMutation(
+    api.onboarding.getProfileSourceDownloadUrl,
+  );
   const exportRef = useRef<HTMLDivElement>(null);
   const [generating, setGenerating] = useState(false);
+  const realResumes = onboardingState?.importedResumes ?? [];
+  const [selectedResumeId, setSelectedResumeId] = useState<string | null>(
+    hasStoredResume(job.storedResume) ? `stored-${job.id}` : null,
+  );
   const [generated, setGenerated] = useState(hasStoredResume(job.storedResume));
   const [resumeDocument, setResumeDocument] = useState<ResumeDocument | null>(
     job.storedResume?.document ?? null,
+  );
+  const [resumeSourceLabel, setResumeSourceLabel] = useState(
+    hasStoredResume(job.storedResume) ? `${job.company} — tailored resume` : "",
+  );
+  const [usingExistingResume, setUsingExistingResume] = useState(false);
+  const [showResumeSelection, setShowResumeSelection] = useState(!hasStoredResume(job.storedResume));
+  const [activeResumeTitle, setActiveResumeTitle] = useState(
+    hasStoredResume(job.storedResume) ? `${job.company} — tailored resume` : "",
   );
   const [resumeMatchScore, setResumeMatchScore] = useState<number | null>(
     job.storedResume?.matchScore ?? job.matchScore,
@@ -83,6 +103,11 @@ function ResumeTab({ job }: { job: Job }) {
       setResumeMatchScore(job.storedResume.matchScore);
       setResumeMatchedKeywords(job.storedResume.matchedKeywords);
       setResumeMissingKeywords(job.storedResume.missingKeywords);
+      setSelectedResumeId(`stored-${job.id}`);
+      setResumeSourceLabel(`${job.company} — tailored resume`);
+      setActiveResumeTitle(`${job.company} — tailored resume`);
+      setUsingExistingResume(false);
+      setShowResumeSelection(false);
       return;
     }
 
@@ -91,7 +116,56 @@ function ResumeTab({ job }: { job: Job }) {
     setResumeMatchScore(job.matchScore);
     setResumeMatchedKeywords(job.matchedKeywords);
     setResumeMissingKeywords(job.missingKeywords);
-  }, [job.id, job.storedResume?.updatedAt]);
+    setSelectedResumeId(null);
+    setResumeSourceLabel("");
+    setActiveResumeTitle("");
+    setUsingExistingResume(false);
+    setShowResumeSelection(true);
+  }, [job.id, job.storedResume?.updatedAt, job.company, job.matchScore, job.matchedKeywords, job.missingKeywords]);
+
+  const selectExistingResume = (resume: (typeof realResumes)[number]) => {
+    const existingResume = job.storedResume?.document;
+    if (!existingResume) {
+      toast("Generate or save a resume first, then you can tailor it here.", "warn");
+      return;
+    }
+
+    const match = matchExistingResumeToJob(existingResume, job);
+    const label = resume.displayName || resume.fileName;
+    setSelectedResumeId(String(resume._id));
+    setResumeSourceLabel(label);
+    setActiveResumeTitle(label);
+    setResumeDocument(existingResume);
+    setResumeMatchScore(match.matchScore);
+    setResumeMatchedKeywords(match.matchedKeywords);
+    setResumeMissingKeywords(match.missingKeywords);
+    setGenerated(true);
+    setUsingExistingResume(true);
+    setShowResumeSelection(false);
+    setMessages([
+      {
+        role: "ai",
+        text: `Loaded \"${label}\" for this job. Ask me to tailor it, improve the score, or generate a brand new version instead.`,
+      },
+    ]);
+  };
+
+  const openResumeSelection = () => {
+    setShowResumeSelection(true);
+  };
+
+  const emptyState = getResumeTabEmptyState({
+    hasLibraryResumes: realResumes.length > 0,
+    hasSelectedResume: !!selectedResumeId,
+  });
+
+  const shouldShowSelectionFirst = showResumeSelection || (!selectedResumeId && realResumes.length > 0);
+
+  const selectionSummary = usingExistingResume
+    ? "Selected resume"
+    : hasStoredResume(job.storedResume)
+      ? "Current tailored resume"
+      : "Selected resume";
 
   const activeDocument = resumeDocument;
   const activeMatchScore = resumeMatchScore ?? 0;
@@ -130,6 +204,10 @@ function ResumeTab({ job }: { job: Job }) {
 
     setGenerating(true);
     try {
+      const sourceMaterials = await prepareSourceMaterialInputs(
+        onboardingState?.profileSourceMaterials ?? [],
+        (sourceMaterialId) => getProfileSourceDownloadUrl({ sourceMaterialId }),
+      );
       const result = await generateTailoredResume({
         providerId: session.providerId,
         apiKey: session.apiKey,
@@ -140,6 +218,7 @@ function ResumeTab({ job }: { job: Job }) {
           description: job.jd.trim() || `${job.title} at ${job.company}`,
         },
         profile: getInitialProfile(),
+        sourceMaterials,
       });
 
       setResumeDocument(result.resume);
@@ -277,6 +356,60 @@ function ResumeTab({ job }: { job: Job }) {
     }
   };
 
+  if (!generated && !generating && shouldShowSelectionFirst) {
+    return (
+      <>
+        {confirmDialog}
+        <div className="flex flex-1 flex-col gap-5 p-6">
+          <div className="flex items-start justify-between gap-4 rounded-2xl bg-white p-5 neo-border">
+            <div>
+              <div className="mb-1 font-heading text-[22px] font-extrabold">{emptyState.title}</div>
+              <p className="max-w-[440px] text-sm font-medium text-[#666]">{emptyState.description}</p>
+            </div>
+            {emptyState.actionLabel && (
+              <NeoButton variant="primary" size="lg" onClick={() => void generate()}>
+                {emptyState.actionLabel}
+              </NeoButton>
+            )}
+          </div>
+
+          {realResumes.length > 0 && (
+            <div className="rounded-2xl bg-white p-5 neo-border">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <div className="font-heading text-lg font-extrabold">Your resumes</div>
+                  <p className="text-xs font-medium text-[#777]">
+                    Pick one to see match score and tailor it for this job.
+                  </p>
+                </div>
+                <NeoButton variant="secondary" size="sm" onClick={() => void generate()}>
+                  Generate New Resume
+                </NeoButton>
+              </div>
+              <div className="flex flex-col gap-3">
+                {realResumes.map((resume) => (
+                  <NeoCard
+                    key={String(resume._id)}
+                    className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-bold">{resume.displayName || resume.fileName}</div>
+                      <div className="truncate text-[11px] text-[#888]">{resume.fileName}</div>
+                      <div className="text-[11px] text-[#aaa]">{resume.mimeType || "Imported resume"}</div>
+                    </div>
+                    <NeoButton variant="mint" size="sm" className="sm:shrink-0" onClick={() => selectExistingResume(resume)}>
+                      Tailor this resume
+                    </NeoButton>
+                  </NeoCard>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </>
+    );
+  }
+
   if (!generated && !generating) {
     return (
       <>
@@ -285,13 +418,15 @@ function ResumeTab({ job }: { job: Job }) {
           <div className="flex h-[72px] w-[72px] items-center justify-center rounded-[20px] bg-[var(--lav-l)] text-[32px] neo-border">
             📄
           </div>
-          <div className="font-heading text-[22px] font-extrabold">No resume yet</div>
+          <div className="font-heading text-[22px] font-extrabold">{emptyState.title}</div>
           <p className="max-w-[300px] text-center text-sm font-medium text-[#666]">
-            Generate a tailored, ATS-optimized resume in seconds
+            {emptyState.description}
           </p>
-          <NeoButton variant="primary" size="lg" onClick={() => void generate()}>
-            ✦ Generate Resume
-          </NeoButton>
+          {emptyState.actionLabel && (
+            <NeoButton variant="primary" size="lg" onClick={() => void generate()}>
+              {emptyState.actionLabel}
+            </NeoButton>
+          )}
         </div>
       </>
     );
@@ -337,25 +472,56 @@ function ResumeTab({ job }: { job: Job }) {
       {confirmDialog}
       <div className="flex flex-1 overflow-hidden">
       <div className="flex-1 overflow-y-auto border-r-2 border-[var(--foreground)] p-6">
-        <div className="mb-5 flex items-center gap-4">
-          <MatchScore score={activeMatchScore} size="lg" />
-          <div className="flex-1">
-            <div className="mb-2 font-heading text-base font-extrabold">
-              Keyword Match
+        <div className="mb-5 space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl bg-white p-4 neo-border">
+            <div>
+              <div className="text-[11px] font-bold tracking-wide text-[#888] uppercase">
+                {selectionSummary}
+              </div>
+              <div className="font-heading text-lg font-extrabold">{activeResumeTitle || resumeSourceLabel}</div>
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {activeMatchedKeywords.map((k) => (
-                <NeoBadge key={k} color="var(--mint)" className="text-[11px]">
-                  ✓ {k}
-                </NeoBadge>
-              ))}
-              {activeMissingKeywords.map((k) => (
-                <NeoBadge key={k} color="var(--peach)" className="text-[11px]">
-                  ✕ {k}
-                </NeoBadge>
-              ))}
+            <div className="flex flex-wrap gap-2">
+              <NeoButton variant="secondary" size="sm" onClick={openResumeSelection}>
+                Select another resume
+              </NeoButton>
+              <NeoButton variant="mint" size="sm" onClick={() => void generate()} disabled={generating}>
+                Generate new one
+              </NeoButton>
             </div>
           </div>
+
+          <div className="flex items-center gap-4">
+            <MatchScore score={activeMatchScore} size="lg" />
+            <div className="flex-1">
+              <div className="mb-2 font-heading text-base font-extrabold">
+                Keyword Match
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {activeMatchedKeywords.map((k) => (
+                  <NeoBadge key={k} color="var(--mint)" className="text-[11px]">
+                    ✓ {k}
+                  </NeoBadge>
+                ))}
+                {activeMissingKeywords.map((k) => (
+                  <NeoBadge key={k} color="var(--peach)" className="text-[11px]">
+                    ✕ {k}
+                  </NeoBadge>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-4 rounded-2xl bg-white p-4 neo-border">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div className="font-heading text-base font-extrabold">Tailor this resume</div>
+            <NeoButton variant="secondary" size="sm" onClick={openResumeSelection}>
+              Show resume library
+            </NeoButton>
+          </div>
+          <p className="text-sm font-medium text-[#666]">
+            This tab now uses your selected resume as the starting point. Refine it with AI below or generate a new tailored version.
+          </p>
         </div>
         <div className="overflow-x-auto pb-4">
           <AtsResumeTemplate
@@ -367,6 +533,9 @@ function ResumeTab({ job }: { job: Job }) {
         <div className="mt-4 flex flex-wrap gap-2.5">
           <NeoButton variant="secondary" size="sm" onClick={() => void handleDownload()}>
             Download
+          </NeoButton>
+          <NeoButton variant="mint" size="sm" onClick={openResumeSelection}>
+            Show resume library
           </NeoButton>
           <NeoButton variant="secondary" size="sm" onClick={() => void generate()} disabled={generating}>
             ↺ Regenerate
@@ -428,6 +597,10 @@ function CoverLetterTab({ job }: { job: Job }) {
   const toast = useToast();
   const { confirm, dialog: confirmDialog } = useConfirm();
   const { updateJob } = useJobs();
+  const onboardingState = useQuery(api.onboarding.getOnboardingState);
+  const getProfileSourceDownloadUrl = useMutation(
+    api.onboarding.getProfileSourceDownloadUrl,
+  );
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState(hasStoredCoverLetter(job.storedCoverLetter));
   const [content, setContent] = useState(job.storedCoverLetter?.content ?? "");
@@ -476,6 +649,10 @@ function CoverLetterTab({ job }: { job: Job }) {
 
     setGenerating(true);
     try {
+      const sourceMaterials = await prepareSourceMaterialInputs(
+        onboardingState?.profileSourceMaterials ?? [],
+        (sourceMaterialId) => getProfileSourceDownloadUrl({ sourceMaterialId }),
+      );
       const result = await generateTailoredCoverLetter({
         providerId: session.providerId,
         apiKey: session.apiKey,
@@ -487,6 +664,7 @@ function CoverLetterTab({ job }: { job: Job }) {
         },
         profile: getInitialProfile(),
         resume: job.storedResume?.document ?? null,
+        sourceMaterials,
       });
 
       setContent(result.content);
@@ -1222,37 +1400,46 @@ function JobDetailPanel({
                 {job.jd || "No job description provided."}
               </div>
             </div>
-            <div className="w-[220px] shrink-0">
-              <SectionHeader label="Keywords" color="var(--lav)" />
+            <div className="w-[260px] shrink-0">
+              <SectionHeader label="Resume Match" color="var(--lav)" />
               <NeoCard className="p-4">
-                {job.matchedKeywords.length > 0 && (
-                  <div className="mb-3">
-                    <div className="mb-1.5 text-[11px] font-bold text-[#888]">MATCHED</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {job.matchedKeywords.map((k) => (
-                        <NeoBadge key={k} color="var(--mint)" className="text-[11px]">
-                          ✓ {k}
-                        </NeoBadge>
-                      ))}
+                {hasStoredResume(job.storedResume) ? (
+                  <div className="space-y-3">
+                    <div>
+                      <div className="mb-1 text-[11px] font-bold text-[#888]">START WITH</div>
+                      <div className="text-sm font-bold text-[var(--foreground)]">
+                        Your saved resume
+                      </div>
+                      <p className="mt-1 text-xs text-[#777]">
+                        Select Resume to view the match score, tailor it with AI, or generate a new version.
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <NeoButton
+                        variant="mint"
+                        size="sm"
+                        onClick={() => setActiveTab("resume")}
+                      >
+                        Select Resume
+                      </NeoButton>
+                      <NeoButton
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setActiveTab("resume")}
+                      >
+                        Show Tailored Resume
+                      </NeoButton>
                     </div>
                   </div>
-                )}
-                {job.missingKeywords.length > 0 && (
-                  <div>
-                    <div className="mb-1.5 text-[11px] font-bold text-[#888]">MISSING</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {job.missingKeywords.map((k) => (
-                        <NeoBadge key={k} color="var(--peach)" className="text-[11px]">
-                          ✕ {k}
-                        </NeoBadge>
-                      ))}
-                    </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-center text-xs text-[#888]">
+                      Select a resume first, then Rezume will show the match score and keyword coverage here.
+                    </p>
+                    <NeoButton variant="secondary" size="sm" onClick={() => setActiveTab("resume")}>
+                      Open Resume Tab
+                    </NeoButton>
                   </div>
-                )}
-                {!job.matchedKeywords.length && !job.missingKeywords.length && (
-                  <p className="py-2 text-center text-xs text-[#888]">
-                    Generate a resume to see keyword matches
-                  </p>
                 )}
               </NeoCard>
             </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { API_PROVIDERS, OAUTH_PROVIDERS } from "@/lib/constants";
@@ -20,7 +20,6 @@ import {
   type AiSession,
 } from "@/lib/ai/session";
 import type { ApiProviderId } from "@/lib/ai/types";
-import { API_PROVIDERS } from "@/lib/constants";
 
 const PROVIDERS = API_PROVIDERS;
 const OAUTH = OAUTH_PROVIDERS;
@@ -46,13 +45,15 @@ export function SettingsView() {
   const toast = useToast();
   const { user } = useUser();
   const onboardingState = useQuery(api.onboarding.getOnboardingState);
+  const disconnectProviderConnection = useMutation(api.onboarding.disconnectProviderConnection);
   const [showProviderUI, setShowProviderUI] = useState(false);
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
   const [providerType, setProviderType] = useState<"apikey" | "oauth">("apikey");
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [verified, setVerified] = useState<Record<string, boolean>>({});
   const [verifyingProvider, setVerifyingProvider] = useState<string | null>(null);
-  const [aiSession, setAiSession] = useState<AiSession | null>(null);
+  const [aiSession, setAiSession] = useState<AiSession | null>(() => loadAiSession());
+  const [openProviderMenu, setOpenProviderMenu] = useState<string | null>(null);
   const [showDangerConfirm, setShowDangerConfirm] = useState<string | null>(null);
 
   const oauthConnected = useMemo(() => {
@@ -66,25 +67,26 @@ export function SettingsView() {
   }, [onboardingState]);
 
 
-  const currentProvider = useMemo(() => {
-    const connected = onboardingState?.providerConnections.find(
-      (connection) => connection.status === "connected",
-    );
+  const connectedProviders = useMemo(() => {
+    return (onboardingState?.providerConnections ?? [])
+      .filter((connection) => connection.status === "connected")
+      .map((connection) => {
+        const providerMeta = [...PROVIDERS, ...OAUTH].find(
+          (provider) => provider.id === connection.providerId,
+        );
 
-    if (!connected) {
-      return null;
-    }
-
-    const providerMeta = [...PROVIDERS, ...OAUTH].find(
-      (provider) => provider.id === connected.providerId,
-    );
-
-    return {
-      name: connected.providerName,
-      model: connected.connectionType === "apikey" ? "API key connected" : "OAuth connected",
-      maskedKey: connected.connectionType === "apikey" ? "Stored client-side" : "No API key required",
-      color: providerMeta?.color ?? "var(--lav)",
-    };
+        return {
+          id: connection.providerId,
+          name: connection.providerName,
+          model:
+            connection.connectionType === "apikey" ? "API key connected" : "OAuth connected",
+          maskedKey:
+            connection.connectionType === "apikey"
+              ? "Stored client-side"
+              : "No API key required",
+          color: providerMeta?.color ?? "var(--lav)",
+        };
+      });
   }, [onboardingState]);
 
   const accountName = user?.fullName ?? onboardingState?.user?.name ?? "—";
@@ -119,6 +121,18 @@ export function SettingsView() {
     }
   };
 
+  const handleDisconnect = async (providerId: string) => {
+    await disconnectProviderConnection({ providerId });
+    if (aiSession?.providerId === providerId) {
+      clearAiSession();
+      setAiSession(null);
+    }
+    setApiKeys((current) => ({ ...current, [providerId]: "" }));
+    setVerified((current) => ({ ...current, [providerId]: false }));
+    setOpenProviderMenu(null);
+    toast("Provider disconnected", "warn");
+  };
+
   return (
     <div className="flex-1 overflow-y-auto bg-[var(--background)]">
       <div className="mx-auto max-w-[640px] px-6 py-10">
@@ -127,49 +141,66 @@ export function SettingsView() {
         </h1>
 
         <SettingsSection title="AI Provider">
-          <NeoCard className="mb-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5">
-                <div
-                  className="flex h-11 w-11 items-center justify-center rounded-xl font-heading text-base font-extrabold neo-border"
-                  style={{ background: currentProvider?.color ?? "#ffffff" }}
+          {connectedProviders.length > 0 ? (
+            <div className="mb-4 space-y-3">
+              {connectedProviders.map((provider) => (
+                <NeoCard key={provider.id}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3.5">
+                      <div
+                        className="flex h-11 w-11 items-center justify-center rounded-xl font-heading text-base font-extrabold neo-border"
+                        style={{ background: provider.color ?? "#ffffff" }}
+                      >
+                        {provider.name[0] ?? "?"}
+                      </div>
+                      <div>
+                        <div className="text-base font-extrabold">{provider.name}</div>
+                        <div className="mt-0.5 text-xs font-medium text-[#888]">
+                          {provider.model}
+                        </div>
+                        <div className="mt-0.5 font-mono text-xs text-[#aaa]">
+                          {provider.maskedKey}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="relative shrink-0">
+                      <button
+                        type="button"
+                        aria-label={`Open ${provider.name} options`}
+                        onClick={() =>
+                          setOpenProviderMenu((current) =>
+                            current === provider.id ? null : provider.id,
+                          )
+                        }
+                        className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white text-lg font-black neo-border-sm"
+                      >
+                        ⋯
+                      </button>
+                      {openProviderMenu === provider.id ? (
+                        <div className="absolute top-11 right-0 z-10 min-w-[140px] rounded-[12px] bg-white p-1.5 neo-border">
+                          <button
+                            type="button"
+                            onClick={() => void handleDisconnect(provider.id)}
+                            className="w-full cursor-pointer rounded-[8px] border-none px-3 py-2 text-left text-sm font-bold text-[var(--red)] hover:bg-[var(--red-l)]"
+                          >
+                            Disconnect
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </NeoCard>
+              ))}
+              <div className="flex gap-2">
+                <NeoButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowProviderUI(!showProviderUI)}
                 >
-                  {currentProvider?.name[0] ?? "?"}
-                </div>
-                <div>
-                  <div className="text-base font-extrabold">
-                    {currentProvider?.name ?? "No provider connected"}
-                  </div>
-                  <div className="mt-0.5 text-xs font-medium text-[#888]">
-                    {currentProvider?.model ?? "Connect an AI provider to start generating."}
-                  </div>
-                  <div className="mt-0.5 font-mono text-xs text-[#aaa]">
-                    {currentProvider?.maskedKey ?? "No active connection"}
-                  </div>
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  <NeoButton
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => setShowProviderUI(!showProviderUI)}
-                  >
-                    Change provider
-                  </NeoButton>
-                  <NeoButton
-                    variant="danger"
-                    size="sm"
-                    onClick={() => {
-                      clearAiSession();
-                      setAiSession(null);
-                      setVerified({});
-                      toast("Provider disconnected", "warn");
-                    }}
-                  >
-                    Disconnect
-                  </NeoButton>
-                </div>
+                  Manage providers
+                </NeoButton>
               </div>
-            </NeoCard>
+            </div>
           ) : (
             <NeoCard className="mb-4">
               <div className="flex items-center justify-between gap-4">
@@ -190,7 +221,7 @@ export function SettingsView() {
             </NeoCard>
           )}
 
-          {(showProviderUI || !currentProvider) && (
+          {(showProviderUI || connectedProviders.length === 0) && (
             <div className="mt-4">
               <div className="mb-4 flex w-fit overflow-hidden rounded-full neo-border">
                 {(

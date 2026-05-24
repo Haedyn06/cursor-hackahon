@@ -23,11 +23,14 @@ import { API_PROVIDERS, OAUTH_PROVIDERS } from "@/lib/constants";
 import { verifyApiKey, autofillProfileFromDocuments } from "@/lib/ai/client";
 import { getProviderConfig } from "@/lib/ai/providers";
 import { loadAiSession, saveAiSession } from "@/lib/ai/session";
+import type { ApiProviderId } from "@/lib/ai/types";
 import {
   mockAiResumeName,
+  type OnboardingProfileState,
   persistOnboardingCompletion,
 } from "@/lib/onboarding-storage";
 import type { OnboardingResume } from "@/lib/mock-data";
+import { extractCanonicalLinks } from "@/lib/profile/canonical-links";
 
 type ResumeItem = {
   id: number;
@@ -279,9 +282,77 @@ const defaultProfile = {
   languages: [{ id: 1, name: "", level: "Conversational" }],
   certifications: [{ id: 1, name: "", issuer: "", date: "" }],
   experience_entries: [{ id: 1, title: "", company: "", dates: "", bullets: "" }],
+  projects: [] as { id: number; title: string; url: string; desc: string; active: boolean }[],
+  education: [] as { id: number; degree: string; school: string; dates: string; gpa: string }[],
 };
 
 type ProfileState = typeof defaultProfile;
+
+function onboardingProfileToProfileState(payload: OnboardingProfileState): ProfileState {
+  const links =
+    payload.links.length > 0
+      ? payload.links.map((link) => ({
+          id: link.id,
+          name: link.name,
+          url: link.url,
+        }))
+      : defaultProfile.links;
+
+  const canonical = extractCanonicalLinks(links);
+
+  return {
+    ...defaultProfile,
+    name: payload.name,
+    location: payload.location,
+    email: payload.email,
+    phone: payload.phone,
+    links,
+    linkedin: canonical.linkedin,
+    github: canonical.github,
+    portfolio: canonical.portfolio,
+    targetRole: payload.targetRole,
+    experience: payload.experience,
+    about: payload.about,
+    skills: payload.skills,
+    languages:
+      payload.languages.length > 0
+        ? payload.languages.map((language) => ({
+            id: language.id,
+            name: language.name,
+            level: language.level,
+          }))
+        : defaultProfile.languages,
+    certifications:
+      payload.certifications.length > 0
+        ? payload.certifications.map((certification) => ({
+            id: certification.id,
+            name: certification.name,
+            issuer: certification.issuer,
+            date: certification.date,
+          }))
+        : defaultProfile.certifications,
+    experience_entries:
+      payload.experience_entries.length > 0
+        ? payload.experience_entries.map((entry) => ({
+            id: entry.id,
+            title: entry.title,
+            company: entry.company,
+            dates: entry.dates,
+            bullets: entry.bullets,
+          }))
+        : defaultProfile.experience_entries,
+    education:
+      payload.education.length > 0
+        ? payload.education.map((entry) => ({
+            id: entry.id,
+            degree: entry.degree,
+            school: entry.school,
+            dates: entry.dates,
+            gpa: entry.gpa,
+          }))
+        : defaultProfile.education,
+  };
+}
 
 async function fileToBase64(file: File): Promise<string> {
   const buffer = await file.arrayBuffer();
@@ -300,6 +371,10 @@ function AIAutoFillZone({
 }) {
   const toast = useToast();
   const { confirm, dialog } = useConfirm();
+  const generateResumeUploadUrl = useMutation(api.onboarding.generateResumeUploadUrl);
+  const saveProfileSourceMaterial = useMutation(
+    api.onboarding.saveProfileSourceMaterial,
+  );
   const [dragOver, setDragOver] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [pastedText, setPastedText] = useState("");
@@ -339,6 +414,26 @@ function AIAutoFillZone({
     return "📎";
   };
 
+  const saveAutofillSourceFile = async (
+    file: File,
+    inputKind: "upload" | "paste",
+    label = file.name,
+  ) => {
+    const uploadUrl = await generateResumeUploadUrl({});
+    const storageId = await uploadResumeFile(uploadUrl, file);
+    await saveProfileSourceMaterial({
+      material: {
+        storageId: storageId as never,
+        label,
+        fileName: file.name,
+        mimeType: file.type || undefined,
+        sizeBytes: file.size,
+        sourceKind: "autofill",
+        inputKind,
+      },
+    });
+  };
+
   const handleExtract = async () => {
     const session = loadAiSession();
     if (!session) {
@@ -364,7 +459,20 @@ function AIAutoFillZone({
         uploads,
       });
 
-      onFill(result.profile as ProfileState);
+      await Promise.all([
+        ...files.map((file) => saveAutofillSourceFile(file, "upload")),
+        pastedText.trim()
+          ? saveAutofillSourceFile(
+              new File([pastedText.trim()], "autofill-notes.txt", {
+                type: "text/plain",
+              }),
+              "paste",
+              "AI autofill notes",
+            )
+          : Promise.resolve(),
+      ]);
+
+      onFill(onboardingProfileToProfileState(result.profile));
       setFillSummary(result.summary);
       setDone(true);
       toast("Profile fields filled from your documents.");
@@ -630,7 +738,7 @@ function MultiResumeImport({
         </div>
       )}
 
-      <p className="mt-3.5 text-xs font-medium text-[#888]">🔒 Uploaded files are stored in Convex storage. Pasted text is saved as metadata only.</p>
+      <p className="mt-3.5 text-xs font-medium text-[#888]">🔒 Uploaded files and pasted text are saved as source materials for your profile.</p>
     </NeoCard>
   );
 }
@@ -638,6 +746,7 @@ function MultiResumeImport({
 export default function OnboardingPage() {
   const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
+  const currentUser = useQuery(api.users.getCurrentUser);
   const onboardingState = useQuery(api.onboarding.getOnboardingState);
   const initializeOnboarding = useMutation(api.onboarding.initializeOnboarding);
   const saveProviderConnections = useMutation(api.onboarding.saveProviderConnections);
@@ -646,6 +755,9 @@ export default function OnboardingPage() {
   const completeOnboarding = useMutation(api.onboarding.completeOnboarding);
   const generateResumeUploadUrl = useMutation(api.onboarding.generateResumeUploadUrl);
   const savePastedResumeMutation = useMutation(api.onboarding.savePastedResume);
+  const saveProfileSourceMaterial = useMutation(
+    api.onboarding.saveProfileSourceMaterial,
+  );
 
   const { confirm, dialog } = useConfirm();
   const [step, setStep] = useState(1);
@@ -667,6 +779,13 @@ export default function OnboardingPage() {
       void initializeOnboarding({});
     }
   }, [initializeOnboarding, isSignedIn]);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || currentUser === undefined) return;
+    if (currentUser?.onboardingCompleted) {
+      router.replace("/jobs");
+    }
+  }, [currentUser, isLoaded, isSignedIn, router]);
 
   useEffect(() => {
     if (!onboardingState || hydrated) return;
@@ -744,6 +863,30 @@ export default function OnboardingPage() {
                     bullets: entry.bullets,
                   }))
               : defaultProfile.experience_entries,
+          projects:
+            (onboardingState.projects ?? []).length > 0
+              ? [...(onboardingState.projects ?? [])]
+                  .sort((a, b) => a.position - b.position)
+                  .map((project, index) => ({
+                    id: index + 1,
+                    title: project.title,
+                    url: project.url,
+                    desc: project.desc,
+                    active: project.active,
+                  }))
+              : defaultProfile.projects,
+          education:
+            (onboardingState.education ?? []).length > 0
+              ? [...(onboardingState.education ?? [])]
+                  .sort((a, b) => a.position - b.position)
+                  .map((entry, index) => ({
+                    id: index + 1,
+                    degree: entry.degree,
+                    school: entry.school,
+                    dates: entry.dates,
+                    gpa: entry.gpa,
+                  }))
+              : defaultProfile.education,
         });
       }
 
@@ -871,6 +1014,39 @@ export default function OnboardingPage() {
     });
   };
 
+  const updateEducationEntry = (
+    id: number,
+    field: keyof ProfileState["education"][number],
+    value: string,
+  ) => {
+    setProfile((p) => ({
+      ...p,
+      education: p.education.map((entry) =>
+        entry.id === id ? { ...entry, [field]: value } : entry,
+      ),
+    }));
+  };
+
+  const addEducationEntry = () => {
+    setProfile((p) => ({
+      ...p,
+      education: [
+        ...p.education,
+        { id: Date.now(), degree: "", school: "", dates: "", gpa: "" },
+      ],
+    }));
+  };
+
+  const removeEducationEntry = (id: number) => {
+    setProfile((p) => {
+      if (p.education.length <= 1) return p;
+      return {
+        ...p,
+        education: p.education.filter((entry) => entry.id !== id),
+      };
+    });
+  };
+
   const updateLinkEntry = (
     id: number,
     field: keyof ProfileState["links"][number],
@@ -923,6 +1099,17 @@ export default function OnboardingPage() {
     for (const file of files) {
       const uploadUrl = await generateResumeUploadUrl({});
       const storageId = await uploadResumeFile(uploadUrl, file);
+      await saveProfileSourceMaterial({
+        material: {
+          storageId: storageId as never,
+          label: toResumeDisplayName(file.name),
+          fileName: file.name,
+          mimeType: file.type || undefined,
+          sizeBytes: file.size,
+          sourceKind: "import",
+          inputKind: "upload",
+        },
+      });
       uploaded.push(
         makeResumeItem({
           storageId,
@@ -945,13 +1132,37 @@ export default function OnboardingPage() {
     setSavingPaste(true);
     try {
       const displayName = `Pasted resume ${resumes.filter((resume) => resume.sourceType === "paste").length + 1}`;
-      await savePastedResumeMutation({ fileName: `${displayName}.txt`, displayName });
+      const fileName = `${displayName}.txt`;
+      const textFile = new File([trimmed], fileName, { type: "text/plain" });
+      const uploadUrl = await generateResumeUploadUrl({});
+      const storageId = await uploadResumeFile(uploadUrl, textFile);
+      await saveProfileSourceMaterial({
+        material: {
+          storageId: storageId as never,
+          label: displayName,
+          fileName,
+          mimeType: textFile.type,
+          sizeBytes: textFile.size,
+          sourceKind: "import",
+          inputKind: "paste",
+        },
+      });
+      await savePastedResumeMutation({
+        storageId: storageId as never,
+        fileName,
+        displayName,
+        mimeType: textFile.type,
+        sizeBytes: textFile.size,
+      });
       setResumes((prev) => [
         ...prev,
         makeResumeItem({
-          file: `${displayName}.txt`,
+          storageId,
+          file: fileName,
           aiName: displayName,
           naming: false,
+          mimeType: textFile.type,
+          sizeBytes: textFile.size,
           sourceType: "paste",
           status: "imported",
         }),
@@ -978,7 +1189,7 @@ export default function OnboardingPage() {
     })),
   ];
 
-  const handleVerifyProvider = async (providerId: string) => {
+  const handleVerifyProvider = async (providerId: ApiProviderId) => {
     const lastVerifiedAt = now();
     setVerified((current) => ({ ...current, [providerId]: true }));
     try {
@@ -989,7 +1200,7 @@ export default function OnboardingPage() {
             : [
                 {
                   providerId,
-                  providerName: API_PROVIDERS.find((provider) => provider.id === providerId)?.name ?? providerId,
+                  providerName: API_PROVIDERS.find((provider) => provider.id === providerId)!.name,
                   connectionType: "apikey" as const,
                   status: "connected" as const,
                   lastVerifiedAt,
@@ -1018,22 +1229,25 @@ export default function OnboardingPage() {
   const handleSaveProfile = async () => {
     setSavingStep(2);
     try {
+      const links = profile.links.map((entry) => ({
+        name: entry.name,
+        url: entry.url,
+      }));
+      const canonical = extractCanonicalLinks(links);
+
       await saveProfileMutation({
         profile: {
           fullName: profile.name,
           location: profile.location,
           email: profile.email,
           phone: profile.phone,
-          linkedin: profile.linkedin,
-          github: profile.github,
-          portfolio: profile.portfolio,
+          linkedin: profile.linkedin || canonical.linkedin,
+          github: profile.github || canonical.github,
+          portfolio: profile.portfolio || canonical.portfolio,
           targetRole: profile.targetRole,
           experienceLevel: profile.experience,
           about: profile.about,
-          links: profile.links.map((entry) => ({
-            name: entry.name,
-            url: entry.url,
-          })),
+          links,
           skills: profile.skills,
           languages: profile.languages.map((entry) => ({
             name: entry.name,
@@ -1049,6 +1263,18 @@ export default function OnboardingPage() {
             company: entry.company,
             dates: entry.dates,
             bullets: entry.bullets,
+          })),
+          projects: profile.projects.map((entry) => ({
+            title: entry.title,
+            url: entry.url,
+            desc: entry.desc,
+            active: entry.active,
+          })),
+          education: profile.education.map((entry) => ({
+            degree: entry.degree,
+            school: entry.school,
+            dates: entry.dates,
+            gpa: entry.gpa,
           })),
         },
       });
@@ -1083,7 +1309,13 @@ export default function OnboardingPage() {
     router.push("/");
   }
 
-  if (!isLoaded || onboardingState === undefined || onboardingState === null || !hydrated) {
+  if (
+    !isLoaded ||
+    currentUser === undefined ||
+    onboardingState === undefined ||
+    onboardingState === null ||
+    !hydrated
+  ) {
     return null;
   }
 
@@ -1138,7 +1370,7 @@ export default function OnboardingPage() {
                       setVerified((k) => ({ ...k, [prov.id]: false }));
                     }}
                     verified={!!verified[prov.id]}
-                    onVerify={() => setVerified({ [prov.id]: true })}
+                    onVerify={() => handleVerifyProvider(prov.id)}
                   />
                 ))}
               </div>
@@ -1334,6 +1566,30 @@ export default function OnboardingPage() {
                           removeCertificationEntry(entry.id);
                         }} className="mt-3 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]">
                           Remove certification
+                        </button>
+                      )}
+                    </ProfileFormEntry>
+                  ))}
+                </div>
+              </CollapsibleSection>
+
+              <CollapsibleSection label="Education" description="Degrees, schools, and academic details" color="var(--mint-l)" defaultOpen={false} action={<NeoButton variant="secondary" size="sm" onClick={addEducationEntry}>+ Add</NeoButton>}>
+                <div className="flex flex-col gap-3">
+                  {profile.education.map((entry) => (
+                    <ProfileFormEntry key={entry.id}>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <NeoInput label="Degree" placeholder="e.g. B.S. Computer Science" value={entry.degree} onChange={(e) => updateEducationEntry(entry.id, "degree", e.target.value)} />
+                        <NeoInput label="School" placeholder="e.g. Stanford University" value={entry.school} onChange={(e) => updateEducationEntry(entry.id, "school", e.target.value)} />
+                        <NeoInput label="Dates" placeholder="e.g. 2019 – 2023" value={entry.dates} onChange={(e) => updateEducationEntry(entry.id, "dates", e.target.value)} />
+                        <NeoInput label="GPA (optional)" placeholder="e.g. 3.8" value={entry.gpa} onChange={(e) => updateEducationEntry(entry.id, "gpa", e.target.value)} />
+                      </div>
+                      {profile.education.length > 1 && (
+                        <button type="button" onClick={async () => {
+                          const confirmed = await confirm({ title: "Remove education?", message: `Remove "${entry.degree || "this education"}"? This can't be undone.`, confirmLabel: "Remove" });
+                          if (!confirmed) return;
+                          removeEducationEntry(entry.id);
+                        }} className="mt-3 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]">
+                          Remove education
                         </button>
                       )}
                     </ProfileFormEntry>

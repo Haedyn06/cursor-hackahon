@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "@/convex/_generated/api";
 import { NeoBadge } from "@/components/ui/neo-badge";
@@ -14,10 +14,14 @@ import { generateTailoredResume as generateTailoredResumeApi } from "@/lib/ai/cl
 import { loadAiSession } from "@/lib/ai/session";
 import { buildStoredResumeUpdate } from "@/lib/jobs/persist-generated-content";
 import { getInitialProfile } from "@/lib/onboarding-storage";
+import { prepareSourceMaterialInputs } from "@/lib/profile/source-material-input";
 import { resumeDocumentToPlainText } from "@/lib/resume-document";
 import { cn } from "@/lib/utils";
 import type { Job } from "@/lib/types/job";
-import type { GeneratedResume } from "@/components/resume/resume-preview-panel";
+import {
+  buildMockResumeContent,
+  type GeneratedResume,
+} from "@/components/resume/resume-preview-panel";
 
 const WIZARD_STEPS = ["Select job", "Template", "Generate"];
 
@@ -92,8 +96,12 @@ function SourceCard({
 }
 
 export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardProps) {
-  const { jobs } = useJobs();
+  const { jobs, updateJob } = useJobs();
+  const toast = useToast();
   const onboardingState = useQuery(api.onboarding.getOnboardingState);
+  const getProfileSourceDownloadUrl = useMutation(
+    api.onboarding.getProfileSourceDownloadUrl,
+  );
 
   const [step, setStep] = useState(1);
   const [jobSource, setJobSource] = useState<JobSource>(null);
@@ -142,7 +150,12 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
         .map((skill) => skill.name) ?? [],
   }), [onboardingState]);
 
-  const resolvedJob = (): { title: string; company: string; matchJob: string } | null => {
+  const resolvedJob = (): {
+    title: string;
+    company: string;
+    matchJob: string;
+    description: string;
+  } | null => {
     if (jobSource === "saved" && selectedJob) {
       return {
         title: selectedJob.title,
@@ -198,6 +211,10 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
 
     try {
       const profile = getInitialProfile();
+      const sourceMaterials = await prepareSourceMaterialInputs(
+        onboardingState?.profileSourceMaterials ?? [],
+        (sourceMaterialId) => getProfileSourceDownloadUrl({ sourceMaterialId }),
+      );
       const result = await generateTailoredResumeApi({
         providerId: session.providerId,
         apiKey: session.apiKey,
@@ -208,6 +225,7 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
           description: jobContext.description,
         },
         profile,
+        sourceMaterials,
       });
 
       const content = resumeDocumentToPlainText(result.resume);

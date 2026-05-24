@@ -1,6 +1,8 @@
 "use client";
 
+import { useMutation, useQuery } from "convex/react";
 import { useEffect, useState, type ReactNode } from "react";
+import { api } from "@/convex/_generated/api";
 import { NeoBadge } from "@/components/ui/neo-badge";
 import { NeoButton } from "@/components/ui/neo-button";
 import { NeoInput } from "@/components/ui/neo-input";
@@ -12,6 +14,7 @@ import { generateTailoredCoverLetter } from "@/lib/ai/client";
 import { loadAiSession } from "@/lib/ai/session";
 import { buildStoredCoverLetterUpdate } from "@/lib/jobs/persist-generated-content";
 import { getInitialProfile } from "@/lib/onboarding-storage";
+import { prepareSourceMaterialInputs } from "@/lib/profile/source-material-input";
 import { cn } from "@/lib/utils";
 import type { Job } from "@/lib/types/job";
 import type { GeneratedCoverLetter } from "@/components/resume/cover-letter-preview-panel";
@@ -63,7 +66,12 @@ export function NewCoverLetterWizard({
   onClose,
   onComplete,
 }: NewCoverLetterWizardProps) {
-  const { jobs } = useJobs();
+  const { jobs, updateJob } = useJobs();
+  const toast = useToast();
+  const onboardingState = useQuery(api.onboarding.getOnboardingState);
+  const getProfileSourceDownloadUrl = useMutation(
+    api.onboarding.getProfileSourceDownloadUrl,
+  );
 
   const [step, setStep] = useState(1);
   const [jobSource, setJobSource] = useState<JobSource>(null);
@@ -152,6 +160,10 @@ export function NewCoverLetterWizard({
     setGenerating(true);
 
     try {
+      const sourceMaterials = await prepareSourceMaterialInputs(
+        onboardingState?.profileSourceMaterials ?? [],
+        (sourceMaterialId) => getProfileSourceDownloadUrl({ sourceMaterialId }),
+      );
       const result = await generateTailoredCoverLetter({
         providerId: session.providerId,
         apiKey: session.apiKey,
@@ -163,6 +175,7 @@ export function NewCoverLetterWizard({
         },
         profile: getInitialProfile(),
         resume: selectedJob?.storedResume?.document ?? null,
+        sourceMaterials,
       });
 
       onComplete({

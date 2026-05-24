@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { useToast } from "@/components/providers";
 import { NeoBadge } from "@/components/ui/neo-badge";
@@ -15,9 +15,22 @@ import {
 } from "@/components/ui/collapsible-section";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
+  autofillProfileFromDocuments,
+  formatProfileExport,
+} from "@/lib/ai/client";
+import { loadAiSession } from "@/lib/ai/session";
+import {
   getInitialProfile,
+  mergeProfileFromOnboarding,
   toProfileLibraryItems,
 } from "@/lib/onboarding-storage";
+import { buildProfileExportDocument } from "@/lib/profile-export-document";
+import { exportProfileDocument } from "@/lib/profile-export";
+import { extractCanonicalLinks } from "@/lib/profile/canonical-links";
+import {
+  ProfileSourcePanel,
+  type ProfileSourceMaterial,
+} from "@/components/profile/profile-source-panel";
 
 const NAV_ITEMS = [
   { id: "personal", label: "Personal Info" },
@@ -90,16 +103,52 @@ function EditActions({
   );
 }
 
+async function fileToBase64(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]!);
+  }
+  return btoa(binary);
+}
+
+async function uploadResumeFile(uploadUrl: string, file: File) {
+  const result = await fetch(uploadUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": file.type || "application/octet-stream",
+    },
+    body: file,
+  });
+
+  if (!result.ok) {
+    throw new Error("Upload failed");
+  }
+
+  const { storageId } = await result.json();
+  return storageId as string;
+}
+
 export function ProfileView() {
   const toast = useToast();
   const { confirm, dialog } = useConfirm();
   const onboardingState = useQuery(api.onboarding.getOnboardingState);
   const saveProfileMutation = useMutation(api.onboarding.saveProfile);
+  const generateResumeUploadUrl = useMutation(api.onboarding.generateResumeUploadUrl);
+  const saveProfileSourceMaterial = useMutation(api.onboarding.saveProfileSourceMaterial);
+  const getProfileSourceDownloadUrl = useMutation(
+    api.onboarding.getProfileSourceDownloadUrl,
+  );
   const [activeSection, setActiveSection] = useState("personal");
   const [newSkill, setNewSkill] = useState("");
+  const [exporting, setExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState<"pdf" | "docx" | "txt">("pdf");
   const [profile, setProfile] = useState<ReturnType<typeof getInitialProfile> | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [sourcePanelOpen, setSourcePanelOpen] = useState(false);
+  const [addingMaterials, setAddingMaterials] = useState(false);
+  const [refillingWithAi, setRefillingWithAi] = useState(false);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(NAV_ITEMS.map((item) => [item.id, true])),
   );
@@ -107,6 +156,8 @@ export function ProfileView() {
   const [editDraft, setEditDraft] = useState<Record<string, unknown> | null>(
     null,
   );
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const hasAiSession = !!loadAiSession();
 
   useEffect(() => {
     if (onboardingState === undefined || hydrated) return;
@@ -184,7 +235,38 @@ export function ProfileView() {
                     .filter((bullet) => bullet.text),
                 }))
             : fallback.experience_entries,
-        resumeLibrary: toProfileLibraryItems(onboardingState.importedResumes ?? []),
+        projects:
+          (onboardingState.projects ?? []).length > 0
+            ? [...(onboardingState.projects ?? [])]
+                .sort((a, b) => a.position - b.position)
+                .map((project, index) => ({
+                  id: index + 1,
+                  title: project.title,
+                  url: project.url,
+                  desc: project.desc,
+                  active: project.active,
+                }))
+            : fallback.projects,
+        education:
+          (onboardingState.education ?? []).length > 0
+            ? [...(onboardingState.education ?? [])]
+                .sort((a, b) => a.position - b.position)
+                .map((entry, index) => ({
+                  id: index + 1,
+                  degree: entry.degree,
+                  school: entry.school,
+                  dates: entry.dates,
+                  gpa: entry.gpa,
+                }))
+            : fallback.education,
+        resumeLibrary: toProfileLibraryItems(
+          (onboardingState.importedResumes ?? []).map((resume, index) => ({
+            id: index + 1,
+            file: resume.fileName,
+            aiName: resume.displayName,
+            naming: false,
+          })),
+        ),
       });
       setHydrated(true);
     });
@@ -195,22 +277,25 @@ export function ProfileView() {
       return;
     }
 
+    const links = nextProfile.links.map((entry) => ({
+      name: entry.name,
+      url: entry.url,
+    }));
+    const canonical = extractCanonicalLinks(links);
+
     await saveProfileMutation({
       profile: {
         fullName: nextProfile.name,
         location: nextProfile.location,
         email: nextProfile.email,
         phone: nextProfile.phone,
-        linkedin: "",
-        github: "",
-        portfolio: "",
+        linkedin: canonical.linkedin,
+        github: canonical.github,
+        portfolio: canonical.portfolio,
         targetRole: nextProfile.targetRole,
         experienceLevel: nextProfile.experience,
         about: nextProfile.about,
-        links: nextProfile.links.map((entry) => ({
-          name: entry.name,
-          url: entry.url,
-        })),
+        links,
         skills: nextProfile.skills,
         languages: nextProfile.languages.map((entry) => ({
           name: entry.name,
@@ -229,6 +314,18 @@ export function ProfileView() {
             .filter((bullet) => bullet.active && bullet.text.trim())
             .map((bullet) => bullet.text.trim())
             .join("\n"),
+        })),
+        projects: nextProfile.projects.map((entry) => ({
+          title: entry.title,
+          url: entry.url,
+          desc: entry.desc,
+          active: entry.active,
+        })),
+        education: nextProfile.education.map((entry) => ({
+          degree: entry.degree,
+          school: entry.school,
+          dates: entry.dates,
+          gpa: entry.gpa,
         })),
       },
     });
@@ -256,11 +353,106 @@ export function ProfileView() {
     toast("Changes saved!");
   };
 
+  const addSourceMaterial = async (file: File) => {
+    const uploadUrl = await generateResumeUploadUrl({});
+    const storageId = await uploadResumeFile(uploadUrl, file);
+    await saveProfileSourceMaterial({
+      material: {
+        storageId: storageId as never,
+        label: file.name,
+        fileName: file.name,
+        mimeType: file.type || undefined,
+        sizeBytes: file.size,
+        sourceKind: "import",
+        inputKind: "upload",
+      },
+    });
+  };
+
+  const handleAddMaterials = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setAddingMaterials(true);
+    try {
+      await Promise.all(Array.from(files).map((file) => addSourceMaterial(file)));
+      toast("Source materials added.");
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "Could not add source materials.",
+        "error",
+      );
+    } finally {
+      setAddingMaterials(false);
+    }
+  };
+
+  const handleRefillWithAi = async () => {
+    if (!profile) return;
+    const session = loadAiSession();
+    if (!session) {
+      toast("Connect an AI provider in Settings before refilling.", "error");
+      return;
+    }
+
+    const materials = (onboardingState?.profileSourceMaterials ?? []) as ProfileSourceMaterial[];
+    const uploadBackedMaterials = materials.filter((material) => material.storageId);
+
+    if (uploadBackedMaterials.length === 0) {
+      toast("Add source materials before using AI refill.", "error");
+      return;
+    }
+
+    setRefillingWithAi(true);
+    try {
+      const uploads = await Promise.all(
+        uploadBackedMaterials.map(async (material) => {
+          const url = await getProfileSourceDownloadUrl({
+            sourceMaterialId: material._id,
+          });
+          if (!url) {
+            throw new Error(`Could not read "${material.fileName}".`);
+          }
+          const response = await fetch(url);
+          const blob = await response.blob();
+          const file = new File([blob], material.fileName, {
+            type: material.mimeType || blob.type || "application/octet-stream",
+          });
+          return {
+            name: file.name,
+            type: file.type || "application/octet-stream",
+            data: await fileToBase64(file),
+          };
+        }),
+      );
+
+      const result = await autofillProfileFromDocuments({
+        providerId: session.providerId,
+        apiKey: session.apiKey,
+        model: session.model,
+        uploads,
+      });
+
+      setProfile((current) =>
+        current ? { ...current, ...mergeProfileFromOnboarding(result.profile, current) } : current,
+      );
+      toast("Profile refilled from source materials.");
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "Could not refill profile.",
+        "error",
+      );
+    } finally {
+      setRefillingWithAi(false);
+    }
+  };
+
+  const sourceMaterials = (onboardingState?.profileSourceMaterials ?? []) as ProfileSourceMaterial[];
+
   const updateDraft = (patch: Record<string, unknown>) => {
     setEditDraft((prev) => (prev ? { ...prev, ...patch } : prev));
   };
 
   const handleExportProfile = async () => {
+    if (!profile) return;
     setExporting(true);
     try {
       const session = loadAiSession();
@@ -370,6 +562,14 @@ export function ProfileView() {
               </div>
             </div>
             <div className="flex shrink-0 flex-col items-stretch gap-2.5 sm:items-end">
+              <NeoButton
+                variant="mint"
+                size="sm"
+                onClick={() => setSourcePanelOpen(true)}
+                className="xl:hidden"
+              >
+                Source files
+              </NeoButton>
               <div className="flex overflow-hidden rounded-full neo-border-sm">
                 {(
                   [
@@ -1537,16 +1737,23 @@ export function ProfileView() {
             open={openSections.library}
             onOpenChange={(open) => setSectionOpen("library", open)}
           >
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="flex flex-col gap-3">
               {profile.resumeLibrary.map((resume) => (
-                <NeoCard key={resume.id} className="p-4">
-                  <div className="mb-3 flex h-12 w-10 items-center justify-center rounded-lg bg-[var(--lav-l)] text-lg neo-border-sm">
-                    📄
+                <NeoCard
+                  key={resume.id}
+                  className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="flex min-w-0 gap-3">
+                    <div className="flex h-12 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--lav-l)] text-lg neo-border-sm">
+                      📄
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-bold">{resume.label}</div>
+                      <div className="truncate text-[11px] text-[#888]">{resume.job}</div>
+                      <div className="text-[11px] text-[#aaa]">{resume.date}</div>
+                    </div>
                   </div>
-                  <div className="mb-1 text-sm font-bold">{resume.label}</div>
-                  <div className="mb-1 text-[11px] text-[#888]">{resume.job}</div>
-                  <div className="mb-3.5 text-[11px] text-[#aaa]">{resume.date}</div>
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-1.5 sm:shrink-0">
                     <NeoButton
                       variant="secondary"
                       size="sm"
@@ -1571,6 +1778,26 @@ export function ProfileView() {
           </ProfileSectionStack>
         </div>
       </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt"
+        className="hidden"
+        onChange={(event) => {
+          void handleAddMaterials(event.target.files);
+          event.target.value = "";
+        }}
+      />
+      <ProfileSourcePanel
+        materials={sourceMaterials}
+        onAddMaterials={() => fileInputRef.current?.click()}
+        onRefillWithAi={() => void handleRefillWithAi()}
+        addingMaterials={addingMaterials}
+        refillingWithAi={refillingWithAi}
+        mobileOpen={sourcePanelOpen}
+        onMobileClose={() => setSourcePanelOpen(false)}
+      />
     </div>
   );
 }

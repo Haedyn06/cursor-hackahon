@@ -63,7 +63,8 @@ export function NewInterviewPrepWizard({
   onClose,
   onComplete,
 }: NewInterviewPrepWizardProps) {
-  const { jobs } = useJobs();
+  const { jobs, updateJob } = useJobs();
+  const toast = useToast();
 
   const [step, setStep] = useState(1);
   const [jobSource, setJobSource] = useState<JobSource>(null);

@@ -21,6 +21,13 @@ export type AutofillExperienceEntry = {
   bullets: string;
 };
 
+export type AutofillEducationEntry = {
+  degree: string;
+  school: string;
+  dates: string;
+  gpa: string;
+};
+
 export type AutofillProfilePayload = {
   name: string;
   location: string;
@@ -34,6 +41,7 @@ export type AutofillProfilePayload = {
   languages: AutofillLanguage[];
   certifications: AutofillCertification[];
   experience_entries: AutofillExperienceEntry[];
+  education: AutofillEducationEntry[];
 };
 
 const EXPERIENCE_LEVELS = [
@@ -200,6 +208,27 @@ function parseExperienceEntries(value: unknown): AutofillExperienceEntry[] {
   return entries;
 }
 
+function parseEducationEntries(value: unknown): AutofillEducationEntry[] {
+  if (!Array.isArray(value)) return [];
+  const entries: AutofillEducationEntry[] = [];
+
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") continue;
+    const row = entry as Record<string, unknown>;
+    const degree = asString(row.degree);
+    const school = asString(row.school);
+    if (!degree && !school) continue;
+    entries.push({
+      degree,
+      school,
+      dates: asString(row.dates),
+      gpa: asString(row.gpa),
+    });
+  }
+
+  return entries;
+}
+
 export function buildProfileAutofillMessages(sourceText: string) {
   const system = `You extract structured profile data from resumes, bios, LinkedIn text, and career documents.
 
@@ -225,7 +254,8 @@ Schema:
   "skills": string[],
   "languages": [{ "name": string, "level": string }],
   "certifications": [{ "name": string, "issuer": string, "date": string }],
-  "experience_entries": [{ "title": string, "company": string, "dates": string, "bullets": string }]
+  "experience_entries": [{ "title": string, "company": string, "dates": string, "bullets": string }],
+  "education": [{ "degree": string, "school": string, "dates": string, "gpa": string }]
 }`;
 
   const user = `Extract profile fields from this source material:\n\n${sourceText}`;
@@ -249,6 +279,7 @@ export function parseProfileAutofillResponse(text: string): AutofillProfilePaylo
     languages: parseLanguages(parsed.languages),
     certifications: parseCertifications(parsed.certifications),
     experience_entries: parseExperienceEntries(parsed.experience_entries),
+    education: parseEducationEntries(parsed.education),
   };
 }
 
@@ -277,6 +308,11 @@ export function summarizeAutofillPayload(payload: AutofillProfilePayload): strin
   if (payload.experience_entries.length) {
     parts.push(
       `${payload.experience_entries.length} work experience${payload.experience_entries.length === 1 ? "" : " entries"}`,
+    );
+  }
+  if (payload.education.length) {
+    parts.push(
+      `${payload.education.length} education entr${payload.education.length === 1 ? "y" : "ies"}`,
     );
   }
 

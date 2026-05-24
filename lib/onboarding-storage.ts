@@ -87,6 +87,20 @@ export type OnboardingProfileState = {
     dates: string;
     bullets: string;
   }[];
+  projects: {
+    id: number;
+    title: string;
+    url: string;
+    desc: string;
+    active: boolean;
+  }[];
+  education: {
+    id: number;
+    degree: string;
+    school: string;
+    dates: string;
+    gpa: string;
+  }[];
 };
 
 const RESUME_COLORS = [

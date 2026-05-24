@@ -1,11 +1,13 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
+import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { Logo } from "@/components/layout/logo";
+import { RezumeLogo } from "@/components/layout/rezume-logo";
+
+const SIDEBAR_EXPANDED_KEY = "rezume_sidebar_expanded";
 
 const NAV_ITEMS = [
   {
@@ -115,33 +117,100 @@ const NAV_ITEMS = [
   },
 ];
 
+function useSidebarExpanded() {
+  const [expanded, setExpanded] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const stored = localStorage.getItem(SIDEBAR_EXPANDED_KEY);
+    return stored !== "false";
+  });
+
+  const toggle = () => {
+    setExpanded((current) => {
+      const next = !current;
+      localStorage.setItem(SIDEBAR_EXPANDED_KEY, String(next));
+      return next;
+    });
+  };
+
+  return { expanded, toggle };
+}
+
 export function AppSidebar() {
   const pathname = usePathname();
+  const { expanded, toggle } = useSidebarExpanded();
 
   return (
-    <div className="flex w-16 shrink-0 flex-col items-center gap-1.5 border-r-[2.5px] border-[var(--foreground)] bg-white py-4">
-      <div className="mb-5">
-        <Logo size="icon" href="/jobs" />
-      </div>
-      {NAV_ITEMS.map((item) => {
-        const active = pathname.startsWith(item.href);
-        return (
-          <Link
-            key={item.id}
-            href={item.href}
-            title={item.label}
+    <aside
+      aria-label="Main navigation"
+      className={cn(
+        "flex shrink-0 flex-col border-r-[2.5px] border-[var(--foreground)] bg-white py-4 transition-[width] duration-200 ease-out",
+        expanded ? "w-[220px]" : "w-16",
+      )}
+    >
+      <div className={cn("mb-5 px-3", !expanded && "px-0")}>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={expanded}
+          aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
+          title={expanded ? "Collapse sidebar" : "Expand sidebar"}
+          className={cn(
+            "flex w-full cursor-pointer items-center rounded-xl border-none bg-transparent text-[var(--foreground)] transition-colors hover:bg-[var(--mint-l)]",
+            expanded ? "gap-2.5 px-2 py-2" : "justify-center px-0 py-1",
+          )}
+        >
+          <RezumeLogo
+            className="shrink-0"
+            style={{ width: 36, height: 36 }}
+          />
+          <span
             className={cn(
-              "flex h-11 w-11 items-center justify-center rounded-xl text-[var(--foreground)] transition-all",
-              active
-                ? "bg-[var(--mint)] neo-border-sm"
-                : "border-2 border-transparent hover:bg-[var(--mint-l)]",
+              "overflow-hidden font-heading text-[22px] font-extrabold tracking-tight whitespace-nowrap transition-[opacity,width] duration-200",
+              expanded ? "w-auto opacity-100" : "w-0 opacity-0",
             )}
           >
-            {item.svg}
-          </Link>
-        );
-      })}
-    </div>
+            Rezume
+          </span>
+        </button>
+      </div>
+
+      <nav
+        className={cn(
+          "flex flex-col gap-1.5",
+          expanded ? "px-3" : "items-center px-0",
+        )}
+      >
+        {NAV_ITEMS.map((item) => {
+          const active = pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.id}
+              href={item.href}
+              title={expanded ? undefined : item.label}
+              className={cn(
+                "flex items-center rounded-xl text-[var(--foreground)] transition-all",
+                expanded
+                  ? "h-11 gap-3 px-3"
+                  : "h-11 w-11 justify-center",
+                active
+                  ? "bg-[var(--mint)] neo-border-sm"
+                  : "border-2 border-transparent hover:bg-[var(--mint-l)]",
+              )}
+            >
+              <span className="shrink-0">{item.svg}</span>
+              <span
+                className={cn(
+                  "overflow-hidden text-sm font-bold whitespace-nowrap transition-[opacity,width] duration-200",
+                  expanded ? "w-auto opacity-100" : "w-0 opacity-0",
+                )}
+              >
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
+    </aside>
   );
 }
 
@@ -154,82 +223,13 @@ const PAGE_TITLES: Record<string, string> = {
 };
 
 function UserMenu() {
-  const router = useRouter();
-  const { user } = useUser();
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const userInitials = useMemo(() => {
-    const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim();
-    if (fullName) {
-      return fullName
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase() ?? "")
-        .join("");
-    }
-
-    const email = user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses[0]?.emailAddress;
-    return (email?.slice(0, 2) ?? "U").toUpperCase();
-  }, [user]);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const handlePointerDown = (event: MouseEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [open]);
-
   return (
-    <div className="relative" ref={menuRef}>
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        aria-label="Account menu"
-        className="flex h-9 w-9 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-[var(--lav)] font-heading text-sm font-extrabold neo-border-sm transition-transform duration-150 hover:scale-105"
-      >
-        {user?.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={user.imageUrl}
-            alt={user.fullName ?? "User avatar"}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          userInitials
-        )}
-      </button>
-
-      {open && (
-        <div
-          role="menu"
-          className="absolute top-[calc(100%+8px)] right-0 z-[200] min-w-[160px] overflow-hidden rounded-xl bg-white p-1.5 shadow-[4px_4px_0_#1a1a1a] neo-border"
-        >
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              router.push("/settings");
-            }}
-            className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg border-none bg-transparent px-3.5 py-2.5 text-left font-sans text-[13px] font-bold text-[var(--foreground)] transition-colors hover:bg-[var(--mint-l)]"
-          >
+    <UserButton>
+      <UserButton.MenuItems>
+        <UserButton.Link
+          label="Settings"
+          href="/settings"
+          labelIcon={
             <svg
               width="16"
               height="16"
@@ -244,37 +244,11 @@ function UserMenu() {
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
-            Settings
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              router.push("/");
-            }}
-            className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg border-none bg-transparent px-3.5 py-2.5 text-left font-sans text-[13px] font-bold text-[#cc0000] transition-colors hover:bg-[var(--peach-l)]"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
-            Log out
-          </button>
-        </div>
-      )}
-    </div>
+          }
+        />
+        <UserButton.Action label="signOut" />
+      </UserButton.MenuItems>
+    </UserButton>
   );
 }
 

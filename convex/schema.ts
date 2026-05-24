@@ -66,6 +66,24 @@ export default defineSchema({
     position: v.number(),
   }).index("by_userId", ["userId"]),
 
+  profileProjects: defineTable({
+    userId: v.id("users"),
+    title: v.string(),
+    url: v.string(),
+    desc: v.string(),
+    active: v.boolean(),
+    position: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  profileEducation: defineTable({
+    userId: v.id("users"),
+    degree: v.string(),
+    school: v.string(),
+    dates: v.string(),
+    gpa: v.string(),
+    position: v.number(),
+  }).index("by_userId", ["userId"]),
+
   aiProviderConnections: defineTable({
     userId: v.id("users"),
     providerId: v.string(),
@@ -92,6 +110,18 @@ export default defineSchema({
       v.literal("parsed"),
       v.literal("failed"),
     ),
+    createdAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  profileSourceMaterials: defineTable({
+    userId: v.id("users"),
+    storageId: v.optional(v.id("_storage")),
+    label: v.string(),
+    fileName: v.string(),
+    mimeType: v.optional(v.string()),
+    sizeBytes: v.optional(v.number()),
+    sourceKind: v.union(v.literal("autofill"), v.literal("import")),
+    inputKind: v.union(v.literal("upload"), v.literal("paste")),
     createdAt: v.number(),
   }).index("by_userId", ["userId"]),
 

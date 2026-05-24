@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { AiProviderError } from "@/lib/ai/errors";
 import { generateTailoredCoverLetter } from "@/lib/ai/generate-cover-letter";
 import type { JobContext } from "@/lib/ai/resume-generation";
+import {
+  buildSourceMaterialContextFromRequest,
+  parseSourceMaterialRequestItems,
+} from "@/lib/ai/source-material-request";
 import { isApiProviderId } from "@/lib/ai/types";
 import type { MockProfile } from "@/lib/mock-data";
 import type { ResumeDocument } from "@/lib/resume-document";
@@ -41,6 +45,7 @@ export async function POST(request: Request) {
       job?: unknown;
       profile?: unknown;
       resume?: unknown;
+      sourceMaterials?: unknown;
     };
 
     if (!body.providerId || !isApiProviderId(body.providerId)) {
@@ -70,6 +75,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid resume document." }, { status: 400 });
     }
 
+    const sourceMaterialContext = await buildSourceMaterialContextFromRequest(
+      parseSourceMaterialRequestItems(body.sourceMaterials),
+    );
+
     const result = await generateTailoredCoverLetter({
       providerId: body.providerId,
       apiKey: body.apiKey,
@@ -77,6 +86,7 @@ export async function POST(request: Request) {
       job: body.job,
       profile: body.profile,
       resume,
+      sourceMaterialContext,
     });
 
     return NextResponse.json(result);

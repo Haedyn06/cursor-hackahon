@@ -29,7 +29,7 @@ const EMPTY_FORM = {
   source: "LinkedIn",
 };
 
-type AddMode = "ai" | "manual";
+type AddMode = "ai" | "paste" | "manual";
 
 type AddJobFormProps = {
   open: boolean;
@@ -83,6 +83,27 @@ function ModeToggle({
         </svg>
       ),
     },
+    {
+      id: "paste",
+      label: "Paste",
+      icon: (
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+          <rect x="8" y="2" width="8" height="4" rx="1" />
+          <path d="M8 11h8" />
+          <path d="M8 15h6" />
+        </svg>
+      ),
+    },
   ];
 
   return (
@@ -102,7 +123,9 @@ function ModeToggle({
             )}
             style={{
               borderRight:
-                idx === 0 ? "2px solid var(--foreground)" : undefined,
+                idx < options.length - 1
+                  ? "2px solid var(--foreground)"
+                  : undefined,
             }}
           >
             {opt.icon}
@@ -186,10 +209,12 @@ function JobFormFields({
 
 export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
   const toast = useToast();
-  const { createJob, importJobFromUrl } = useJobs();
+  const { createJob, importJobFromUrl, importJobFromPaste } = useJobs();
   const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState<AddMode>("ai");
   const [jobUrl, setJobUrl] = useState("");
+  const [pasteUrl, setPasteUrl] = useState("");
+  const [pastedPosting, setPastedPosting] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [analyzed, setAnalyzed] = useState(false);
@@ -201,6 +226,8 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
       queueMicrotask(() => {
         setMode("ai");
         setJobUrl("");
+        setPasteUrl("");
+        setPastedPosting("");
         setAnalyzing(false);
         setAnalyzeError(null);
         setAnalyzed(false);
@@ -284,16 +311,56 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
     }
   };
 
-  const handleModeChange = (next: AddMode) => {
-    setMode(next);
-    if (next === "manual") {
-      setAnalyzed(false);
+  const handleAnalyzePaste = async () => {
+    const pastedText = pastedPosting.trim();
+    if (pastedText.length < 80) return;
+
+    const session = loadAiSession();
+    if (!session) {
+      const message = "No AI provider connected. Go to Settings and verify your API key.";
+      setAnalyzeError(message);
+      toast(message, "error");
+      return;
+    }
+
+    setAnalyzeError(null);
+    setAnalyzing(true);
+
+    try {
+      const job = await importJobFromPaste({
+        url: pasteUrl.trim() || undefined,
+        pageText: pastedText,
+        providerId: session.providerId,
+        apiKey: session.apiKey,
+        model: session.model,
+      });
+
+      onCreated?.(job);
+      toast(`${job.title} @ ${job.company} imported!`);
+      onClose();
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to import pasted job posting.";
+      setAnalyzeError(message);
+      toast(message, "error");
+    } finally {
       setAnalyzing(false);
     }
   };
 
+  const handleModeChange = (next: AddMode) => {
+    setMode(next);
+    if (next !== "ai") {
+      setAnalyzed(false);
+      setAnalyzing(false);
+    }
+    setAnalyzeError(null);
+  };
+
   const canAnalyze = jobUrl.trim().length > 8;
-  const showManualForm = mode === "manual" || analyzed;
+  const canAnalyzePaste = pastedPosting.trim().length >= 80;
   const canSave =
     !!form.title && !!form.company && (mode === "manual" || analyzed) && !saving;
 
@@ -455,6 +522,100 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
               className="transition-neo hover:-translate-y-px"
             >
               {saving ? "Saving…" : "Save job →"}
+            </NeoButton>
+          </div>
+        </div>
+      )}
+
+      {mode === "paste" && (
+        <div key="paste" className="animate-tab-panel flex flex-col gap-4">
+          {!aiSession && (
+            <div className="rounded-xl bg-[var(--peach)] px-4 py-3 text-xs font-bold neo-border-sm">
+              Connect an AI provider in Settings first — we use it to extract job details from pasted text.
+            </div>
+          )}
+
+          {analyzeError && (
+            <div className="rounded-xl bg-[var(--red-l)] px-4 py-3 text-xs font-bold text-[#800] neo-border-sm">
+              {analyzeError}
+            </div>
+          )}
+
+          <div className="rounded-2xl bg-[var(--yellow-l)] p-4 neo-border">
+            <div className="mb-3 flex items-center gap-2.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--yellow)] text-lg neo-border-sm">
+                ✎
+              </div>
+              <div>
+                <div className="font-heading text-[15px] font-extrabold">
+                  Paste full job page
+                </div>
+                <div className="text-xs font-medium text-[#666]">
+                  On the job posting page, press Ctrl+A, copy, then paste here.
+                </div>
+              </div>
+            </div>
+
+            <NeoInput
+              label="Job URL (optional)"
+              placeholder="https://company.com/careers/job..."
+              value={pasteUrl}
+              onChange={(e) => setPasteUrl(e.target.value)}
+            />
+
+            <div className="mt-4">
+              <NeoInput
+                label="Pasted job posting page *"
+                placeholder="Paste everything from the job posting page here..."
+                value={pastedPosting}
+                onChange={(e) => setPastedPosting(e.target.value)}
+                multiline
+                rows={14}
+              />
+            </div>
+
+            {analyzing && (
+              <div className="mt-3 flex flex-wrap gap-1.5 animate-fade-in">
+                {["Reading paste", "Extracting metadata", "Saving job"].map(
+                  (step, i) => (
+                    <NeoBadge
+                      key={step}
+                      color={i === 0 ? "var(--mint)" : "#ffffff"}
+                      className={cn(
+                        "text-[10px]",
+                        i > 0 && "animate-pulse-soft",
+                      )}
+                    >
+                      {i === 0 ? "✓" : "…"} {step}
+                    </NeoBadge>
+                  ),
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => handleModeChange("manual")}
+              className="cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[var(--foreground)]"
+            >
+              Enter manually instead
+            </button>
+            <NeoButton
+              variant="primary"
+              disabled={!canAnalyzePaste || analyzing || !aiSession}
+              onClick={() => void handleAnalyzePaste()}
+              className="transition-neo"
+            >
+              {analyzing ? (
+                <span className="flex items-center gap-2">
+                  <span className="inline-block h-3.5 w-3.5 animate-spin-slow rounded-full border-2 border-[#aaa] border-t-white" />
+                  Importing…
+                </span>
+              ) : (
+                "✦ Extract & import job →"
+              )}
             </NeoButton>
           </div>
         </div>

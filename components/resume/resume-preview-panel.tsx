@@ -5,6 +5,7 @@ import { NeoBadge } from "@/components/ui/neo-badge";
 import { NeoButton } from "@/components/ui/neo-button";
 import { MatchScore } from "@/components/ui/match-score";
 import { AtsResumeTemplate } from "@/components/resume/ats-resume-template";
+import { MOCK_RESUME } from "@/lib/mock-data";
 import {
   buildResumeDocument,
   parseResumeText,
@@ -204,6 +205,10 @@ export function ResumePreviewPanel({
       </div>
     </div>
   );
+}
+
+export function buildMockResume(jobTitle: string, company: string): ResumeDocument {
+  return buildResumeDocument(jobTitle, company);
 }
 
 export function buildMockResumeContent(

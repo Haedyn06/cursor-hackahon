@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { AiProviderError } from "@/lib/ai/errors";
 import { generateTailoredResume } from "@/lib/ai/generate-resume";
 import type { JobContext } from "@/lib/ai/resume-generation";
+import {
+  buildSourceMaterialContextFromRequest,
+  parseSourceMaterialRequestItems,
+} from "@/lib/ai/source-material-request";
 import { isApiProviderId } from "@/lib/ai/types";
 import type { MockProfile } from "@/lib/mock-data";
 
@@ -33,6 +37,7 @@ export async function POST(request: Request) {
       model?: string;
       job?: unknown;
       profile?: unknown;
+      sourceMaterials?: unknown;
     };
 
     if (!body.providerId || !isApiProviderId(body.providerId)) {
@@ -51,12 +56,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid profile." }, { status: 400 });
     }
 
+    const sourceMaterialContext = await buildSourceMaterialContextFromRequest(
+      parseSourceMaterialRequestItems(body.sourceMaterials),
+    );
+
     const result = await generateTailoredResume({
       providerId: body.providerId,
       apiKey: body.apiKey,
       model: body.model,
       job: body.job,
       profile: body.profile,
+      sourceMaterialContext,
     });
 
     return NextResponse.json(result);
