@@ -1,5 +1,25 @@
 [
   {
+    "id": "85d73712-6e9d-4fc0-b11e-c257ff61f480",
+    "title": "dwad",
+    "company": "dwad",
+    "location": "Remote",
+    "status": "Interview",
+    "matchScore": null,
+    "source": "Other",
+    "dateAdded": "just now",
+    "url": "dwadaw",
+    "jd": "dwadw",
+    "matchedKeywords": [],
+    "missingKeywords": [],
+    "resumeGenerated": false,
+    "salary": "$0",
+    "deadline": null,
+    "dateApplied": null,
+    "followUp": null,
+    "excitement": 0
+  },
+  {
     "id": "1",
     "title": "Frontend Engineer",
     "company": "Stripe",
@@ -10,8 +30,18 @@
     "dateAdded": "2 hours ago",
     "url": "https://stripe.com/jobs",
     "jd": "We're looking for a Frontend Engineer to join our team and help shape the future of online commerce.\n\nYou'll work on building and improving web products that millions of users interact with daily. You'll collaborate closely with product, design, and backend teams.\n\nResponsibilities:\n• Build and ship high-quality user interfaces\n• Collaborate with designers to implement pixel-perfect UIs\n• Write clean, maintainable TypeScript and React code\n• Participate in code reviews and design discussions\n• Optimize for performance and accessibility\n\nRequirements:\n• 3+ years of frontend experience\n• Strong proficiency in React, TypeScript\n• Experience with CSS and modern styling approaches\n• Knowledge of web performance optimization\n• Experience with REST APIs and GraphQL",
-    "matchedKeywords": ["React", "TypeScript", "CSS", "GraphQL", "Jest"],
-    "missingKeywords": ["Next.js", "Web Workers", "WASM"],
+    "matchedKeywords": [
+      "React",
+      "TypeScript",
+      "CSS",
+      "GraphQL",
+      "Jest"
+    ],
+    "missingKeywords": [
+      "Next.js",
+      "Web Workers",
+      "WASM"
+    ],
     "resumeGenerated": true,
     "salary": "$0",
     "deadline": null,
@@ -37,7 +67,9 @@
       "Design Systems",
       "Interaction Design"
     ],
-    "missingKeywords": ["Motion Design"],
+    "missingKeywords": [
+      "Motion Design"
+    ],
     "resumeGenerated": true,
     "salary": "$0",
     "deadline": null,
@@ -57,7 +89,12 @@
     "url": "https://vercel.com/careers",
     "jd": "Build the future of web development at Vercel.\n\nWe're hiring full stack engineers to work on our edge infrastructure and developer tooling.\n\nRequirements:\n• Next.js expertise\n• Node.js and serverless experience\n• TypeScript proficiency\n• PostgreSQL or other databases\n• Understanding of CDN and edge networking",
     "matchedKeywords": [],
-    "missingKeywords": ["Next.js", "Node.js", "PostgreSQL", "Edge Functions"],
+    "missingKeywords": [
+      "Next.js",
+      "Node.js",
+      "PostgreSQL",
+      "Edge Functions"
+    ],
     "resumeGenerated": false,
     "salary": "$0",
     "deadline": null,
@@ -76,8 +113,15 @@
     "dateAdded": "5 days ago",
     "url": "https://linear.app/careers",
     "jd": "Linear is the issue tracker built for high-performance teams. We're hiring senior frontend engineers.\n\nYou'll work on our Electron + web app, helping teams move faster.\n\nRequirements:\n• React and TypeScript\n• GraphQL experience\n• Electron or desktop app experience\n• Performance optimization\n• High attention to detail",
-    "matchedKeywords": ["React", "TypeScript", "GraphQL", "Performance"],
-    "missingKeywords": ["Electron"],
+    "matchedKeywords": [
+      "React",
+      "TypeScript",
+      "GraphQL",
+      "Performance"
+    ],
+    "missingKeywords": [
+      "Electron"
+    ],
     "resumeGenerated": true,
     "salary": "$0",
     "deadline": null,
@@ -96,8 +140,16 @@
     "dateAdded": "2 weeks ago",
     "url": "https://notion.so/careers",
     "jd": "Build the connected workspace at Notion.\n\nWe're looking for engineers who care deeply about craft and can work across the stack.\n\nRequirements:\n• React and TypeScript\n• Node.js backend experience\n• PostgreSQL\n• AWS infrastructure\n• Real-time collaboration systems",
-    "matchedKeywords": ["React", "Node.js", "TypeScript"],
-    "missingKeywords": ["PostgreSQL", "AWS", "CRDTs"],
+    "matchedKeywords": [
+      "React",
+      "Node.js",
+      "TypeScript"
+    ],
+    "missingKeywords": [
+      "PostgreSQL",
+      "AWS",
+      "CRDTs"
+    ],
     "resumeGenerated": true,
     "salary": "$0",
     "deadline": null,
@@ -105,8 +157,7 @@
     "followUp": null,
     "excitement": 1
   },
-
-    {
+  {
     "id": "6",
     "title": "Software Engineer",
     "company": "Notion",
@@ -117,8 +168,16 @@
     "dateAdded": "2 weeks ago",
     "url": "https://notion.so/careers",
     "jd": "Build the connected workspace at Notion.\n\nWe're looking for engineers who care deeply about craft and can work across the stack.\n\nRequirements:\n• React and TypeScript\n• Node.js backend experience\n• PostgreSQL\n• AWS infrastructure\n• Real-time collaboration systems",
-    "matchedKeywords": ["React", "Node.js", "TypeScript"],
-    "missingKeywords": ["PostgreSQL", "AWS", "CRDTs"],
+    "matchedKeywords": [
+      "React",
+      "Node.js",
+      "TypeScript"
+    ],
+    "missingKeywords": [
+      "PostgreSQL",
+      "AWS",
+      "CRDTs"
+    ],
     "resumeGenerated": true,
     "salary": "$0",
     "deadline": null,

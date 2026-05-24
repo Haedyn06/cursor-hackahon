@@ -181,6 +181,14 @@ function OAuthCard({
   );
 }
 
+const LANGUAGE_LEVELS = [
+  "Native",
+  "Fluent",
+  "Professional",
+  "Conversational",
+  "Basic",
+];
+
 const defaultProfile = {
   name: "",
   location: "",
@@ -192,6 +200,8 @@ const defaultProfile = {
   experience: "",
   about: "",
   skills: [] as string[],
+  languages: [{ id: 1, name: "", level: "Conversational" }],
+  certifications: [{ id: 1, name: "", issuer: "", date: "" }],
   experience_entries: [
     { id: 1, title: "", company: "", dates: "", bullets: "" },
   ],
@@ -267,6 +277,18 @@ function AIAutoFillZone({
           "Next.js",
           "Jest",
           "Node.js",
+        ],
+        languages: [
+          { id: 1, name: "English", level: "Native" },
+          { id: 2, name: "Spanish", level: "Conversational" },
+        ],
+        certifications: [
+          {
+            id: 1,
+            name: "Meta Front-End Developer",
+            issuer: "Meta",
+            date: "2023",
+          },
         ],
       });
     }, 2400);
@@ -386,7 +408,7 @@ function AIAutoFillZone({
       {done && (
         <p className="text-[13px] font-medium text-[#555]">
           ✓ Filled: name, location, email, LinkedIn, GitHub, target role,
-          experience level, about, and 7 skills.
+          experience level, about, 7 skills, languages, and certifications.
         </p>
       )}
     </NeoCard>
@@ -514,7 +536,12 @@ export default function OnboardingPage() {
   const [profile, setProfile] = useState<ProfileState>(defaultProfile);
 
   const setProfileField =
-    (field: keyof Omit<ProfileState, "skills" | "experience_entries">) =>
+    (
+      field: keyof Omit<
+        ProfileState,
+        "skills" | "experience_entries" | "languages" | "certifications"
+      >,
+    ) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       setProfile((p) => ({ ...p, [field]: e.target.value }));
     };
@@ -540,6 +567,82 @@ export default function OnboardingPage() {
         { id: Date.now(), title: "", company: "", dates: "", bullets: "" },
       ],
     }));
+  };
+
+  const removeExperienceEntry = (id: number) => {
+    setProfile((p) => {
+      if (p.experience_entries.length <= 1) return p;
+      return {
+        ...p,
+        experience_entries: p.experience_entries.filter((entry) => entry.id !== id),
+      };
+    });
+  };
+
+  const updateLanguageEntry = (
+    id: number,
+    field: keyof ProfileState["languages"][number],
+    value: string,
+  ) => {
+    setProfile((p) => ({
+      ...p,
+      languages: p.languages.map((entry) =>
+        entry.id === id ? { ...entry, [field]: value } : entry,
+      ),
+    }));
+  };
+
+  const addLanguageEntry = () => {
+    setProfile((p) => ({
+      ...p,
+      languages: [
+        ...p.languages,
+        { id: Date.now(), name: "", level: "Conversational" },
+      ],
+    }));
+  };
+
+  const removeLanguageEntry = (id: number) => {
+    setProfile((p) => {
+      if (p.languages.length <= 1) return p;
+      return {
+        ...p,
+        languages: p.languages.filter((entry) => entry.id !== id),
+      };
+    });
+  };
+
+  const updateCertificationEntry = (
+    id: number,
+    field: keyof ProfileState["certifications"][number],
+    value: string,
+  ) => {
+    setProfile((p) => ({
+      ...p,
+      certifications: p.certifications.map((entry) =>
+        entry.id === id ? { ...entry, [field]: value } : entry,
+      ),
+    }));
+  };
+
+  const addCertificationEntry = () => {
+    setProfile((p) => ({
+      ...p,
+      certifications: [
+        ...p.certifications,
+        { id: Date.now(), name: "", issuer: "", date: "" },
+      ],
+    }));
+  };
+
+  const removeCertificationEntry = (id: number) => {
+    setProfile((p) => {
+      if (p.certifications.length <= 1) return p;
+      return {
+        ...p,
+        certifications: p.certifications.filter((entry) => entry.id !== id),
+      };
+    });
   };
 
   const handleAIFill = (data: Partial<ProfileState>) => {
@@ -869,6 +972,15 @@ export default function OnboardingPage() {
                     <p className="mt-1.5 text-[11px] text-[#888]">
                       📌 More bullets = more AI context. Trim later.
                     </p>
+                    {profile.experience_entries.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeExperienceEntry(entry.id)}
+                        className="mt-3 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
+                      >
+                        Remove role
+                      </button>
+                    )}
                   </div>
                 ))}
                 <NeoButton
@@ -878,6 +990,136 @@ export default function OnboardingPage() {
                   onClick={addExperienceEntry}
                 >
                   + Add another role
+                </NeoButton>
+              </NeoCard>
+
+              <NeoCard>
+                <SectionHeader label="Languages" color="var(--lav-l)" />
+                {profile.languages.map((entry, i) => (
+                  <div
+                    key={entry.id}
+                    className={i < profile.languages.length - 1 ? "mb-5" : ""}
+                  >
+                    {i > 0 && (
+                      <div className="mb-5 h-0.5 bg-[#eeeeee]" aria-hidden />
+                    )}
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <NeoInput
+                        label="Language"
+                        placeholder="e.g. English"
+                        value={entry.name}
+                        onChange={(e) =>
+                          updateLanguageEntry(entry.id, "name", e.target.value)
+                        }
+                      />
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold">Proficiency</label>
+                        <select
+                          value={entry.level}
+                          onChange={(e) =>
+                            updateLanguageEntry(
+                              entry.id,
+                              "level",
+                              e.target.value,
+                            )
+                          }
+                          className="rounded-full bg-white px-4 py-2.5 font-sans text-sm outline-none neo-border"
+                        >
+                          {LANGUAGE_LEVELS.map((level) => (
+                            <option key={level}>{level}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    {profile.languages.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeLanguageEntry(entry.id)}
+                        className="mt-3 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
+                      >
+                        Remove language
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <NeoButton
+                  variant="secondary"
+                  size="sm"
+                  className="mt-4"
+                  onClick={addLanguageEntry}
+                >
+                  + Add language
+                </NeoButton>
+              </NeoCard>
+
+              <NeoCard>
+                <SectionHeader label="Certifications" color="var(--peach-l)" />
+                {profile.certifications.map((entry, i) => (
+                  <div
+                    key={entry.id}
+                    className={
+                      i < profile.certifications.length - 1 ? "mb-5" : ""
+                    }
+                  >
+                    {i > 0 && (
+                      <div className="mb-5 h-0.5 bg-[#eeeeee]" aria-hidden />
+                    )}
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <NeoInput
+                        label="Certification"
+                        placeholder="e.g. AWS Solutions Architect"
+                        value={entry.name}
+                        onChange={(e) =>
+                          updateCertificationEntry(
+                            entry.id,
+                            "name",
+                            e.target.value,
+                          )
+                        }
+                      />
+                      <NeoInput
+                        label="Issuer"
+                        placeholder="e.g. Amazon Web Services"
+                        value={entry.issuer}
+                        onChange={(e) =>
+                          updateCertificationEntry(
+                            entry.id,
+                            "issuer",
+                            e.target.value,
+                          )
+                        }
+                      />
+                      <NeoInput
+                        label="Date earned"
+                        placeholder="e.g. 2024"
+                        value={entry.date}
+                        onChange={(e) =>
+                          updateCertificationEntry(
+                            entry.id,
+                            "date",
+                            e.target.value,
+                          )
+                        }
+                      />
+                    </div>
+                    {profile.certifications.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeCertificationEntry(entry.id)}
+                        className="mt-3 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
+                      >
+                        Remove certification
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <NeoButton
+                  variant="secondary"
+                  size="sm"
+                  className="mt-4"
+                  onClick={addCertificationEntry}
+                >
+                  + Add certification
                 </NeoButton>
               </NeoCard>
 

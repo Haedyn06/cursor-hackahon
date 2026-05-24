@@ -14,15 +14,30 @@ const NAV_ITEMS = [
   { id: "experience", label: "Work Experience" },
   { id: "projects", label: "Projects" },
   { id: "skills", label: "Skills" },
+  { id: "languages", label: "Languages" },
+  { id: "certifications", label: "Certifications" },
   { id: "education", label: "Education" },
   { id: "library", label: "Resume Library" },
+];
+
+const LANGUAGE_LEVELS = [
+  "Native",
+  "Fluent",
+  "Professional",
+  "Conversational",
+  "Basic",
 ];
 
 export function ProfileView() {
   const toast = useToast();
   const [activeSection, setActiveSection] = useState("personal");
   const [newSkill, setNewSkill] = useState("");
+  const [exportFormat, setExportFormat] = useState<"pdf" | "docx" | "txt">("pdf");
   const [profile, setProfile] = useState(() => structuredClone(MOCK_PROFILE));
+
+  const handleExportProfile = () => {
+    toast(`Export as ${exportFormat.toUpperCase()} — coming soon!`);
+  };
 
   const scrollTo = (id: string) => {
     setActiveSection(id);
@@ -64,6 +79,76 @@ export function ProfileView() {
         }}
       >
         <div className="max-w-[720px]">
+          <NeoCard className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--yellow)] text-lg neo-border-sm">
+                📄
+              </div>
+              <div>
+                <div className="font-heading text-base font-extrabold">
+                  Export profile
+                </div>
+                <p className="mt-0.5 text-[13px] font-medium leading-snug text-[#666]">
+                  Download your profile as a document to back up or reuse
+                  elsewhere later.
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-col items-stretch gap-2.5 sm:items-end">
+              <div className="flex overflow-hidden rounded-full neo-border-sm">
+                {(
+                  [
+                    ["pdf", "PDF"],
+                    ["docx", "DOCX"],
+                    ["txt", "TXT"],
+                  ] as const
+                ).map(([id, label], idx) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setExportFormat(id)}
+                    className="cursor-pointer border-none px-3 py-1.5 font-sans text-[11px] font-bold transition-[background,color] duration-150"
+                    style={{
+                      background:
+                        exportFormat === id
+                          ? "var(--foreground)"
+                          : "#ffffff",
+                      color:
+                        exportFormat === id ? "#ffffff" : "var(--foreground)",
+                      borderRight:
+                        idx < 2 ? "2px solid var(--foreground)" : undefined,
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <NeoButton
+                variant="secondary"
+                size="sm"
+                onClick={handleExportProfile}
+                className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Export as document
+              </NeoButton>
+            </div>
+          </NeoCard>
+
           <div id="section-personal" className="mb-8">
             <SectionHeader label="Personal Info" color="var(--mint)" />
             <NeoCard>
@@ -106,14 +191,32 @@ export function ProfileView() {
               label="Work Experience"
               color="var(--lav)"
               action={
-                <NeoButton variant="secondary" size="sm" onClick={() => toast("Add role!")}>
+                <NeoButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    setProfile((p) => ({
+                      ...p,
+                      experience_entries: [
+                        ...p.experience_entries,
+                        {
+                          id: Date.now(),
+                          title: "New Role",
+                          company: "",
+                          dates: "",
+                          bullets: [],
+                        },
+                      ],
+                    }))
+                  }
+                >
                   + Add Role
                 </NeoButton>
               }
             />
             {profile.experience_entries.map((entry) => (
               <NeoCard key={entry.id} className="mb-4">
-                <div className="mb-4 flex items-center justify-between">
+                <div className="mb-4 flex items-start justify-between gap-3">
                   <div>
                     <div className="font-heading text-lg font-extrabold">
                       {entry.title}
@@ -122,10 +225,28 @@ export function ProfileView() {
                       {entry.company} · {entry.dates}
                     </div>
                   </div>
-                  <NeoBadge color="var(--mint-l)" className="text-[11px]">
-                    {entry.bullets.filter((b) => b.active).length}/
-                    {entry.bullets.length} active
-                  </NeoBadge>
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                    <NeoBadge color="var(--mint-l)" className="text-[11px]">
+                      {entry.bullets.filter((b) => b.active).length}/
+                      {entry.bullets.length} active
+                    </NeoBadge>
+                    {profile.experience_entries.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setProfile((p) => ({
+                            ...p,
+                            experience_entries: p.experience_entries.filter(
+                              (e) => e.id !== entry.id,
+                            ),
+                          }))
+                        }
+                        className="cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
+                      >
+                        Remove role
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="flex flex-col gap-2">
                   {entry.bullets.map((bullet) => (
@@ -226,6 +347,177 @@ export function ProfileView() {
                 />
               </div>
             </NeoCard>
+          </div>
+
+          <div id="section-languages" className="mb-8">
+            <SectionHeader
+              label="Languages"
+              color="var(--lav-l)"
+              action={
+                <NeoButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    setProfile((p) => ({
+                      ...p,
+                      languages: [
+                        ...p.languages,
+                        { id: Date.now(), name: "", level: "Conversational" },
+                      ],
+                    }))
+                  }
+                >
+                  + Add Language
+                </NeoButton>
+              }
+            />
+            {profile.languages.map((lang) => (
+              <NeoCard key={lang.id} className="mb-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <NeoInput
+                    label="Language"
+                    value={lang.name}
+                    placeholder="e.g. English"
+                    onChange={(e) =>
+                      setProfile((p) => ({
+                        ...p,
+                        languages: p.languages.map((l) =>
+                          l.id === lang.id
+                            ? { ...l, name: e.target.value }
+                            : l,
+                        ),
+                      }))
+                    }
+                  />
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold">Proficiency</label>
+                    <select
+                      value={lang.level}
+                      onChange={(e) =>
+                        setProfile((p) => ({
+                          ...p,
+                          languages: p.languages.map((l) =>
+                            l.id === lang.id
+                              ? { ...l, level: e.target.value }
+                              : l,
+                          ),
+                        }))
+                      }
+                      className="rounded-full bg-white px-4 py-2.5 font-sans text-sm outline-none neo-border"
+                    >
+                      {LANGUAGE_LEVELS.map((level) => (
+                        <option key={level}>{level}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {profile.languages.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setProfile((p) => ({
+                        ...p,
+                        languages: p.languages.filter((l) => l.id !== lang.id),
+                      }))
+                    }
+                    className="mt-3 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
+                  >
+                    Remove language
+                  </button>
+                )}
+              </NeoCard>
+            ))}
+          </div>
+
+          <div id="section-certifications" className="mb-8">
+            <SectionHeader
+              label="Certifications"
+              color="var(--peach-l)"
+              action={
+                <NeoButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    setProfile((p) => ({
+                      ...p,
+                      certifications: [
+                        ...p.certifications,
+                        { id: Date.now(), name: "", issuer: "", date: "" },
+                      ],
+                    }))
+                  }
+                >
+                  + Add Certification
+                </NeoButton>
+              }
+            />
+            {profile.certifications.map((cert) => (
+              <NeoCard key={cert.id} className="mb-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <NeoInput
+                    label="Certification"
+                    value={cert.name}
+                    placeholder="e.g. AWS Solutions Architect"
+                    onChange={(e) =>
+                      setProfile((p) => ({
+                        ...p,
+                        certifications: p.certifications.map((c) =>
+                          c.id === cert.id
+                            ? { ...c, name: e.target.value }
+                            : c,
+                        ),
+                      }))
+                    }
+                  />
+                  <NeoInput
+                    label="Issuer"
+                    value={cert.issuer}
+                    placeholder="e.g. Amazon Web Services"
+                    onChange={(e) =>
+                      setProfile((p) => ({
+                        ...p,
+                        certifications: p.certifications.map((c) =>
+                          c.id === cert.id
+                            ? { ...c, issuer: e.target.value }
+                            : c,
+                        ),
+                      }))
+                    }
+                  />
+                  <NeoInput
+                    label="Date earned"
+                    value={cert.date}
+                    placeholder="e.g. 2024"
+                    onChange={(e) =>
+                      setProfile((p) => ({
+                        ...p,
+                        certifications: p.certifications.map((c) =>
+                          c.id === cert.id
+                            ? { ...c, date: e.target.value }
+                            : c,
+                        ),
+                      }))
+                    }
+                  />
+                </div>
+                {profile.certifications.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setProfile((p) => ({
+                        ...p,
+                        certifications: p.certifications.filter(
+                          (c) => c.id !== cert.id,
+                        ),
+                      }))
+                    }
+                    className="mt-3 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
+                  >
+                    Remove certification
+                  </button>
+                )}
+              </NeoCard>
+            ))}
           </div>
 
           <div id="section-education" className="mb-8">

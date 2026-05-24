@@ -3,28 +3,9 @@ import profile from "@/data/profile.json";
 import resume from "@/data/resume.json";
 import resumes from "@/data/resumes.json";
 import onboardingResumes from "@/data/onboarding-resumes.json";
-import type { JobStatus } from "@/lib/constants";
+import type { Job } from "@/lib/types/job";
 
-export type MockJob = {
-  id: string;
-  title: string;
-  company: string;
-  location: string;
-  status: JobStatus;
-  matchScore: number | null;
-  source: string;
-  dateAdded: string;
-  url: string;
-  jd: string;
-  matchedKeywords: string[];
-  missingKeywords: string[];
-  resumeGenerated: boolean;
-  salary: string;
-  deadline: string | null;
-  dateApplied: string | null;
-  followUp: string | null;
-  excitement: number;
-};
+export type { Job, CreateJobInput, UpdateJobInput } from "@/lib/types/job";
 
 export type MockResume = {
   id: number;
@@ -43,7 +24,10 @@ export type OnboardingResume = {
   naming: boolean;
 };
 
-export const MOCK_JOBS = jobs as MockJob[];
+/** @deprecated Use `Job` */
+export type MockJob = Job;
+
+export const MOCK_JOBS = jobs as Job[];
 export const MOCK_RESUMES = resumes as MockResume[];
 export const MOCK_PROFILE = profile as MockProfile;
 export const MOCK_RESUME = resume.content;

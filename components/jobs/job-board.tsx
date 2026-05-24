@@ -14,7 +14,8 @@ import {
   TRACKER_STAGES,
   type JobStatus,
 } from "@/lib/constants";
-import { MOCK_JOBS, type MockJob } from "@/lib/mock-data";
+import { useJobs } from "@/components/providers/jobs-provider";
+import type { Job } from "@/lib/types/job";
 
 function StagePieChart({
   count,
@@ -76,7 +77,7 @@ function ChevronPipeline({
   activeStage,
   onStageClick,
 }: {
-  jobs: MockJob[];
+  jobs: Job[];
   activeStage: string | null;
   onStageClick: (stage: string | null) => void;
 }) {
@@ -225,7 +226,7 @@ function StarRating({
   );
 }
 
-type SortKey = keyof MockJob;
+type SortKey = keyof Job;
 
 function ColHeader({
   label,
@@ -265,6 +266,7 @@ function ColHeader({
 
 export function JobBoardView() {
   const toast = useToast();
+  const { jobs, loading, updateJob, updateJobStatus, deleteJobs } = useJobs();
   const [showAddJob, setShowAddJob] = useState(false);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -272,7 +274,37 @@ export function JobBoardView() {
   const [activeStage, setActiveStage] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>("dateAdded");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [jobs, setJobs] = useState<MockJob[]>(MOCK_JOBS);
+
+  const handleStatusChange = async (id: string, status: JobStatus) => {
+    try {
+      await updateJobStatus(id, status);
+    } catch {
+      toast("Failed to update status.", "error");
+    }
+  };
+
+  const handleExcitementChange = async (id: string, excitement: number) => {
+    try {
+      await updateJob(id, { excitement });
+    } catch {
+      toast("Failed to update excitement.", "error");
+    }
+  };
+
+  const handleRemoveSelected = async () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+
+    try {
+      await deleteJobs(ids);
+      setSelected(new Set());
+      toast(
+        ids.length === 1 ? "Job removed." : `Removed ${ids.length} jobs.`,
+      );
+    } catch {
+      toast("Failed to remove jobs.", "error");
+    }
+  };
 
   const handleSort = (key: SortKey) => {
     if (sortBy === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -330,10 +362,15 @@ export function JobBoardView() {
       <AddJobForm
         open={showAddJob}
         onClose={() => setShowAddJob(false)}
-        onAdd={(job) => setJobs((prev) => [job, ...prev])}
       />
 
       <div className="flex-1 overflow-y-auto px-8 py-7">
+        {loading && jobs.length === 0 ? (
+          <div className="py-16 text-center text-sm font-semibold text-[#888]">
+            Loading jobs…
+          </div>
+        ) : (
+          <>
         <ChevronPipeline
           jobs={jobs}
           activeStage={activeStage}
@@ -373,6 +410,16 @@ export function JobBoardView() {
             <span className="text-[13px] font-bold text-[#666]">
               {selected.size} selected
             </span>
+            {selected.size > 0 && (
+              <NeoButton
+                variant="danger"
+                size="sm"
+                className="ml-1 px-2.5 py-1 text-[11px]"
+                onClick={() => void handleRemoveSelected()}
+              >
+                Remove
+              </NeoButton>
+            )}
           </div>
 
           <div className="flex-1" />
@@ -594,15 +641,9 @@ export function JobBoardView() {
                             <select
                               value={job.status}
                               onChange={(e) =>
-                                setJobs((prev) =>
-                                  prev.map((j) =>
-                                    j.id === job.id
-                                      ? {
-                                          ...j,
-                                          status: e.target.value as JobStatus,
-                                        }
-                                      : j,
-                                  ),
+                                void handleStatusChange(
+                                  job.id,
+                                  e.target.value as JobStatus,
                                 )
                               }
                               className="cursor-pointer rounded-full px-2.5 py-1 font-sans text-xs font-bold text-[var(--foreground)] outline-none neo-border-sm transition-[background] duration-150"
@@ -648,13 +689,7 @@ export function JobBoardView() {
                             <StarRating
                               value={job.excitement}
                               onChange={(val) =>
-                                setJobs((prev) =>
-                                  prev.map((j) =>
-                                    j.id === job.id
-                                      ? { ...j, excitement: val }
-                                      : j,
-                                  ),
-                                )
+                                void handleExcitementChange(job.id, val)
                               }
                             />
                           </td>
@@ -701,6 +736,8 @@ export function JobBoardView() {
               </Link>
             ))}
           </div>
+        )}
+          </>
         )}
       </div>
     </div>

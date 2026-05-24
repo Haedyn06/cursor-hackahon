@@ -18,6 +18,32 @@
     "Node.js",
     "Figma"
   ],
+  "languages": [
+    {
+      "id": 1,
+      "name": "English",
+      "level": "Native"
+    },
+    {
+      "id": 2,
+      "name": "Spanish",
+      "level": "Conversational"
+    }
+  ],
+  "certifications": [
+    {
+      "id": 1,
+      "name": "Meta Front-End Developer",
+      "issuer": "Meta",
+      "date": "2023"
+    },
+    {
+      "id": 2,
+      "name": "AWS Cloud Practitioner",
+      "issuer": "Amazon Web Services",
+      "date": "2022"
+    }
+  ],
   "experience_entries": [
     {
       "id": 1,
