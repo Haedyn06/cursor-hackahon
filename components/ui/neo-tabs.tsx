@@ -1,8 +1,9 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-type Tab = { id: string; label: string; icon?: string };
+type Tab = { id: string; label: string; icon?: ReactNode };
 
 type NeoTabsProps = {
   tabs: Tab[];
@@ -34,7 +35,9 @@ export function NeoTabs({
                 : "border-transparent bg-transparent hover:bg-[var(--mint-l)]",
             )}
           >
-            {tab.icon && <span className="text-sm leading-none">{tab.icon}</span>}
+            {tab.icon && (
+              <span className="flex shrink-0 items-center leading-none">{tab.icon}</span>
+            )}
             {tab.label}
           </button>
         );

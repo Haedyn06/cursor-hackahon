@@ -33,6 +33,11 @@ import {
 } from "@/components/resume/cover-letter-preview-panel";
 import { NewInterviewPrepWizard } from "@/components/resume/new-interview-prep-wizard";
 import {
+  DocumentIcon,
+  EnvelopeIcon,
+  MicrophoneIcon,
+} from "@/components/ui/provider-icons";
+import {
   InterviewPrepPreviewPanel,
   buildMockInterviewPrep,
   countInterviewQuestions,
@@ -106,10 +111,24 @@ const ACTIONS = [
   },
 ];
 
+const TAB_ICON_CLASS = "h-4 w-4 text-[var(--foreground)]";
+
 const LIBRARY_TABS = [
-  { id: "resumes", label: "Resumes", icon: "📄" },
-  { id: "cover-letters", label: "Cover Letters", icon: "✉️" },
-  { id: "interview-prep", label: "Interview Prep", icon: "🎤" },
+  {
+    id: "resumes",
+    label: "Resumes",
+    icon: <DocumentIcon className={TAB_ICON_CLASS} />,
+  },
+  {
+    id: "cover-letters",
+    label: "Cover Letters",
+    icon: <EnvelopeIcon className={TAB_ICON_CLASS} />,
+  },
+  {
+    id: "interview-prep",
+    label: "Interview Prep",
+    icon: <MicrophoneIcon className={TAB_ICON_CLASS} />,
+  },
 ] as const;
 
 type LibraryTab = (typeof LIBRARY_TABS)[number]["id"];
@@ -163,71 +182,11 @@ function interviewPrepFromLibrary(doc: MockDocument): GeneratedInterviewPrep {
   };
 }
 
-function DocIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-      <line x1="16" y1="13" x2="8" y2="13" />
-      <line x1="16" y1="17" x2="8" y2="17" />
-    </svg>
-  );
-}
-
-function MailIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-      <polyline points="22,6 12,13 2,6" />
-    </svg>
-  );
-}
-
-function MicIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-      <line x1="12" y1="19" x2="12" y2="23" />
-      <line x1="8" y1="23" x2="16" y2="23" />
-    </svg>
-  );
-}
-
 function DocumentKindIcon({ kind }: { kind: DocumentKind }) {
-  if (kind === "cover") return <MailIcon />;
-  if (kind === "interview") return <MicIcon />;
-  return <DocIcon />;
+  const className = "h-3.5 w-3.5 text-[var(--foreground)]";
+  if (kind === "cover") return <EnvelopeIcon className={className} />;
+  if (kind === "interview") return <MicrophoneIcon className={className} />;
+  return <DocumentIcon className={className} />;
 }
 
 function DocumentCheckbox({
@@ -337,7 +296,7 @@ function DocumentCardMenu({
         }}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="cursor-pointer rounded-md border-none bg-transparent px-1 text-lg text-[#888] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
+        className="cursor-pointer rounded-md border-none bg-transparent px-1.5 text-lg text-[#888] transition-colors hover:bg-[var(--background)] hover:text-[var(--foreground)]"
       >
         ⋯
       </button>
@@ -346,7 +305,7 @@ function DocumentCardMenu({
           <div
             ref={menuRef}
             role="menu"
-            className="fixed z-[250] min-w-[148px] rounded-xl bg-white p-1.5 shadow-[4px_4px_0_#1a1a1a] neo-border"
+            className="fixed z-[250] min-w-[148px] rounded-xl bg-white p-1.5 shadow-[5px_5px_0_#1a1a1a] neo-border"
             style={{ top: position.top, left: position.left }}
           >
             {items.map((label) => (
@@ -359,7 +318,7 @@ function DocumentCardMenu({
                   onSelect(label);
                   setOpen(false);
                 }}
-                className="block w-full cursor-pointer rounded-lg border-none bg-transparent px-3.5 py-2 text-left font-sans text-[13px] font-bold hover:bg-[var(--mint-l)]"
+                className="block w-full cursor-pointer rounded-lg border-none bg-transparent px-3.5 py-2.5 text-left font-sans text-[15px] font-bold hover:bg-[var(--mint-l)]"
                 style={{
                   color: label === "Delete" ? "#cc0000" : "var(--foreground)",
                 }}
@@ -428,7 +387,7 @@ function DocumentCard({
       {dialog}
     <NeoCard className="p-0">
       <div
-        className="relative flex h-[120px] items-center justify-center border-b-2 border-[var(--foreground)]"
+        className="relative flex h-[120px] items-center justify-center border-b-2.5 border-[var(--foreground)]"
         style={{ background: document.color }}
       >
         {selectionMode && (
@@ -440,17 +399,17 @@ function DocumentCard({
             />
           </div>
         )}
-        <div className="flex h-20 w-16 items-center justify-center rounded-md bg-white neo-border-sm">
+        <div className="flex h-20 w-15 items-center justify-center rounded-md bg-white neo-border-sm">
           <DocumentKindIcon kind={kind} />
         </div>
       </div>
-      <div className="p-4">
-        <div className="mb-2 flex items-start justify-between">
+      <div className="p-5">
+        <div className="mb-2.5 flex items-start justify-between">
           <span className="font-heading text-[15px] font-extrabold leading-tight">
             {document.title}
           </span>
           {!selectionMode && (
-          <div className="ml-2 shrink-0">
+          <div className="ml-2.5 shrink-0">
             <DocumentCardMenu
               items={menuItems}
               onSelect={(label) => void handleMenuAction(label)}
@@ -459,7 +418,7 @@ function DocumentCard({
           )}
         </div>
         {document.matchJob ? (
-          <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-[#777]">
+          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-[#777]">
             <span className="font-bold text-[var(--foreground)]">Matched:</span>
             {document.matchJob}
           </div>
@@ -467,7 +426,7 @@ function DocumentCard({
           <button
             type="button"
             onClick={() => onToast("Match to a job!")}
-            className="mb-1 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888]"
+            className="mb-1.5 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888]"
           >
             Match a job
           </button>
@@ -475,7 +434,7 @@ function DocumentCard({
         <div className="text-xs text-[#aaa]">
           Edited: {document.edited}
           {kind === "interview" && document.questionCount ? (
-            <span className="ml-2 font-bold text-[var(--foreground)]">
+            <span className="ml-2.5 font-bold text-[var(--foreground)]">
               · {document.questionCount} questions
             </span>
           ) : null}
@@ -514,7 +473,7 @@ function DocumentSearchInput({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-[220px] rounded-full border-2 border-[var(--foreground)] bg-white py-2 pr-3.5 pl-9 font-sans text-[13px] outline-none transition-shadow duration-150 focus:shadow-[0_0_0_3px_rgba(199,184,234,0.35)]"
+        className="w-[220px] rounded-full border-2.5 border-[var(--foreground)] bg-white py-2.5 pr-3.5 pl-10 font-sans text-[10px] outline-none transition-shadow duration-150 focus:shadow-[0_0_0_2.5px_rgba(199,184,234,0.35)]"
       />
     </div>
   );
@@ -631,7 +590,14 @@ function DocumentSection({
         ? "Search interview prep"
         : "Search resumes";
 
-  const emptyEmoji = kind === "cover" ? "✉️" : kind === "interview" ? "🎤" : "📄";
+  const emptyIcon =
+    kind === "cover" ? (
+      <EnvelopeIcon className="h-10 w-10 text-[var(--foreground)]" />
+    ) : kind === "interview" ? (
+      <MicrophoneIcon className="h-10 w-10 text-[var(--foreground)]" />
+    ) : (
+      <DocumentIcon className="h-10 w-10 text-[var(--foreground)]" />
+    );
 
   const handleDownload = async (doc: MockDocument) => {
     const format = await pickFormat(doc.title);
@@ -656,7 +622,7 @@ function DocumentSection({
       {dialog}
       {renameDialog}
       {downloadDialog}
-      <div className="mb-5 flex items-center justify-end gap-2">
+      <div className="mb-5 flex items-center justify-end gap-2.5">
         <DocumentSearchInput
           value={search}
           onChange={onSearchChange}
@@ -668,7 +634,7 @@ function DocumentSection({
                 key={v}
                 type="button"
                 onClick={() => onViewModeChange(v)}
-                className="cursor-pointer border-none px-3.5 py-2 text-[15px] font-bold transition-[background,color] duration-150"
+                className="cursor-pointer border-none px-3.5 py-2.5 text-[15px] font-bold transition-[background,color] duration-150"
                 style={{
                   background: viewMode === v ? "var(--foreground)" : "#ffffff",
                   color: viewMode === v ? "#ffffff" : "var(--foreground)",
@@ -685,7 +651,7 @@ function DocumentSection({
             <NeoButton
               variant="danger"
               size="sm"
-              className="px-2.5 py-1.5 text-[11px]"
+              className="px-2.5 py-1.5 text-[10px]"
               onClick={handleRemoveSelected}
             >
               Remove ({selected.size})
@@ -695,7 +661,7 @@ function DocumentSection({
             type="button"
             onClick={toggleSelectionMode}
             className={cn(
-              "flex h-[38px] cursor-pointer items-center justify-center rounded-[10px] px-3 text-sm font-bold neo-border transition-colors duration-150",
+              "flex h-[40px] cursor-pointer items-center justify-center rounded-[10px] px-2.5 text-sm font-bold neo-border transition-colors duration-150",
               selectionMode
                 ? "bg-[var(--foreground)] text-white"
                 : "bg-white hover:bg-[var(--background)]",
@@ -708,8 +674,8 @@ function DocumentSection({
       </div>
 
       {filtered.length === 0 ? (
-        <div className="py-16 text-center">
-          <div className="mb-3 text-[40px]">{emptyEmoji}</div>
+        <div className="py-15 text-center">
+          <div className="mb-2.5 flex justify-center">{emptyIcon}</div>
           <div className="mb-1.5 text-lg font-bold">{emptyTitle}</div>
           <p className="mb-5 text-sm text-[#888]">{emptyDescription}</p>
           <NeoButton variant="primary" onClick={onEmptyAction}>
@@ -717,7 +683,7 @@ function DocumentSection({
           </NeoButton>
         </div>
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
           {filtered.map((document) => (
             <DocumentCard
               key={document.id}
@@ -735,11 +701,11 @@ function DocumentSection({
           ))}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl bg-white neo-border">
+        <div className="overflow-hidden rounded-2.5xl bg-white neo-border">
           <div
             className={cn(
               listGridClass,
-              "border-b-2 border-[var(--foreground)] px-4 py-2.5 text-xs font-bold text-[#888]",
+              "border-b-2 border-[var(--foreground)] px-5 py-2.5 text-xs font-bold text-[#888]",
             )}
           >
             {selectionMode && (
@@ -760,8 +726,8 @@ function DocumentSection({
               key={document.id}
               className={cn(
                 listGridClass,
-                "px-4 py-3.5 transition-colors duration-150",
-                i < filtered.length - 1 && "border-b-2 border-[var(--foreground)]",
+                "px-5 py-3.5 transition-colors duration-150",
+                i < filtered.length - 1 && "border-b-2.5 border-[var(--foreground)]",
               )}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = "var(--background)";
@@ -779,17 +745,17 @@ function DocumentSection({
               )}
               <div className="flex min-w-0 items-center gap-2.5">
                 <div
-                  className="flex h-10 w-8 shrink-0 items-center justify-center rounded-md text-[var(--foreground)] neo-border-sm"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-[var(--foreground)] neo-border-sm"
                   style={{ background: document.color }}
                 >
                   <DocumentKindIcon kind={kind} />
                 </div>
                 <span className="truncate text-sm font-bold">{document.title}</span>
               </div>
-              <span className="truncate pr-4 text-[13px] text-[#888]">
+              <span className="truncate pr-5 text-[15px] text-[#888]">
                 {document.matchJob ?? "—"}
               </span>
-              <span className="text-[13px] text-[#888]">
+              <span className="text-[15px] text-[#888]">
                 {kind === "interview" && document.questionCount
                   ? `${document.questionCount} Q · ${document.edited}`
                   : document.edited}
@@ -801,7 +767,7 @@ function DocumentSection({
                       <button
                         type="button"
                         onClick={() => onOpenDocument(document)}
-                        className="cursor-pointer rounded-full border-2 border-[var(--foreground)] bg-white px-3.5 py-1.5 font-sans text-[11px] font-bold text-[var(--foreground)] transition-colors duration-150 hover:bg-[var(--background)]"
+                        className="cursor-pointer rounded-full border-2.5 border-[var(--foreground)] bg-white px-3.5 py-1.5 font-sans text-[10px] font-bold text-[var(--foreground)] transition-colors duration-150 hover:bg-[var(--background)]"
                       >
                         Open
                       </button>
@@ -810,7 +776,7 @@ function DocumentSection({
                       <button
                         type="button"
                         onClick={() => onPracticeDocument(document)}
-                        className="cursor-pointer rounded-full border-2 border-[var(--foreground)] bg-white px-3.5 py-1.5 font-sans text-[11px] font-bold text-[var(--foreground)] transition-colors duration-150 hover:bg-[var(--background)]"
+                        className="cursor-pointer rounded-full border-2.5 border-[var(--foreground)] bg-white px-3.5 py-1.5 font-sans text-[10px] font-bold text-[var(--foreground)] transition-colors duration-150 hover:bg-[var(--background)]"
                       >
                         Practice
                       </button>
@@ -819,7 +785,7 @@ function DocumentSection({
                         type="button"
                         onClick={() => void handleDownload(document)}
                         aria-label={`Download ${document.title}`}
-                        className="flex h-[30px] w-[30px] cursor-pointer items-center justify-center rounded-full border-2 border-[var(--foreground)] bg-white text-[var(--foreground)] transition-colors duration-150 hover:bg-[var(--background)]"
+                        className="flex h-[30px] w-[30px] cursor-pointer items-center justify-center rounded-full border-2.5 border-[var(--foreground)] bg-white text-[var(--foreground)] transition-colors duration-150 hover:bg-[var(--background)]"
                       >
                         <DownloadIcon />
                       </button>
@@ -995,14 +961,14 @@ export function ResumeLibraryView() {
         }}
       />
 
-      <div className="mx-auto max-w-[1100px] px-10 py-9">
+      <div className="mx-auto max-w-[1100px] px-10 py-10">
         <div className="mb-8 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-5">
           {ACTIONS.map((action) => (
             <button
               key={action.id}
               type="button"
               onClick={() => handleAction(action.id)}
-              className="flex cursor-pointer flex-col items-center gap-[18px] rounded-[20px] bg-white px-5 pt-9 pb-7 text-center neo-border transition-[background,transform] duration-150 hover:-translate-y-0.5"
+              className="flex cursor-pointer flex-col items-center gap-[10px] rounded-[20px] bg-white px-5 pt-10 pb-7.5 text-center neo-border transition-[background,transform] duration-150 hover:-translate-y-0.5"
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = action.color;
               }}
@@ -1011,7 +977,7 @@ export function ResumeLibraryView() {
               }}
             >
               <div
-                className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full text-[var(--foreground)] neo-border"
+                className="flex h-[70px] w-[70px] shrink-0 items-center justify-center rounded-full text-[var(--foreground)] neo-border"
                 style={{ background: action.color }}
               >
                 {action.icon}
@@ -1023,15 +989,15 @@ export function ResumeLibraryView() {
           ))}
         </div>
 
-        <div className="rounded-2xl bg-white neo-border">
-          <div className="border-b-2 border-[var(--foreground)] px-6 pt-4">
+        <div className="rounded-2.5xl bg-white neo-border">
+          <div className="border-b-2.5 border-[var(--foreground)] px-5 pt-5">
             <NeoTabs
               tabs={[...LIBRARY_TABS]}
               activeTab={activeTab}
               onTabChange={(id) => setActiveTab(id as LibraryTab)}
             />
           </div>
-          <div className="p-6">
+          <div className="p-5">
             {activeTab === "resumes" && (
               <DocumentSection
                 kind="resume"

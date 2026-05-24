@@ -12,6 +12,7 @@ import {
   ProfileSectionStack,
 } from "@/components/ui/collapsible-section";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { DocumentIcon } from "@/components/ui/provider-icons";
 import { getInitialProfile } from "@/lib/onboarding-storage";
 
 const NAV_ITEMS = [
@@ -52,7 +53,7 @@ function PencilButton({
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 border-[var(--foreground)] bg-white text-[var(--foreground)] transition-colors duration-150 hover:bg-[var(--mint-l)]"
+      className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-2.5 border-[var(--foreground)] bg-white text-[var(--foreground)] transition-colors duration-150 hover:bg-[var(--mint-l)]"
     >
       <svg
         width="14"
@@ -80,7 +81,7 @@ function EditActions({
   onCancel: () => void;
 }) {
   return (
-    <div className="mt-3 flex justify-end gap-2">
+    <div className="mt-2.5 flex justify-end gap-2.5">
       <NeoButton variant="secondary" size="sm" onClick={onCancel}>
         Cancel
       </NeoButton>
@@ -159,13 +160,13 @@ export function ProfileView() {
   return (
     <div className="flex flex-1 overflow-hidden bg-[var(--background)]">
       {dialog}
-      <div className="flex w-[200px] shrink-0 flex-col gap-1 border-r-[2.5px] border-[var(--foreground)] bg-white px-4 py-6">
-        <div className="mb-4 px-2 font-heading text-lg font-extrabold">Profile</div>
+      <div className="flex w-[200px] shrink-0 flex-col gap-1.5 border-r-[2.5px] border-[var(--foreground)] bg-white px-5 py-5">
+        <div className="mb-5 px-2.5 font-heading text-lg font-extrabold">Profile</div>
         {NAV_ITEMS.map((item) => (
           <button
             key={item.id}
             onClick={() => scrollTo(item.id)}
-            className="cursor-pointer rounded-[10px] border-none px-3.5 py-2 text-left font-sans text-[13px] font-bold transition-colors"
+            className="cursor-pointer rounded-[10px] border-none px-3.5 py-2.5 text-left font-sans text-[15px] font-bold transition-colors"
             style={{
               background:
                 activeSection === item.id ? "var(--mint)" : "transparent",
@@ -178,7 +179,7 @@ export function ProfileView() {
 
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto px-10 py-8"
+        className="flex-1 overflow-y-auto px-10 py-10"
         onScroll={() => {
           const container = scrollContainerRef.current;
           if (!container) return;
@@ -194,29 +195,29 @@ export function ProfileView() {
         }}
       >
         <div className="max-w-[800px]">
-          <NeoCard className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 items-start gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--yellow)] text-lg neo-border-sm">
-                📄
+          <NeoCard className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-2.5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--yellow)] neo-border-sm">
+                <DocumentIcon className="h-5 w-5 text-[var(--foreground)]" />
               </div>
               <div>
                 <div className="font-heading text-base font-extrabold">
                   Export profile
                 </div>
-                <p className="mt-0.5 text-[13px] font-medium leading-snug text-[#666]">
+                <p className="mt-0.5 text-[15px] font-medium leading-snug text-gray-500">
                   Download your profile as a document to back up or reuse
                   elsewhere later.
                 </p>
               </div>
             </div>
-            <div className="flex w-full shrink-0 flex-col gap-2 sm:w-[240px]">
+            <div className="flex w-full shrink-0 flex-col gap-2.5 sm:w-[240px]">
               <div className="flex w-full overflow-hidden rounded-full neo-border-sm">
                 {EXPORT_FORMATS.map(({ id, label }, idx) => (
                   <button
                     key={id}
                     type="button"
                     onClick={() => setExportFormat(id)}
-                    className="flex-1 cursor-pointer border-none px-3 py-2 font-sans text-[11px] font-bold transition-[background,color] duration-150"
+                    className="flex-1 cursor-pointer border-none px-2.5 py-2.5 font-sans text-[10px] font-bold transition-[background,color] duration-150"
                     style={{
                       background:
                         exportFormat === id
@@ -226,7 +227,7 @@ export function ProfileView() {
                         exportFormat === id ? "#ffffff" : "var(--foreground)",
                       borderRight:
                         idx < EXPORT_FORMATS.length - 1
-                          ? "2px solid var(--foreground)"
+                          ? "2.5px solid var(--foreground)"
                           : undefined,
                     }}
                   >
@@ -274,7 +275,7 @@ export function ProfileView() {
           >
               {isEditing("personal") && editDraft ? (
                 <>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                     <NeoInput
                       label="Full Name"
                       value={String(editDraft.name ?? "")}
@@ -315,7 +316,7 @@ export function ProfileView() {
                 </>
               ) : (
                 <>
-                  <div className="mb-4 flex items-start justify-between gap-3">
+                  <div className="mb-5 flex items-start justify-between gap-2.5">
                     <div>
                       <div className="font-heading text-xl font-extrabold">
                         {profile.name}
@@ -333,18 +334,18 @@ export function ProfileView() {
                       }
                     />
                   </div>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                     <div>
                       <div className="text-[11px] font-bold text-[#888]">LOCATION</div>
-                      <div className="mt-1 font-medium">{profile.location}</div>
+                      <div className="mt-1.5 font-medium">{profile.location}</div>
                     </div>
                     <div>
                       <div className="text-[11px] font-bold text-[#888]">EMAIL</div>
-                      <div className="mt-1 font-medium">{profile.email}</div>
+                      <div className="mt-1.5 font-medium">{profile.email}</div>
                     </div>
                     <div>
                       <div className="text-[11px] font-bold text-[#888]">PHONE</div>
-                      <div className="mt-1 font-medium">{profile.phone}</div>
+                      <div className="mt-1.5 font-medium">{profile.phone}</div>
                     </div>
                   </div>
                 </>
@@ -359,7 +360,7 @@ export function ProfileView() {
             open={openSections.links}
             onOpenChange={(open) => setSectionOpen("links", open)}
           >
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2.5">
             {profile.links.map((link) => {
               const linkKey = `link-${link.id}`;
               const editing = isEditing(linkKey) && editDraft;
@@ -367,7 +368,7 @@ export function ProfileView() {
               <ProfileFormEntry key={link.id}>
                 {editing ? (
                   <>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                       <NeoInput
                         label="Name"
                         value={String(editDraft.name ?? "")}
@@ -402,7 +403,7 @@ export function ProfileView() {
                     />
                   </>
                 ) : (
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start justify-between gap-2.5">
                     <div className="min-w-0 flex-1">
                       <div className="font-heading text-base font-extrabold">
                         {link.name || "Untitled link"}
@@ -411,7 +412,7 @@ export function ProfileView() {
                         {link.url || "No URL added"}
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2.5">
                       <PencilButton
                         label={`Edit ${link.name || "link"}`}
                         onClick={() =>
@@ -473,7 +474,7 @@ export function ProfileView() {
             open={openSections.experience}
             onOpenChange={(open) => setSectionOpen("experience", open)}
           >
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2.5">
             {profile.experience_entries.map((entry) => {
               const entryKey = `experience-${entry.id}`;
               const editing = isEditing(entryKey) && editDraft;
@@ -484,7 +485,7 @@ export function ProfileView() {
               <ProfileFormEntry key={entry.id}>
                 {editing ? (
                   <>
-                    <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="mb-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                       <NeoInput
                         label="Job Title"
                         value={String(editDraft.title ?? "")}
@@ -502,10 +503,10 @@ export function ProfileView() {
                         className="sm:col-span-2"
                       />
                     </div>
-                    <div className="mb-2 text-xs font-bold text-[#888]">
+                    <div className="mb-2.5 text-xs font-bold text-[#888]">
                       BULLET POINTS
                     </div>
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-2.5">
                       {draftBullets.map((bullet, index) => (
                         <div
                           key={bullet.id}
@@ -520,7 +521,7 @@ export function ProfileView() {
                               );
                               updateDraft({ bullets: next });
                             }}
-                            className="mt-2 h-4 w-4 shrink-0 cursor-pointer accent-[var(--foreground)]"
+                            className="mt-2.5 h-5 w-5 shrink-0 cursor-pointer accent-[var(--foreground)]"
                           />
                           <NeoInput
                             value={bullet.text}
@@ -540,7 +541,7 @@ export function ProfileView() {
                               const next = draftBullets.filter((_, i) => i !== index);
                               updateDraft({ bullets: next });
                             }}
-                            className="mt-2 shrink-0 cursor-pointer border-none bg-transparent text-xs font-bold text-[#888] hover:text-[#cc0000]"
+                            className="mt-2.5 shrink-0 cursor-pointer border-none bg-transparent text-xs font-bold text-[#888] hover:text-[#cc0000]"
                           >
                             ✕
                           </button>
@@ -557,7 +558,7 @@ export function ProfileView() {
                           ],
                         })
                       }
-                      className="mt-2 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[var(--foreground)] underline"
+                      className="mt-2.5 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[var(--foreground)] underline"
                     >
                       + Add bullet
                     </button>
@@ -585,7 +586,7 @@ export function ProfileView() {
                   </>
                 ) : (
                   <>
-                    <div className="mb-4 flex items-start justify-between gap-3">
+                    <div className="mb-5 flex items-start justify-between gap-2.5">
                       <div>
                         <div className="font-heading text-lg font-extrabold">
                           {entry.title}
@@ -594,8 +595,8 @@ export function ProfileView() {
                           {entry.company} · {entry.dates}
                         </div>
                       </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <NeoBadge color="var(--mint-l)" className="text-[11px]">
+                      <div className="flex shrink-0 items-center gap-2.5">
+                        <NeoBadge color="var(--mint-l)" className="text-[10px]">
                           {entry.bullets.filter((b) => b.active).length}/
                           {entry.bullets.length} active
                         </NeoBadge>
@@ -635,7 +636,7 @@ export function ProfileView() {
                         )}
                       </div>
                     </div>
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-2.5">
                       {entry.bullets.map((bullet) => (
                         <div
                           key={bullet.id}
@@ -645,10 +646,10 @@ export function ProfileView() {
                             opacity: bullet.active ? 1 : 0.55,
                           }}
                         >
-                          <span className="mt-0.5 shrink-0 text-[11px] font-bold text-[#888]">
+                          <span className="mt-0.5 shrink-0 text-[10px] font-bold text-[#888]">
                             {bullet.active ? "●" : "○"}
                           </span>
-                          <span className="flex-1 text-[13px] leading-relaxed font-medium">
+                          <span className="flex-1 text-[15px] leading-relaxed font-medium">
                             {bullet.text}
                           </span>
                         </div>
@@ -690,7 +691,7 @@ export function ProfileView() {
             open={openSections.projects}
             onOpenChange={(open) => setSectionOpen("projects", open)}
           >
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2.5">
             {profile.projects.map((proj) => {
               const projKey = `project-${proj.id}`;
               const editing = isEditing(projKey) && editDraft;
@@ -698,7 +699,7 @@ export function ProfileView() {
               <ProfileFormEntry key={proj.id}>
                 {editing ? (
                   <>
-                    <div className="grid grid-cols-1 gap-3">
+                    <div className="grid grid-cols-1 gap-2.5">
                       <NeoInput
                         label="Project Name"
                         value={String(editDraft.title ?? "")}
@@ -716,14 +717,14 @@ export function ProfileView() {
                         rows={3}
                         onChange={(e) => updateDraft({ desc: e.target.value })}
                       />
-                      <label className="flex cursor-pointer items-center gap-2 text-sm font-bold">
+                      <label className="flex cursor-pointer items-center gap-2.5 text-sm font-bold">
                         <input
                           type="checkbox"
                           checked={Boolean(editDraft.active)}
                           onChange={(e) =>
                             updateDraft({ active: e.target.checked })
                           }
-                          className="h-4 w-4 accent-[var(--foreground)]"
+                          className="h-5 w-5 accent-[var(--foreground)]"
                         />
                         Include on resume
                       </label>
@@ -751,19 +752,19 @@ export function ProfileView() {
                     />
                   </>
                 ) : (
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-start gap-5">
                     <div className="flex-1">
                       <div className="mb-0.5 text-[15px] font-extrabold">
                         {proj.title}
                       </div>
-                      <div className="mb-1 text-xs font-medium text-[#888]">
+                      <div className="mb-1.5 text-xs font-medium text-[#888]">
                         {proj.url || "No URL"}
                       </div>
-                      <div className="text-[13px] font-medium text-[#555]">
+                      <div className="text-[15px] font-medium text-[#555]">
                         {proj.desc}
                       </div>
                       {!proj.active && (
-                        <NeoBadge color="#f5f5f5" className="mt-2 text-[11px]">
+                        <NeoBadge color="#f5f5f5" className="mt-2.5 text-[10px]">
                           Hidden from resume
                         </NeoBadge>
                       )}
@@ -836,10 +837,10 @@ export function ProfileView() {
             open={openSections.skills}
             onOpenChange={(open) => setSectionOpen("skills", open)}
           >
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-5">
               {isEditing("career-summary") && editDraft ? (
                 <>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                     <NeoInput
                       label="Target Role"
                       value={String(editDraft.targetRole ?? "")}
@@ -852,7 +853,7 @@ export function ProfileView() {
                         onChange={(e) =>
                           updateDraft({ experience: e.target.value })
                         }
-                        className="rounded-full bg-white px-4 py-2.5 font-sans text-sm outline-none neo-border"
+                        className="rounded-full bg-white px-5 py-2.5 font-sans text-sm outline-none neo-border"
                       >
                         <option>Internship</option>
                         <option>Entry Level (0-2 yrs)</option>
@@ -883,8 +884,8 @@ export function ProfileView() {
                   />
                 </>
               ) : (
-                <div className="rounded-xl border-2 border-[#e8e8e8] bg-[var(--yellow-l)] p-4">
-                  <div className="mb-3 flex items-start justify-between gap-3">
+                <div className="rounded-xl border-2.5 border-[#e8e8e8] bg-[var(--yellow-l)] p-5">
+                  <div className="mb-2.5 flex items-start justify-between gap-2.5">
                     <div>
                       <div className="text-[11px] font-bold text-[#888]">
                         TARGET ROLE
@@ -892,7 +893,7 @@ export function ProfileView() {
                       <div className="font-heading text-lg font-extrabold">
                         {profile.targetRole}
                       </div>
-                      <div className="mt-1 text-sm font-medium text-[#666]">
+                      <div className="mt-1.5 text-sm font-medium text-[#666]">
                         {profile.experience}
                       </div>
                     </div>
@@ -908,14 +909,14 @@ export function ProfileView() {
                     />
                   </div>
                   <div>
-                    <div className="text-[11px] font-bold text-[#888]">ABOUT</div>
-                    <p className="mt-1 text-[13px] leading-relaxed font-medium text-[#555]">
+                    <div className="text-[10px] font-bold text-[#888]">ABOUT</div>
+                    <p className="mt-1.5 text-[15px] leading-relaxed font-medium text-[#555]">
                       {profile.about}
                     </p>
                   </div>
                 </div>
               )}
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2.5">
                 <div className="text-xs font-bold text-[#888]">SKILLS</div>
                 {profile.skills.map((skill, index) => {
                   const skillKey = `skill-${index}`;
@@ -966,11 +967,11 @@ export function ProfileView() {
                           />
                         </>
                       ) : (
-                        <div className="flex items-center justify-between gap-3">
-                          <NeoBadge color="var(--mint)" className="px-3 py-1 text-[13px]">
+                        <div className="flex items-center justify-between gap-2.5">
+                          <NeoBadge color="var(--mint)" className="px-2.5 py-1.5 text-[15px]">
                             {skill || "Untitled skill"}
                           </NeoBadge>
-                          <div className="flex shrink-0 items-center gap-2">
+                          <div className="flex shrink-0 items-center gap-2.5">
                             <PencilButton
                               label={`Edit ${skill || "skill"}`}
                               onClick={() =>
@@ -1031,7 +1032,7 @@ export function ProfileView() {
             open={openSections.languages}
             onOpenChange={(open) => setSectionOpen("languages", open)}
           >
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2.5">
             {profile.languages.map((lang) => {
               const langKey = `language-${lang.id}`;
               const editing = isEditing(langKey) && editDraft;
@@ -1039,7 +1040,7 @@ export function ProfileView() {
               <ProfileFormEntry key={lang.id}>
                 {editing ? (
                   <>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                       <NeoInput
                         label="Language"
                         value={String(editDraft.name ?? "")}
@@ -1051,7 +1052,7 @@ export function ProfileView() {
                         <select
                           value={String(editDraft.level ?? "Conversational")}
                           onChange={(e) => updateDraft({ level: e.target.value })}
-                          className="rounded-full bg-white px-4 py-2.5 font-sans text-sm outline-none neo-border"
+                          className="rounded-full bg-white px-5 py-2.5 font-sans text-sm outline-none neo-border"
                         >
                           {LANGUAGE_LEVELS.map((level) => (
                             <option key={level}>{level}</option>
@@ -1080,7 +1081,7 @@ export function ProfileView() {
                     />
                   </>
                 ) : (
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center justify-between gap-2.5">
                     <div>
                       <div className="font-heading text-base font-extrabold">
                         {lang.name || "Untitled language"}
@@ -1089,7 +1090,7 @@ export function ProfileView() {
                         {lang.level}
                       </NeoBadge>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2.5">
                       <PencilButton
                         label={`Edit ${lang.name || "language"}`}
                         onClick={() =>
@@ -1155,7 +1156,7 @@ export function ProfileView() {
             open={openSections.certifications}
             onOpenChange={(open) => setSectionOpen("certifications", open)}
           >
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2.5">
             {profile.certifications.map((cert) => {
               const certKey = `cert-${cert.id}`;
               const editing = isEditing(certKey) && editDraft;
@@ -1163,7 +1164,7 @@ export function ProfileView() {
               <ProfileFormEntry key={cert.id}>
                 {editing ? (
                   <>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                       <NeoInput
                         label="Certification"
                         value={String(editDraft.name ?? "")}
@@ -1205,7 +1206,7 @@ export function ProfileView() {
                     />
                   </>
                 ) : (
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start justify-between gap-2.5">
                     <div>
                       <div className="font-heading text-base font-extrabold">
                         {cert.name || "Untitled certification"}
@@ -1215,7 +1216,7 @@ export function ProfileView() {
                         {cert.date ? ` · ${cert.date}` : ""}
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2.5">
                       <PencilButton
                         label={`Edit ${cert.name || "certification"}`}
                         onClick={() =>
@@ -1285,7 +1286,7 @@ export function ProfileView() {
             open={openSections.education}
             onOpenChange={(open) => setSectionOpen("education", open)}
           >
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2.5">
             {profile.education.map((edu) => {
               const eduKey = `education-${edu.id}`;
               const editing = isEditing(eduKey) && editDraft;
@@ -1293,7 +1294,7 @@ export function ProfileView() {
               <ProfileFormEntry key={edu.id}>
                 {editing ? (
                   <>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                       <NeoInput
                         label="Degree"
                         value={String(editDraft.degree ?? "")}
@@ -1338,7 +1339,7 @@ export function ProfileView() {
                     />
                   </>
                 ) : (
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start justify-between gap-2.5">
                     <div>
                       <div className="font-heading text-base font-extrabold">
                         {edu.degree}
@@ -1348,12 +1349,12 @@ export function ProfileView() {
                         {edu.dates ? ` · ${edu.dates}` : ""}
                       </div>
                       {edu.gpa && (
-                        <div className="mt-1 text-xs font-medium text-[#888]">
+                        <div className="mt-1.5 text-xs font-medium text-[#888]">
                           GPA: {edu.gpa}
                         </div>
                       )}
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2.5">
                       <PencilButton
                         label={`Edit ${edu.degree}`}
                         onClick={() =>
@@ -1425,7 +1426,7 @@ export function ProfileView() {
             open={openSections.library}
             onOpenChange={(open) => setSectionOpen("library", open)}
           >
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2.5">
               {profile.resumeLibrary.map((resume) => {
                 const resumeKey = `resume-${resume.id}`;
                 const editing = isEditing(resumeKey) && editDraft;
@@ -1433,7 +1434,7 @@ export function ProfileView() {
                   <ProfileFormEntry key={resume.id}>
                     {editing ? (
                       <>
-                        <div className="grid grid-cols-1 gap-3">
+                        <div className="grid grid-cols-1 gap-2.5">
                           <NeoInput
                             label="Label"
                             value={String(editDraft.label ?? "")}
@@ -1475,9 +1476,9 @@ export function ProfileView() {
                         />
                       </>
                     ) : (
-                      <div className="flex items-start gap-4">
-                        <div className="flex h-12 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--lav-l)] text-lg neo-border-sm">
-                          📄
+                      <div className="flex items-start gap-5">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--lav-l)] neo-border-sm">
+                          <DocumentIcon className="h-5 w-5 text-[var(--foreground)]" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="font-heading text-base font-extrabold">
@@ -1486,14 +1487,14 @@ export function ProfileView() {
                           <div className="text-sm font-medium text-[#666]">
                             {resume.job || "No role specified"}
                           </div>
-                          <div className="mt-1 text-xs font-medium text-[#888]">
+                          <div className="mt-1.5 text-xs font-medium text-[#888]">
                             {resume.date || "No date"}
                           </div>
-                          <div className="mt-3 flex flex-wrap gap-1.5">
+                          <div className="mt-2.5 flex flex-wrap gap-1.5">
                             <NeoButton
                               variant="secondary"
                               size="sm"
-                              className="px-2.5 py-1 text-[11px]"
+                              className="px-2.5 py-1.5 text-[10px]"
                               onClick={() => toast("Downloading...")}
                             >
                               Download
@@ -1501,14 +1502,14 @@ export function ProfileView() {
                             <NeoButton
                               variant="mint"
                               size="sm"
-                              className="px-2.5 py-1 text-[11px]"
+                              className="px-2.5 py-1.5 text-[10px]"
                               onClick={() => toast("Set as base!")}
                             >
                               Use as base
                             </NeoButton>
                           </div>
                         </div>
-                        <div className="flex shrink-0 items-center gap-2">
+                        <div className="flex shrink-0 items-center gap-2.5">
                           <PencilButton
                             label={`Edit ${resume.label || "resume"}`}
                             onClick={() =>

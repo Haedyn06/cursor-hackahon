@@ -25,8 +25,17 @@ import {
 import { useJobs } from "@/components/providers/jobs-provider";
 import { MOCK_RESUME } from "@/lib/mock-data";
 import type { Job } from "@/lib/types/job";
+import {
+  ClipboardIcon,
+  DocumentIcon,
+  EnvelopeIcon,
+  InfoIcon,
+  MicrophoneIcon,
+} from "@/components/ui/provider-icons";
 
 const RESUME_SAMPLE = MOCK_RESUME;
+const TAB_ICON_CLASS = "h-4 w-4 text-[var(--foreground)]";
+const EMPTY_ICON_CLASS = "h-8 w-8 text-[var(--foreground)]";
 
 function ResumeTab({ job }: { job: Job }) {
   const toast = useToast();
@@ -72,11 +81,11 @@ function ResumeTab({ job }: { job: Job }) {
   if (!generated && !generating) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4">
-        <div className="flex h-[72px] w-[72px] items-center justify-center rounded-[20px] bg-[var(--lav-l)] text-[32px] neo-border">
-          📄
+        <div className="flex h-[70px] w-[70px] items-center justify-center rounded-[20px] bg-[var(--lav-l)] neo-border">
+          <DocumentIcon className={EMPTY_ICON_CLASS} />
         </div>
-        <div className="font-heading text-[22px] font-extrabold">No resume yet</div>
-        <p className="max-w-[300px] text-center text-sm font-medium text-[#666]">
+        <div className="font-heading text-[20px] font-extrabold">No resume yet</div>
+        <p className="max-w-[300px] text-center text-sm font-medium text-gray-500">
           Generate a tailored, ATS-optimized resume in seconds
         </p>
         <NeoButton variant="primary" size="lg" onClick={generate}>
@@ -89,10 +98,10 @@ function ResumeTab({ job }: { job: Job }) {
   if (generating) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4">
-        <div className="flex h-[72px] w-[72px] animate-pulse-soft items-center justify-center rounded-[20px] bg-[var(--lav)] text-[32px] neo-border">
+        <div className="flex h-[70px] w-[70px] animate-pulse-soft items-center justify-center rounded-[20px] bg-[var(--lav)] text-[30px] neo-border">
           ✦
         </div>
-        <div className="font-heading text-[22px] font-extrabold">
+        <div className="font-heading text-[20px] font-extrabold">
           Generating your resume...
         </div>
         <div className="flex gap-1.5">
@@ -101,7 +110,7 @@ function ResumeTab({ job }: { job: Job }) {
               <NeoBadge
                 key={s}
                 color="var(--lav-l)"
-                className="animate-fade-in text-[11px]"
+                className="animate-fade-in text-[10px]"
                 style={{ animationDelay: `${i * 0.3}s` }}
               >
                 {s}
@@ -115,31 +124,31 @@ function ResumeTab({ job }: { job: Job }) {
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      <div className="flex-1 overflow-y-auto border-r-2 border-[var(--foreground)] p-6">
-        <div className="mb-5 flex items-center gap-4">
+      <div className="flex-1 overflow-y-auto border-r-2.5 border-[var(--foreground)] p-5">
+        <div className="mb-5 flex items-center gap-5">
           <MatchScore score={job.matchScore ?? 87} size="lg" />
           <div className="flex-1">
-            <div className="mb-2 font-heading text-base font-extrabold">
+            <div className="mb-2.5 font-heading text-base font-extrabold">
               Keyword Match
             </div>
             <div className="flex flex-wrap gap-1.5">
               {job.matchedKeywords.map((k) => (
-                <NeoBadge key={k} color="var(--mint)" className="text-[11px]">
+                <NeoBadge key={k} color="var(--mint)" className="text-[10px]">
                   ✓ {k}
                 </NeoBadge>
               ))}
               {job.missingKeywords.map((k) => (
-                <NeoBadge key={k} color="var(--peach)" className="text-[11px]">
+                <NeoBadge key={k} color="var(--peach)" className="text-[10px]">
                   ✕ {k}
                 </NeoBadge>
               ))}
             </div>
           </div>
         </div>
-        <div className="rounded-xl bg-white p-8 text-[13px] leading-relaxed whitespace-pre-line neo-border">
+        <div className="rounded-xl bg-white p-10 text-[15px] leading-relaxed whitespace-pre-line neo-border">
           {RESUME_SAMPLE}
         </div>
-        <div className="mt-4 flex gap-2.5">
+        <div className="mt-5 flex gap-2.5">
           <NeoButton variant="mint" size="sm" onClick={() => toast("Resume saved!")}>
             Save to Library
           </NeoButton>
@@ -152,16 +161,16 @@ function ResumeTab({ job }: { job: Job }) {
         </div>
       </div>
       <div className="flex w-[260px] flex-col bg-[var(--background)]">
-        <div className="border-b-2 border-[var(--foreground)] bg-white px-4 py-3">
+        <div className="border-b-2.5 border-[var(--foreground)] bg-white px-5 py-5">
           <NeoBadge color="var(--lav)" className="text-xs">
             ✦ AI Refine
           </NeoBadge>
         </div>
-        <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-3">
+        <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-2.5">
           {messages.map((m, i) => (
             <div
               key={i}
-              className="max-w-[90%] rounded-xl px-3 py-2.5 text-xs leading-relaxed font-medium neo-border-sm"
+              className="max-w-[90%] rounded-xl px-2.5 py-2.5 text-xs leading-relaxed font-medium neo-border-sm"
               style={{
                 background: m.role === "ai" ? "#ffffff" : "var(--lav)",
                 alignSelf: m.role === "ai" ? "flex-start" : "flex-end",
@@ -171,22 +180,22 @@ function ResumeTab({ job }: { job: Job }) {
             </div>
           ))}
           {streaming && (
-            <div className="rounded-xl bg-white px-3 py-2.5 text-xs neo-border-sm">
+            <div className="rounded-xl bg-white px-2.5 py-2.5 text-xs neo-border-sm">
               <span className="animate-pulse-soft">✦ Writing...</span>
             </div>
           )}
         </div>
-        <div className="flex gap-1.5 border-t-2 border-[var(--foreground)] p-2.5">
+        <div className="flex gap-1.5 border-t-2.5 border-[var(--foreground)] p-2.5">
           <input
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && sendMessage()}
             placeholder="Adjust this resume..."
-            className="flex-1 rounded-full border-2 border-[var(--foreground)] bg-white px-3 py-2 font-sans text-xs outline-none"
+            className="flex-1 rounded-full border-2.5 border-[var(--foreground)] bg-white px-2.5 py-2.5 font-sans text-xs outline-none"
           />
           <button
             onClick={sendMessage}
-            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-[var(--lav)] text-sm font-bold neo-border-sm"
+            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-[var(--lav)] text-sm font-bold neo-border-sm"
           >
             →
           </button>
@@ -220,11 +229,11 @@ Alex Johnson`;
 
   if (!generated && !generating) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4">
-        <div className="flex h-[72px] w-[72px] items-center justify-center rounded-[20px] bg-[var(--peach-l)] text-[32px] neo-border">
-          ✉️
+      <div className="flex flex-1 flex-col items-center justify-center gap-5">
+        <div className="flex h-[70px] w-[70px] items-center justify-center rounded-[20px] bg-[var(--peach-l)] neo-border">
+          <EnvelopeIcon className={EMPTY_ICON_CLASS} />
         </div>
-        <div className="font-heading text-[22px] font-extrabold">
+        <div className="font-heading text-[20px] font-extrabold">
           No cover letter yet
         </div>
         <NeoButton variant="peach" size="lg" onClick={generate}>
@@ -237,7 +246,7 @@ Alex Johnson`;
   if (generating) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3">
-        <div className="font-heading text-[22px] font-extrabold">
+        <div className="font-heading text-[20px] font-extrabold">
           Writing your cover letter...
         </div>
       </div>
@@ -245,13 +254,13 @@ Alex Johnson`;
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6">
+    <div className="flex-1 overflow-y-auto p-5">
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         className="min-h-[480px] w-full resize-y rounded-xl bg-white p-6 font-sans text-sm leading-loose outline-none neo-border"
       />
-      <div className="mt-3 flex gap-2.5">
+      <div className="mt-2.5 flex gap-2.5">
         <NeoButton variant="peach" size="sm" onClick={() => toast("Copied!")}>
           Copy to Clipboard
         </NeoButton>
@@ -327,11 +336,11 @@ function InterviewPrepTab({ job }: { job: Job }) {
 
   if (!generated && !generating) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4">
-        <div className="flex h-[72px] w-[72px] items-center justify-center rounded-[20px] bg-[var(--yellow-l)] text-[32px] neo-border">
-          🎤
+      <div className="flex flex-1 flex-col items-center justify-center gap-5">
+        <div className="flex h-[70px] w-[70px] items-center justify-center rounded-[20px] bg-[var(--yellow-l)] neo-border">
+          <MicrophoneIcon className={EMPTY_ICON_CLASS} />
         </div>
-        <div className="font-heading text-[22px] font-extrabold">No prep guide yet</div>
+        <div className="font-heading text-[20px] font-extrabold">No prep guide yet</div>
         <NeoButton variant="yellow" size="lg" onClick={generate}>
           ✦ Generate Interview Prep
         </NeoButton>
@@ -341,8 +350,8 @@ function InterviewPrepTab({ job }: { job: Job }) {
 
   if (generating) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3">
-        <div className="font-heading text-[22px] font-extrabold">Researching the role...</div>
+      <div className="flex flex-1 flex-col items-center justify-center gap-2.5">
+        <div className="font-heading text-[20px] font-extrabold">Researching the role...</div>
       </div>
     );
   }
@@ -351,41 +360,41 @@ function InterviewPrepTab({ job }: { job: Job }) {
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="flex gap-1.5 border-b-2 border-[var(--foreground)] px-6 pt-4 pb-0">
+      <div className="flex gap-1.5 border-b-2.5 border-[var(--foreground)] px-5 pt-5 pb-0">
         {categories.map((cat) => (
           <button
             key={cat.id}
             onClick={() => setActiveCategory(cat.id)}
-            className="cursor-pointer rounded-full px-4 py-1.5 font-sans text-xs font-bold neo-border-sm"
+            className="cursor-pointer rounded-full px-5 py-1.5 font-sans text-xs font-bold neo-border-sm"
             style={{
               background:
                 activeCategory === cat.id ? "var(--yellow)" : "transparent",
               border:
                 activeCategory === cat.id
-                  ? "2px solid var(--foreground)"
-                  : "2px solid transparent",
+                  ? "2.5px solid var(--foreground)"
+                  : "2.5px solid transparent",
             }}
           >
             {cat.label}
           </button>
         ))}
       </div>
-      <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-6">
+      <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-5">
         {qs.map((item, i) => (
-          <div key={i} className="overflow-hidden rounded-2xl bg-white neo-border">
+          <div key={i} className="overflow-hidden rounded-2.5xl bg-white neo-border">
             <div
               onClick={() => setExpanded((p) => ({ ...p, [i]: !p[i] }))}
-              className="flex cursor-pointer items-center justify-between gap-3 px-5 py-4"
+              className="flex cursor-pointer items-center justify-between gap-2.5 px-5 py-5"
             >
               <span className="text-sm font-bold">{item.q}</span>
               <span className="shrink-0 text-[#888]">{expanded[i] ? "▲" : "▼"}</span>
             </div>
             {expanded[i] && (
-              <div className="border-t-2 border-[var(--foreground)] px-5 pt-3 pb-4">
-                <NeoBadge color="var(--yellow)" className="mb-2 text-[11px]">
+              <div className="border-t-2.5 border-[var(--foreground)] px-5 pt-3 pb-5">
+                <NeoBadge color="var(--yellow)" className="mb-2.5 text-[10px]">
                   Answer framework
                 </NeoBadge>
-                <p className="text-[13px] leading-relaxed font-medium text-[#444]">
+                <p className="text-[15px] leading-relaxed font-medium text-[#444]">
                   {item.a}
                 </p>
               </div>
@@ -410,11 +419,11 @@ function JobDetailPanel({
 
   if (!job) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 bg-[var(--background)]">
-        <div className="flex h-20 w-20 items-center justify-center rounded-[20px] bg-white text-4xl neo-border">
-          📋
+      <div className="flex flex-1 flex-col items-center justify-center gap-2.5 bg-[var(--background)]">
+        <div className="flex h-20 w-20 items-center justify-center rounded-[20px] bg-white neo-border">
+          <ClipboardIcon className="h-10 w-10 text-[var(--foreground)]" />
         </div>
-        <div className="font-heading text-[22px] font-extrabold">Select a job</div>
+        <div className="font-heading text-[20px] font-extrabold">Select a job</div>
         <p className="text-sm font-medium text-[#888]">
           Click a job in the list to view details
         </p>
@@ -423,18 +432,22 @@ function JobDetailPanel({
   }
 
   const tabs = [
-    { id: "info", label: "Job Info", icon: "ℹ️" },
-    { id: "resume", label: "Resume", icon: "📄" },
-    { id: "cover", label: "Cover Letter", icon: "✉️" },
-    { id: "interview", label: "Interview Prep", icon: "🎤" },
+    { id: "info", label: "Job Info", icon: <InfoIcon className={TAB_ICON_CLASS} /> },
+    { id: "resume", label: "Resume", icon: <DocumentIcon className={TAB_ICON_CLASS} /> },
+    { id: "cover", label: "Cover Letter", icon: <EnvelopeIcon className={TAB_ICON_CLASS} /> },
+    {
+      id: "interview",
+      label: "Interview Prep",
+      icon: <MicrophoneIcon className={TAB_ICON_CLASS} />,
+    },
   ];
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-[var(--background)]">
-      <div className="shrink-0 border-b-[2.5px] border-[var(--foreground)] bg-white px-7 pt-5">
-        <div className="mb-3 flex items-start justify-between gap-4">
+      <div className="shrink-0 border-b-[2.5px] border-[var(--foreground)] bg-white px-7.5 pt-5">
+        <div className="mb-3 flex items-start justify-between gap-5">
           <div className="min-w-0 flex-1">
-            <h1 className="mb-1 font-heading text-[28px] font-extrabold tracking-tight">
+            <h1 className="mb-1.5 font-heading text-[28px] font-extrabold tracking-tight">
               {job.title}
             </h1>
             <div className="flex flex-wrap items-center gap-2.5 text-sm font-medium text-[#555]">
@@ -466,7 +479,7 @@ function JobDetailPanel({
           <NeoButton
             variant="danger"
             size="sm"
-            className="shrink-0 px-3 py-1.5 text-xs"
+            className="shrink-0 px-2.5 py-1.5 text-xs"
             onClick={() => onDelete(job.id)}
           >
             Remove
@@ -485,7 +498,7 @@ function JobDetailPanel({
         className="animate-tab-panel flex flex-1 flex-col overflow-hidden bg-[var(--background)]"
       >
         {activeTab === "info" && (
-          <div key={job.id} className="flex flex-1 gap-6 overflow-y-auto p-7">
+          <div key={job.id} className="flex flex-1 gap-5 overflow-y-auto p-7.5">
             <div className="flex-1">
               <SectionHeader label="Job Description" color="var(--mint)" />
               <div className="rounded-xl bg-white p-5 text-sm leading-[1.75] font-medium whitespace-pre-line neo-border">
@@ -494,13 +507,13 @@ function JobDetailPanel({
             </div>
             <div className="w-[220px] shrink-0">
               <SectionHeader label="Keywords" color="var(--lav)" />
-              <NeoCard className="p-4">
+              <NeoCard className="p-5">
                 {job.matchedKeywords.length > 0 && (
                   <div className="mb-3">
                     <div className="mb-1.5 text-[11px] font-bold text-[#888]">MATCHED</div>
                     <div className="flex flex-wrap gap-1.5">
                       {job.matchedKeywords.map((k) => (
-                        <NeoBadge key={k} color="var(--mint)" className="text-[11px]">
+                        <NeoBadge key={k} color="var(--mint)" className="text-[10px]">
                           ✓ {k}
                         </NeoBadge>
                       ))}
@@ -509,10 +522,10 @@ function JobDetailPanel({
                 )}
                 {job.missingKeywords.length > 0 && (
                   <div>
-                    <div className="mb-1.5 text-[11px] font-bold text-[#888]">MISSING</div>
+                    <div className="mb-1.5 text-[10px] font-bold text-[#888]">MISSING</div>
                     <div className="flex flex-wrap gap-1.5">
                       {job.missingKeywords.map((k) => (
-                        <NeoBadge key={k} color="var(--peach)" className="text-[11px]">
+                        <NeoBadge key={k} color="var(--peach)" className="text-[10px]">
                           ✕ {k}
                         </NeoBadge>
                       ))}
@@ -520,7 +533,7 @@ function JobDetailPanel({
                   </div>
                 )}
                 {!job.matchedKeywords.length && !job.missingKeywords.length && (
-                  <p className="py-2 text-center text-xs text-[#888]">
+                  <p className="py-2.5 text-center text-xs text-[#888]">
                     Generate a resume to see keyword matches
                   </p>
                 )}
@@ -546,12 +559,12 @@ function KanbanView({
   const columns = [...STATUS_STAGES, "Rejected" as const];
 
   return (
-    <div className="flex flex-1 items-start gap-3 overflow-hidden p-6">
+    <div className="flex flex-1 items-start gap-2.5 overflow-hidden p-5">
       {columns.map((col) => {
         const colJobs = jobs.filter((j) => j.status === col);
         return (
           <div key={col} className="flex min-w-0 flex-1 flex-col">
-            <div className="mb-3 flex items-center gap-2">
+            <div className="mb-2.5 flex items-center gap-2.5">
               <NeoBadge
                 color={STATUS_COLORS[col] ?? "#ffffff"}
                 className="text-xs font-extrabold"
@@ -567,10 +580,10 @@ function KanbanView({
                 <div
                   key={job.id}
                   onClick={() => onJobClick(job.id)}
-                  className="cursor-pointer rounded-[14px] bg-white p-4 neo-border transition-neo hover:-translate-y-0.5 hover:bg-[var(--mint-l)]"
+                  className="cursor-pointer rounded-[15px] bg-white p-5 neo-border transition-neo hover:-translate-y-0.5 hover:bg-[var(--mint-l)]"
                 >
-                  <div className="mb-1 text-[13px] font-bold">{job.title}</div>
-                  <div className="mb-2 text-xs font-medium text-[#666]">
+                  <div className="mb-1.5 text-[15px] font-bold">{job.title}</div>
+                  <div className="mb-2.5 text-xs font-medium text-text-gray-50">
                     {job.company}
                   </div>
                   {job.matchScore !== null && (
@@ -579,7 +592,7 @@ function KanbanView({
                 </div>
               ))}
               {colJobs.length === 0 && (
-                <div className="rounded-[14px] border-2 border-dashed border-[#ddd] p-4 text-center text-xs text-[#aaa]">
+                <div className="rounded-[15px] border-2.5 border-dashed border-[#ddd] p-5 text-center text-xs text-[#aaa]">
                   No job displayed here
                 </div>
               )}
@@ -650,8 +663,8 @@ export function JobTrackerView() {
     <div className="flex flex-1 overflow-hidden">
       {dialog}
       <div className="flex w-[280px] shrink-0 flex-col border-r-[2.5px] border-[var(--foreground)] bg-white">
-        <div className="border-b-[2.5px] border-[var(--foreground)] px-4 pt-4 pb-3">
-          <div className="mb-2 flex items-center justify-between">
+        <div className="border-b-[2.5px] border-[var(--foreground)] px-5 pt-5 pb-2.5">
+          <div className="mb-2.5 flex items-center justify-between">
             <span className="font-heading text-base font-extrabold">Your Jobs</span>
             <NeoButton
               variant="mint"
@@ -696,7 +709,7 @@ export function JobTrackerView() {
                 <path d="m21 21-4.35-4.35" />
               </svg>
             }
-            className="text-[13px]"
+            className="text-[15px]"
           />
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -729,7 +742,7 @@ export function JobTrackerView() {
                     }
                   }}
                   className={cn(
-                    "cursor-pointer border-b-2 border-[var(--foreground)] px-4 py-3.5 transition-[background] duration-150 ease-in-out",
+                    "cursor-pointer border-b-2.5 border-[var(--foreground)] px-5 py-3.5 transition-[background] duration-150 ease-in-out",
                     !isSelected && "hover:bg-[var(--mint-l)]",
                   )}
                   style={{
@@ -750,24 +763,24 @@ export function JobTrackerView() {
                         e.stopPropagation();
                         void handleDeleteJob(job.id);
                       }}
-                      className="shrink-0 cursor-pointer rounded-md border-2 border-transparent bg-transparent px-1.5 py-0.5 text-xs font-bold text-[#888] transition-[background,color,border-color] duration-150 hover:border-[var(--foreground)] hover:bg-[var(--peach)] hover:text-[var(--foreground)]"
+                      className="shrink-0 cursor-pointer rounded-md border-2.5 border-transparent bg-transparent px-1.5 py-0.5 text-xs font-bold text-[#888] transition-[background,color,border-color] duration-150 hover:border-[var(--foreground)] hover:bg-[var(--peach)] hover:text-[var(--foreground)]"
                     >
                       ✕
                     </button>
                   </div>
-                  <div className="mb-2 text-xs font-medium text-[#666]">
+                  <div className="mb-2.5 text-xs font-medium text-gray-500">
                     {job.company}
                   </div>
                   <div className="flex items-center justify-between">
                     <NeoBadge
                       color={STATUS_COLORS[job.status] ?? "var(--yellow)"}
-                      className="px-2 py-0.5 text-[11px]"
+                      className="px-2.5 py-0.5 text-[10px]"
                     >
                       {job.status}
                     </NeoBadge>
                     {scoreStyle && job.matchScore !== null && (
                       <span
-                        className="rounded-full px-2 py-0.5 text-[11px] font-extrabold neo-border-sm"
+                        className="rounded-full px-2.5 py-0.5 text-[10px] font-extrabold neo-border-sm"
                         style={scoreStyle}
                       >
                         {job.matchScore}%

@@ -28,21 +28,21 @@ export function CoverLetterPreviewPanel({
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-[var(--background)]">
-      <div className="flex shrink-0 items-center justify-between gap-4 border-b-[2.5px] border-[var(--foreground)] bg-white px-8 py-4">
+      <div className="flex shrink-0 items-center justify-between gap-4 border-b-[2.5px] border-[var(--foreground)] bg-white px-10 py-5">
         <div>
           <button
             type="button"
             onClick={onBack}
-            className="mb-1 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors hover:text-[var(--foreground)]"
+            className="mb-1.5 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors hover:text-[var(--foreground)]"
           >
             ← Back to library
           </button>
           <h1 className="font-heading text-[22px] font-extrabold">
             {coverLetter.title}
           </h1>
-          <p className="text-sm font-medium text-[#666]">{coverLetter.matchJob}</p>
+          <p className="text-sm font-medium text-gray-500">{coverLetter.matchJob}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2.5">
           {editing ? (
             <>
               <NeoButton
@@ -86,16 +86,16 @@ export function CoverLetterPreviewPanel({
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-y-auto p-8">
+      <div className="flex flex-1 overflow-y-auto p-10">
         <div className="mx-auto w-full max-w-[720px]">
           {editing ? (
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="min-h-[520px] w-full resize-y rounded-xl bg-white p-8 font-sans text-[13px] leading-relaxed outline-none neo-border"
+              className="min-h-[520px] w-full resize-y rounded-xl bg-white p-10 font-sans text-[15px] leading-relaxed outline-none neo-border"
             />
           ) : (
-            <div className="rounded-xl bg-white p-8 text-[13px] leading-relaxed whitespace-pre-line neo-border">
+            <div className="rounded-xl bg-white p-10 text-[15px] leading-relaxed whitespace-pre-line neo-border">
               {content}
             </div>
           )}

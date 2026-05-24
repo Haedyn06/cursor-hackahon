@@ -110,14 +110,14 @@ function ModeToggle({
             type="button"
             onClick={() => onChange(opt.id)}
             className={cn(
-              "flex flex-1 cursor-pointer items-center justify-center gap-1.5 border-none px-4 py-2.5 font-sans text-[13px] font-bold transition-[background,color,transform] duration-200 ease-out",
+              "flex flex-1 cursor-pointer items-center justify-center gap-1.5 border-none px-5 py-2.5 font-sans text-[15px] font-bold transition-[background,color,transform] duration-200 ease-out",
               active
                 ? "bg-[var(--foreground)] text-white"
                 : "bg-white text-[var(--foreground)] hover:bg-[var(--mint-l)]",
             )}
             style={{
               borderRight:
-                idx === 0 ? "2px solid var(--foreground)" : undefined,
+                idx === 0 ? "2.5px solid var(--foreground)" : undefined,
             }}
           >
             {opt.icon}
@@ -145,13 +145,13 @@ function JobFormFields({
   showAiBanner?: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       {showAiBanner && (
-        <div className="animate-slide-up flex items-start gap-2.5 rounded-xl bg-[var(--mint-l)] px-3.5 py-3 neo-border-sm">
+        <div className="animate-slide-up flex items-start gap-2.5 rounded-xl bg-[var(--mint-l)] px-3.5 py-3.5 neo-border-sm">
           <span className="text-lg leading-none">✦</span>
           <div>
-            <div className="text-[13px] font-extrabold">AI extracted details</div>
-            <div className="text-xs font-medium text-[#666]">
+            <div className="text-[15px] font-extrabold">AI extracted details</div>
+            <div className="text-xs font-medium text-gray-500">
               Review the fields below, edit anything, then save.
             </div>
           </div>
@@ -180,7 +180,7 @@ function JobFormFields({
         <select
           value={form.source}
           onChange={onChange("source")}
-          className="rounded-full bg-white px-4 py-2.5 font-sans text-sm outline-none neo-border transition-shadow duration-150"
+          className="rounded-full bg-white px-5 py-2.5 font-sans text-sm outline-none neo-border transition-shadow duration-150"
         >
           {SOURCES.map((s) => (
             <option key={s}>{s}</option>
@@ -286,9 +286,9 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
 
       {mode === "ai" && !analyzed && (
         <div key="ai-entry" className="animate-tab-panel flex flex-col gap-4">
-          <div className="rounded-2xl bg-[var(--lav-l)] p-4 neo-border">
-            <div className="mb-3 flex items-center gap-2.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--lav)] text-lg neo-border-sm">
+          <div className="rounded-2.5xl bg-[var(--lav-l)] p-5 neo-border">
+            <div className="mb-2.5 flex items-center gap-2.5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-[var(--lav)] text-lg neo-border-sm">
                 ✦
               </div>
               <div>
@@ -303,7 +303,7 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
 
             <div
               className={cn(
-                "mb-3 rounded-xl border-[2.5px] border-dashed px-4 py-5 text-center transition-[border-color,background] duration-200",
+                "mb-2.5 rounded-xl border-[2.5px] border-dashed px-5 py-5 text-center transition-[border-color,background] duration-200",
                 analyzing
                   ? "border-[var(--foreground)] bg-white"
                   : "border-[#cccccc] bg-[var(--background)]",
@@ -311,17 +311,17 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
             >
               <div
                 className={cn(
-                  "mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl neo-border-sm transition-transform duration-300",
+                  "mx-auto mb-2.5 flex h-10 w-10 items-center justify-center rounded-full bg-white text-xl neo-border-sm transition-transform duration-300",
                   analyzing && "scale-110",
                 )}
               >
                 {analyzing ? (
-                  <span className="inline-block h-5 w-5 animate-spin-slow rounded-full border-2 border-[#ccc] border-t-[var(--foreground)]" />
+                  <span className="inline-block h-5 w-5 animate-spin-slow rounded-full border-2.5 border-[#ccc] border-t-[var(--foreground)]" />
                 ) : (
                   "🔗"
                 )}
               </div>
-              <div className="mb-1 text-sm font-bold">
+              <div className="mb-1.5 text-sm font-bold">
                 {analyzing ? "Reading job posting…" : "Paste a job posting URL"}
               </div>
               <div className="text-xs text-[#888]">
@@ -350,7 +350,7 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
             />
 
             {analyzing && (
-              <div className="mt-3 flex flex-wrap gap-1.5 animate-fade-in">
+              <div className="mt-2.5 flex flex-wrap gap-1.5 animate-fade-in">
                 {["Fetching page", "Parsing JD", "Extracting keywords"].map(
                   (step, i) => (
                     <NeoBadge
@@ -369,7 +369,7 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
             )}
           </div>
 
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-2.5">
             <button
               type="button"
               onClick={() => handleModeChange("manual")}
@@ -385,7 +385,7 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
             >
               {analyzing ? (
                 <span className="flex items-center gap-2">
-                  <span className="inline-block h-3.5 w-3.5 animate-spin-slow rounded-full border-2 border-[#aaa] border-t-white" />
+                  <span className="inline-block h-3.5 w-3.5 animate-spin-slow rounded-full border-2.5 border-[#aaa] border-t-white" />
                   Analyzing…
                 </span>
               ) : (
@@ -399,7 +399,7 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
       {mode === "ai" && analyzed && (
         <div key="ai-review" className="animate-tab-panel flex flex-col gap-4">
           <JobFormFields form={form} onChange={f} showAiBanner />
-          <div className="flex items-center justify-between gap-3 pt-1">
+          <div className="flex items-center justify-between gap-2.5 pt-1">
             <button
               type="button"
               onClick={() => {
@@ -423,7 +423,7 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
       )}
 
       {mode === "manual" && (
-        <div key="manual" className="animate-tab-panel flex flex-col gap-4">
+        <div key="manual" className="animate-tab-panel flex flex-col gap-5">
           <p className="text-[13px] font-medium text-[#666]">
             Fill in the job details yourself. Paste the full description for
             better AI resume matching later.

@@ -118,7 +118,7 @@ export function AppSidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="flex w-16 shrink-0 flex-col items-center gap-1.5 border-r-[2.5px] border-[var(--foreground)] bg-white py-4">
+    <div className="flex w-15 shrink-0 flex-col items-center gap-1.5 border-r-[2.5px] border-[var(--foreground)] bg-white py-5">
       <div className="mb-5">
         <Logo size="icon" href="/jobs" />
       </div>
@@ -130,10 +130,10 @@ export function AppSidebar() {
             href={item.href}
             title={item.label}
             className={cn(
-              "flex h-11 w-11 items-center justify-center rounded-xl text-[var(--foreground)] transition-all",
+              "flex h-10 w-10 items-center justify-center rounded-xl text-[var(--foreground)] transition-all",
               active
                 ? "bg-[var(--mint)] neo-border-sm"
-                : "border-2 border-transparent hover:bg-[var(--mint-l)]",
+                : "border-2.5 border-transparent hover:bg-[var(--mint-l)]",
             )}
           >
             {item.svg}
@@ -186,7 +186,7 @@ function UserMenu() {
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label="Account menu"
-        className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-[var(--lav)] font-heading text-sm font-extrabold neo-border-sm transition-transform duration-150 hover:scale-105"
+        className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-[var(--lav)] font-heading text-sm font-extrabold neo-border-sm transition-transform duration-150 hover:scale-105"
       >
         AJ
       </button>
@@ -194,7 +194,7 @@ function UserMenu() {
       {open && (
         <div
           role="menu"
-          className="absolute top-[calc(100%+8px)] right-0 z-[200] min-w-[160px] overflow-hidden rounded-xl bg-white p-1.5 shadow-[4px_4px_0_#1a1a1a] neo-border"
+          className="absolute top-[calc(100%+10px)] right-0 z-[200] min-w-[160px] overflow-hidden rounded-xl bg-white p-1.5 shadow-[5px_5px_0_#1a1a1a] neo-border"
         >
           <button
             type="button"
@@ -203,7 +203,7 @@ function UserMenu() {
               setOpen(false);
               router.push("/settings");
             }}
-            className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg border-none bg-transparent px-3.5 py-2.5 text-left font-sans text-[13px] font-bold text-[var(--foreground)] transition-colors hover:bg-[var(--mint-l)]"
+            className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg border-none bg-transparent px-3.5 py-2.5 text-left font-sans text-[15px] font-bold text-[var(--foreground)] transition-colors hover:bg-[var(--mint-l)]"
           >
             <svg
               width="16"
@@ -228,7 +228,7 @@ function UserMenu() {
               setOpen(false);
               router.push("/");
             }}
-            className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg border-none bg-transparent px-3.5 py-2.5 text-left font-sans text-[13px] font-bold text-[#cc0000] transition-colors hover:bg-[var(--peach-l)]"
+            className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg border-none bg-transparent px-3.5 py-2.5 text-left font-sans text-[15px] font-bold text-[#cc0000] transition-colors hover:bg-[var(--peach-l)]"
           >
             <svg
               width="16"
@@ -262,11 +262,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen overflow-hidden bg-[var(--background)]">
       <AppSidebar />
       <div className="relative flex flex-1 flex-col overflow-hidden">
-        <div className="flex h-14 shrink-0 items-center justify-between border-b-[2.5px] border-[var(--foreground)] bg-white px-6">
+        <div className="flex h-15 shrink-0 items-center justify-between border-b-[2.5px] border-[var(--foreground)] bg-white px-5">
           <div className="font-heading text-lg font-extrabold whitespace-nowrap">
             {title}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <UserMenu />
           </div>
         </div>

@@ -66,7 +66,7 @@ export default function LandingPage() {
             <div className="mb-5 flex justify-center lg:justify-start">
               <NeoBadge
                 color="var(--mint)"
-                className="px-4 py-1.5 text-[13px]"
+                className="px-5 py-1.5 text-[13px]"
               >
                 Built for students &amp; new grads
               </NeoBadge>
@@ -165,14 +165,14 @@ export default function LandingPage() {
             ))}
           </div>
 
-          <div className="mt-20 border-t-[2.5px] border-[var(--foreground)] pt-16 text-center">
+          <div className="mt-20 border-t-[2.5px] border-[var(--foreground)] pt-10 text-center">
             <NeoBadge color="var(--yellow)" className="mb-5">
               Bring Your Own Key
             </NeoBadge>
-            <h2 className="mb-2.5 font-heading text-4xl font-extrabold tracking-tight">
+            <h2 className="mb-2.5 font-heading text-5xl font-extrabold tracking-tight">
               Works with any AI provider
             </h2>
-            <p className="mb-10 text-[15px] font-medium text-[#666]">
+            <p className="mb-10 text-[15px] font-medium text-gray-700">
               Connect your own API key. You control your data and costs.
             </p>
             <div className="flex flex-wrap justify-center gap-3">
@@ -180,7 +180,7 @@ export default function LandingPage() {
                 <NeoBadge
                   key={p}
                   color="#ffffff"
-                  className="px-5 py-2.5 text-sm font-bold neo-border"
+                  className="px-5 py-2.5 text-2.5xl font-bold neo-border"
                 >
                   {p}
                 </NeoBadge>
@@ -190,7 +190,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="border-y-[2.5px] border-[var(--foreground)] bg-[var(--mint)] px-10 py-10 text-center">
+      <section className="border-y-[2.5px] border-[var(--foreground)] px-10 py-10 text-center">
         <h2 className="mb-5 font-heading text-5xl font-extrabold tracking-[-1.5px]">
           Ready to land your first job?
         </h2>

@@ -20,6 +20,7 @@ import {
   KeyIcon,
   LinkIcon,
   LockIcon,
+  DocumentIcon,
   ProviderIconBadge,
 } from "@/components/ui/provider-icons";
 import {
@@ -62,18 +63,18 @@ function ApiKeyCard({
 
   return (
     <div
-      className="overflow-hidden rounded-2xl transition-colors neo-border"
+      className="overflow-hidden rounded-2.5xl transition-colors neo-border"
       style={{ background: expanded ? prov.color : "#ffffff" }}
     >
-      <div onClick={onExpand} className="cursor-pointer px-[18px] pt-[18px] pb-3.5">
-        <div className="mb-1.5 flex items-start gap-2">
+      <div onClick={onExpand} className="cursor-pointer px-[20px] pt-[20px] pb-3.5">
+        <div className="mb-1.5 flex items-start gap-2.5">
           <ProviderIconBadge
             providerId={prov.id}
             icon={prov.icon}
             color={prov.color}
           />
           <div className="min-w-0">
-            <div className="mb-1 font-heading text-sm font-extrabold leading-tight">
+            <div className="mb-1.5 font-heading text-sm font-extrabold leading-tight">
               {prov.name}
             </div>
             <NeoBadge color="#ffffff" className="text-[10px]">
@@ -84,10 +85,10 @@ function ApiKeyCard({
         <div className="pl-[26px] text-xs font-medium text-[#555]">{prov.desc}</div>
       </div>
       {expanded && (
-        <div className="border-t-2 border-[var(--foreground)] px-[18px] pb-[18px]">
+        <div className="border-t-2.5 border-[var(--foreground)] px-[20px] pb-[20px]">
           <a
             href="#"
-            className="my-2.5 flex items-center gap-1 text-xs font-bold text-[var(--foreground)]"
+            className="my-2.5 flex items-center gap-2.5 text-xs font-bold text-[var(--foreground)]"
           >
             Get API Key ↗
           </a>
@@ -97,7 +98,7 @@ function ApiKeyCard({
             onChange={(e) => setApiKey(e.target.value)}
             type="password"
           />
-          <div className="mt-2">
+          <div className="mt-2.5">
             {verified ? (
               <NeoBadge color="var(--mint)" className="px-3.5 py-1.5 text-xs">
                 ✓ Connected!
@@ -144,18 +145,18 @@ function OAuthCard({
 
   return (
     <div
-      className="overflow-hidden rounded-2xl transition-colors neo-border"
+      className="overflow-hidden rounded-2.5xl transition-colors neo-border"
       style={{ background: expanded ? prov.color : "#ffffff" }}
     >
-      <div onClick={onExpand} className="cursor-pointer px-[18px] pt-[18px] pb-3.5">
-        <div className="mb-1.5 flex items-start gap-2">
+      <div onClick={onExpand} className="cursor-pointer px-[20px] pt-[20px] pb-3.5">
+        <div className="mb-1.5 flex items-start gap-2.5">
           <ProviderIconBadge
             providerId={prov.id}
             icon={prov.icon}
             color={prov.color}
           />
           <div className="min-w-0">
-            <div className="mb-1 font-heading text-sm font-extrabold leading-tight">
+            <div className="mb-1.5 font-heading text-sm font-extrabold leading-tight">
               {prov.name}
             </div>
             <NeoBadge
@@ -166,11 +167,11 @@ function OAuthCard({
             </NeoBadge>
           </div>
         </div>
-        <div className="pl-[26px] text-xs font-medium text-[#555]">{prov.desc}</div>
+        <div className="pl-[25px] text-xs font-medium text-[#555]">{prov.desc}</div>
       </div>
       {expanded && (
-        <div className="border-t-2 border-[var(--foreground)] px-[18px] pb-[18px]">
-          <p className="my-3 text-xs leading-relaxed font-medium text-[#666]">
+        <div className="border-t-2.5 border-[var(--foreground)] px-[20px] pb-[20px]">
+          <p className="my-3 text-xs leading-relaxed font-medium text-gray-700">
             No API key needed — connect via OAuth. We only request permission to
             use the AI model endpoint.
           </p>
@@ -187,7 +188,7 @@ function OAuthCard({
             >
               {connecting ? (
                 <span className="flex items-center gap-1.5">
-                  <span className="inline-block h-3 w-3 animate-spin-slow rounded-full border-2 border-[#aaa] border-t-[var(--foreground)]" />
+                  <span className="inline-block h-2.5 w-2.5 animate-spin-slow rounded-full border-2.5 border-[#aaa] border-t-[var(--foreground)]" />
                   Connecting...
                 </span>
               ) : (
@@ -321,21 +322,21 @@ function AIAutoFillZone({
     <>
       {dialog}
       <NeoCard
-      className="mb-1 transition-colors duration-200"
+      className="mb-1.5 transition-colors duration-200"
       style={{
         background: done ? "var(--mint-l)" : "#ffffff",
         borderWidth: done ? "2.5px" : undefined,
       }}
     >
       <div className="mb-3 flex items-center gap-2.5">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--lav)] text-lg neo-border-sm">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-[var(--lav)] text-lg neo-border-sm">
           ✦
         </div>
         <div className="min-w-0 flex-1">
-          <div className="font-heading text-[17px] font-extrabold">
+          <div className="font-heading text-[20px] font-extrabold">
             AI Auto-Fill
           </div>
-          <div className="text-xs font-medium text-[#666]">
+          <div className="text-xs font-medium text-gray-700">
             Drop anything — resume, LinkedIn screenshot, bio, notes — AI will
             fill the form for you.
           </div>
@@ -356,13 +357,13 @@ function AIAutoFillZone({
             }}
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
-            className="mb-2.5 flex flex-col items-center gap-2 rounded-xl border-[2.5px] border-dashed px-4 py-5 text-center transition-all duration-150"
+            className="mb-2.5 flex flex-col items-center gap-2 rounded-xl border-[2.5px] border-dashed px-5 py-5 text-center transition-all duration-150"
             style={{
               borderColor: dragOver ? "var(--foreground)" : "#cccccc",
               background: dragOver ? "var(--lav-l)" : "var(--background)",
             }}
           >
-            <div className="text-[28px]">📎</div>
+            <div className="text-[30px]">📎</div>
             <div className="text-sm font-bold">Drop files here</div>
             <div className="text-xs text-[#888]">
               PDF, DOCX, PNG, JPG, screenshots — anything
@@ -401,7 +402,7 @@ function AIAutoFillZone({
                       if (!confirmed) return;
                       removeFile(i);
                     }}
-                    className="ml-1 cursor-pointer border-none bg-transparent p-0 text-[#888]"
+                    className="ml-1.5 cursor-pointer border-none bg-transparent p-0 text-[#888]"
                   >
                     ✕
                   </button>
@@ -416,7 +417,7 @@ function AIAutoFillZone({
             onChange={(e) => setPastedText(e.target.value)}
             multiline
             rows={3}
-            className="mb-3 rounded-xl text-[13px]"
+            className="mb-3.5 rounded-xl text-[13px]"
           />
 
           <div className="flex justify-end">
@@ -427,7 +428,7 @@ function AIAutoFillZone({
             >
               {extracting ? (
                 <span className="flex items-center gap-2">
-                  <span className="inline-block h-3.5 w-3.5 animate-spin-slow rounded-full border-2 border-[#aaa] border-t-[var(--foreground)]" />
+                  <span className="inline-block h-3.5 w-3.5 animate-spin-slow rounded-full border-2.5 border-[#aaa] border-t-[var(--foreground)]" />
                   AI extracting info...
                 </span>
               ) : (
@@ -439,7 +440,7 @@ function AIAutoFillZone({
       )}
 
       {done && (
-        <p className="text-[13px] font-medium text-[#555]">
+        <p className="text-[15px] font-medium text-[#555]">
           ✓ Filled: name, location, email, phone, links, target role,
           experience level, about, 7 skills, languages, and certifications.
         </p>
@@ -555,15 +556,17 @@ function MultiResumeImport({
                   addFiles(e.dataTransfer.files);
                 }
               }}
-              className="mb-4 rounded-[14px] border-[2.5px] border-dashed px-6 py-8 text-center transition-all"
+              className="mb-5 rounded-[15px] border-[2.5px] border-dashed px-5 py-10 text-center transition-all"
               style={{
                 borderColor: dragOver ? "var(--foreground)" : "#cccccc",
                 background: dragOver ? "var(--mint-l)" : "var(--background)",
               }}
             >
-              <div className="mb-2 text-4xl">📄</div>
-              <div className="mb-1 text-[15px] font-bold">Drop resumes here</div>
-              <div className="mb-4 text-[13px] text-[#888]">
+              <div className="mb-2.5 flex justify-center">
+                <DocumentIcon className="h-10 w-10 text-[var(--lav)]" />
+              </div>
+              <div className="mb-1.5 text-[15px] font-bold">Drop resumes here</div>
+              <div className="mb-5 text-[15px] text-[#888]">
                 PDF or DOCX — add as many as you have. AI will name each one.
               </div>
               <input
@@ -591,8 +594,8 @@ function MultiResumeImport({
         )}
 
         {activeTab === "paste" && (
-          <div className="mb-4">
-            <p className="mb-2.5 text-[13px] font-medium text-[#666]">
+          <div className="mb-5">
+            <p className="mb-2.5 text-[15px] font-medium text-gray-700">
               Paste resume text below. AI will extract and name it automatically.
             </p>
             <NeoInput
@@ -603,7 +606,7 @@ function MultiResumeImport({
               onChange={(e) => setPasteText(e.target.value)}
               className="rounded-xl"
             />
-            <div className="mt-3 flex justify-end">
+            <div className="mt-2.5 flex justify-end">
               <NeoButton
                 variant="primary"
                 size="sm"
@@ -624,10 +627,10 @@ function MultiResumeImport({
             {resumes.map((r) => (
               <div
                 key={r.id}
-                className="flex items-center gap-2.5 rounded-xl bg-white px-3.5 py-3 neo-border-sm"
+                className="flex items-center gap-2.5 rounded-xl bg-white px-3.5 py-3.5 neo-border-sm"
               >
-                <div className="flex h-11 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--lav-l)] text-base neo-border-sm">
-                  📄
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--lav-l)] neo-border-sm">
+                  <DocumentIcon className="h-5 w-5 text-[var(--foreground)]" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="mb-0.5 truncate text-xs text-[#888]">{r.file}</div>
@@ -636,7 +639,7 @@ function MultiResumeImport({
                       ✦ AI
                     </NeoBadge>
                     {r.naming ? (
-                      <span className="flex items-center gap-2 text-[13px] font-bold text-[#888]">
+                      <span className="flex items-center gap-2.5 text-[15px] font-bold text-[#888]">
                         <span className="inline-block h-3.5 w-3.5 animate-spin-slow rounded-full border-2 border-[#aaa] border-t-[var(--foreground)]" />
                         Naming resume...
                       </span>
@@ -644,7 +647,7 @@ function MultiResumeImport({
                       <input
                         value={r.aiName}
                         onChange={(e) => updateAiName(r.id, e.target.value)}
-                        className="w-full border-none border-b-2 border-[var(--foreground)] bg-transparent font-sans text-[13px] font-bold outline-none"
+                        className="w-full border-none border-b-2.5 border-[var(--foreground)] bg-transparent font-sans text-[15px] font-bold outline-none"
                       />
                     )}
                   </div>
@@ -652,7 +655,7 @@ function MultiResumeImport({
                 <button
                   type="button"
                   onClick={() => removeResume(r)}
-                  className="cursor-pointer border-none bg-transparent p-1 text-base text-[#aaa] transition-colors hover:text-[#cc0000]"
+                  className="cursor-pointer border-none bg-transparent p-1.5 text-base text-[#aaa] transition-colors hover:text-[#cc0000]"
                   aria-label={`Remove ${r.file}`}
                 >
                   ✕
@@ -662,8 +665,9 @@ function MultiResumeImport({
           </div>
         )}
 
-        <p className="mt-3.5 text-xs font-medium text-[#888]">
-          🔒 Text is extracted and saved to your profile. Original files are discarded.
+        <p className="mt-3.5 flex items-center gap-2.5 text-xs font-medium text-[#888]">
+          <LockIcon className="shrink-0" />
+          Text is extracted and saved to your profile. Original files are discarded.
         </p>
       </NeoCard>
     </>
@@ -856,7 +860,7 @@ export default function OnboardingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--background)]">
       {dialog}
-      <div className="flex h-16 items-center justify-between border-b-[2.5px] border-[var(--foreground)] bg-white px-10">
+      <div className="flex h-15 items-center justify-between border-b-[2.5px] border-[var(--foreground)] bg-white px-10">
         <Logo />
         <ProgressSteps
           steps={["Connect AI", "Build Profile", "Import Resumes"]}
@@ -865,11 +869,11 @@ export default function OnboardingPage() {
         <div className="w-[120px]" />
       </div>
 
-      <div className="mx-auto w-full max-w-[1100px] flex-1 px-8 py-12 lg:px-10">
+      <div className="mx-auto w-full max-w-[1100px] flex-1 px-10 py-10 lg:px-10">
         {step === 1 && (
           <div>
             <div className="mb-10 text-center">
-              <NeoBadge color="var(--mint)" className="mb-4">
+              <NeoBadge color="var(--mint)" className="mb-5">
                 Step 1 of 3
               </NeoBadge>
               <h1 className="mb-2.5 font-heading text-[40px] font-extrabold tracking-tight">
@@ -881,7 +885,7 @@ export default function OnboardingPage() {
               </p>
             </div>
 
-            <div className="mx-auto mb-7 flex w-fit overflow-hidden rounded-full neo-border">
+            <div className="mx-auto mb-7.5 flex w-fit overflow-hidden rounded-full neo-border">
               {(
                 [
                   ["apikey", "API Key", KeyIcon] as const,
@@ -894,7 +898,7 @@ export default function OnboardingPage() {
                     setProviderType(v);
                     setExpandedProvider(null);
                   }}
-                  className="inline-flex cursor-pointer items-center gap-2 border-none px-7 py-2.5 font-sans text-sm font-bold"
+                  className="inline-flex cursor-pointer items-center gap-2 border-none px-7.5 py-2.5 font-sans text-sm font-bold"
                   style={{
                     background:
                       providerType === v ? "var(--foreground)" : "#ffffff",
@@ -908,7 +912,7 @@ export default function OnboardingPage() {
             </div>
 
             {providerType === "apikey" && (
-              <div className="mb-7 grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+              <div className="mb-7.5 grid grid-cols-1 gap-3.5 sm:grid-cols-3">
                 {API_PROVIDERS.map((prov) => (
                   <ApiKeyCard
                     key={prov.id}
@@ -935,11 +939,11 @@ export default function OnboardingPage() {
 
             {providerType === "oauth" && (
               <>
-                <div className="mb-4 flex items-center gap-2 rounded-xl bg-[var(--lav-l)] px-4 py-2.5 text-[13px] font-medium text-[#555] neo-border-sm">
+                <div className="mb-5 flex items-center gap-2.5 rounded-xl bg-[var(--lav-l)] px-5 py-2.5 text-[15px] font-medium text-[#555] neo-border-sm">
                   <LockIcon className="shrink-0" />
                   OAuth connection never shares your code or files.
                 </div>
-                <div className="mb-7 grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+                <div className="mb-7.5 grid grid-cols-1 gap-3.5 sm:grid-cols-3">
                   {OAUTH_PROVIDERS.map((prov) => (
                     <OAuthCard
                       key={prov.id}
@@ -960,7 +964,7 @@ export default function OnboardingPage() {
               </>
             )}
 
-            <div className="flex justify-end gap-3">
+            <div className="flex justify-end gap-2.5">
               <NeoButton variant="secondary" size="sm" onClick={() => setStep(2)}>
                 Skip for now
               </NeoButton>
@@ -977,8 +981,8 @@ export default function OnboardingPage() {
 
         {step === 2 && (
           <div>
-            <div className="mb-9 text-center">
-              <NeoBadge color="var(--lav)" className="mb-4">
+            <div className="mb-10 text-center">
+              <NeoBadge color="var(--lav)" className="mb-5">
                 Step 2 of 3 — Most Important
               </NeoBadge>
               <h1 className="mb-2.5 font-heading text-[40px] font-extrabold tracking-tight">
@@ -991,7 +995,7 @@ export default function OnboardingPage() {
 
             <AIAutoFillZone onFill={handleAIFill} />
 
-            <ProfileSectionStack className="mt-2">
+            <ProfileSectionStack className="mt-2.5">
               <CollapsibleSection
                 label="Personal Info"
                 description="Your name and how employers can reach you"
@@ -1067,7 +1071,7 @@ export default function OnboardingPage() {
                             if (!confirmed) return;
                             removeLinkEntry(entry.id);
                           }}
-                          className="mt-3 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
+                          className="mt-2.5 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
                         >
                           Remove link
                         </button>
@@ -1100,7 +1104,7 @@ export default function OnboardingPage() {
                       onChange={(e) =>
                         setProfile((p) => ({ ...p, experience: e.target.value }))
                       }
-                      className="rounded-full bg-white px-4 py-2.5 font-sans text-sm outline-none neo-border"
+                      className="rounded-full bg-white px-5 py-2.5 font-sans text-sm outline-none neo-border"
                     >
                       <option value="">Select...</option>
                       <option>Internship</option>
@@ -1112,7 +1116,7 @@ export default function OnboardingPage() {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold">Top Skills</label>
-                  <div className="flex min-h-11 flex-wrap gap-1.5 rounded-xl bg-[var(--background)] px-3 py-2 neo-border-sm">
+                  <div className="flex min-h-10 flex-wrap gap-1.5 rounded-xl bg-[var(--background)] px-5 py-5 neo-border-sm">
                     {profile.skills.map((s) => (
                       <NeoBadge
                         key={s}
@@ -1139,7 +1143,7 @@ export default function OnboardingPage() {
                       value={newSkill}
                       onChange={(e) => setNewSkill(e.target.value)}
                       onKeyDown={addSkill}
-                      className="min-w-[120px] flex-1 border-none bg-transparent font-sans text-[13px] outline-none"
+                      className="min-w-[120px] flex-1 border-none bg-transparent font-sans text-[15px] outline-none"
                     />
                   </div>
                 </div>
@@ -1213,7 +1217,7 @@ export default function OnboardingPage() {
                           updateExperienceEntry(entry.id, "bullets", e.target.value)
                         }
                       />
-                      <p className="text-[11px] font-medium text-[#888]">
+                      <p className="text-[10px] font-medium text-[#888]">
                         More bullets give the AI more context — you can trim later.
                       </p>
                       {profile.experience_entries.length > 1 && (
@@ -1251,10 +1255,10 @@ export default function OnboardingPage() {
                 color="var(--lav-l)"
                 defaultOpen={false}
               >
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2.5">
                   {profile.languages.map((entry) => (
                     <ProfileFormEntry key={entry.id}>
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                         <NeoInput
                           label="Language"
                           placeholder="e.g. English"
@@ -1274,7 +1278,7 @@ export default function OnboardingPage() {
                                 e.target.value,
                               )
                             }
-                            className="rounded-full bg-white px-4 py-2.5 font-sans text-sm outline-none neo-border"
+                            className="rounded-full bg-white px-5 py-2.5 font-sans text-sm outline-none neo-border"
                           >
                             {LANGUAGE_LEVELS.map((level) => (
                               <option key={level}>{level}</option>
@@ -1294,7 +1298,7 @@ export default function OnboardingPage() {
                             if (!confirmed) return;
                             removeLanguageEntry(entry.id);
                           }}
-                          className="mt-3 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
+                          className="mt-2.5 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
                         >
                           Remove language
                         </button>
@@ -1313,10 +1317,10 @@ export default function OnboardingPage() {
                 color="var(--peach-l)"
                 defaultOpen={false}
               >
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2.5">
                   {profile.certifications.map((entry) => (
                     <ProfileFormEntry key={entry.id}>
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                         <NeoInput
                           label="Certification"
                           placeholder="e.g. AWS Solutions Architect"
@@ -1366,7 +1370,7 @@ export default function OnboardingPage() {
                             if (!confirmed) return;
                             removeCertificationEntry(entry.id);
                           }}
-                          className="mt-3 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
+                          className="mt-2.5 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
                         >
                           Remove certification
                         </button>
@@ -1384,7 +1388,7 @@ export default function OnboardingPage() {
               </CollapsibleSection>
             </ProfileSectionStack>
 
-            <div className="mt-3 flex justify-between pt-2">
+            <div className="mt-2.5 flex justify-between pt-2.5">
               <NeoButton variant="secondary" onClick={() => setStep(1)}>
                 ← Back
               </NeoButton>
@@ -1416,7 +1420,7 @@ export default function OnboardingPage() {
               <NeoButton variant="secondary" onClick={() => setStep(2)}>
                 ← Back
               </NeoButton>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 <NeoButton variant="secondary" onClick={finish}>
                   Skip for now
                 </NeoButton>

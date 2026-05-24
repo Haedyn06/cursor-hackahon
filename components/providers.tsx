@@ -27,11 +27,11 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={toast}>
       {children}
-      <div className="fixed bottom-6 right-6 z-[999] flex flex-col gap-2">
+      <div className="fixed bottom-5 right-5 z-[999] flex flex-col gap-2.5">
         {toasts.map((t) => (
           <div
             key={t.id}
-            className="animate-slide-up flex items-center gap-2 rounded-xl px-[18px] py-2.5 text-[13px] font-bold neo-border"
+            className="animate-slide-up flex items-center gap-2.5 rounded-xl px-[20px] py-2.5 text-[15px] font-bold neo-border"
             style={{
               background:
                 t.type === "error"

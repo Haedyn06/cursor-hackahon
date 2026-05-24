@@ -30,7 +30,7 @@ function SettingsSection({
 }) {
   return (
     <div className="mb-10">
-      <div className="mb-5 border-b-2 border-[var(--foreground)] pb-3 font-heading text-[22px] font-extrabold">
+      <div className="mb-5 border-b-2.5 border-[var(--foreground)] pb-2.5 font-heading text-[20px] font-extrabold">
         {title}
       </div>
       {children}
@@ -113,17 +113,17 @@ export function SettingsView() {
 
   return (
     <div className="flex-1 overflow-y-auto bg-[var(--background)]">
-      <div className="mx-auto max-w-[640px] px-6 py-10">
-        <h1 className="mb-10 font-heading text-4xl font-extrabold tracking-tight">
+      <div className="mx-auto max-w-[640px] px-5 py-10">
+        <h1 className="mb-10 font-heading text-5xl font-extrabold tracking-tight">
           Settings
         </h1>
 
         <SettingsSection title="AI Provider">
-          <NeoCard className="mb-4">
-            <div className="flex items-center justify-between gap-4">
+          <NeoCard className="mb-5">
+            <div className="flex items-center justify-between gap-5">
               <div className="flex items-center gap-3.5">
                 <div
-                  className="flex h-11 w-11 items-center justify-center rounded-xl font-heading text-base font-extrabold neo-border"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl font-heading text-base font-extrabold neo-border"
                   style={{ background: currentProvider.color }}
                 >
                   {currentProvider.name[0]}
@@ -138,7 +138,7 @@ export function SettingsView() {
                   </div>
                 </div>
               </div>
-              <div className="flex shrink-0 gap-2">
+              <div className="flex shrink-0 gap-2.5">
                 <NeoButton
                   variant="secondary"
                   size="sm"
@@ -158,8 +158,8 @@ export function SettingsView() {
           </NeoCard>
 
           {showProviderUI && (
-            <div className="mt-4">
-              <div className="mb-4 flex w-fit overflow-hidden rounded-full neo-border">
+            <div className="mt-5">
+              <div className="mb-5 flex w-fit overflow-hidden rounded-full neo-border">
                 {(
                   [
                     ["apikey", "API Key", KeyIcon] as const,
@@ -172,7 +172,7 @@ export function SettingsView() {
                       setProviderType(v);
                       setExpandedProvider(null);
                     }}
-                    className="inline-flex cursor-pointer items-center gap-2 border-none px-5 py-2 font-sans text-[13px] font-bold"
+                    className="inline-flex cursor-pointer items-center gap-2.5 border-none px-5 py-2.5 font-sans text-[15px] font-bold"
                     style={{
                       background:
                         providerType === v ? "var(--foreground)" : "#ffffff",
@@ -186,13 +186,13 @@ export function SettingsView() {
               </div>
 
               {providerType === "apikey" && (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                   {PROVIDERS.map((prov) => {
                     const isExpanded = expandedProvider === prov.id;
                     return (
                       <div
                         key={prov.id}
-                        className="overflow-hidden rounded-[14px] transition-colors neo-border"
+                        className="overflow-hidden rounded-[15px] transition-colors neo-border"
                         style={{
                           background: isExpanded ? prov.color : "#ffffff",
                         }}
@@ -201,7 +201,7 @@ export function SettingsView() {
                           onClick={() =>
                             setExpandedProvider(isExpanded ? null : prov.id)
                           }
-                          className="cursor-pointer px-4 pt-4 pb-3"
+                          className="cursor-pointer px-5 pt-5 pb-2.5"
                         >
                           <div className="mb-1 flex items-start justify-between">
                             <span className="font-heading text-[15px] font-extrabold">
@@ -211,13 +211,13 @@ export function SettingsView() {
                               {prov.badge}
                             </NeoBadge>
                           </div>
-                          <div className="text-xs text-[#666]">{prov.desc}</div>
+                          <div className="text-xs text-gray-500">{prov.desc}</div>
                         </div>
                         {isExpanded && (
-                          <div className="border-t-2 border-[var(--foreground)] px-4 pb-4">
+                          <div className="border-t-2.5 border-[var(--foreground)] px-5 pb-5">
                             <a
                               href="#"
-                              className="my-2 block text-[11px] font-bold"
+                              className="my-2 block text-[10px] font-bold"
                             >
                               Get API Key ↗
                             </a>
@@ -229,9 +229,9 @@ export function SettingsView() {
                                 setVerified(false);
                               }}
                               type="password"
-                              className="text-[13px]"
+                              className="text-[15px]"
                             />
-                            <div className="mt-2">
+                            <div className="mt-5">
                               {verified ? (
                                 <NeoBadge color="var(--mint)" className="px-3.5 py-1.5 text-xs">
                                   ✓ Connected!
@@ -257,18 +257,18 @@ export function SettingsView() {
 
               {providerType === "oauth" && (
                 <>
-                  <div className="mb-3 flex items-center gap-2 rounded-[10px] bg-[var(--lav-l)] px-3.5 py-2 text-xs font-medium text-[#555] neo-border-sm">
+                  <div className="mb-2.5 flex items-center gap-2.5 rounded-[10px] bg-[var(--lav-l)] px-3.5 py-2.5 text-xs font-medium text-[#555] neo-border-sm">
                     <LockIcon className="shrink-0" />
                     We never read your code or files — only the AI inference endpoint.
                   </div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                     {OAUTH.map((prov) => {
                       const connected = !!oauthConnected[prov.id];
                       const isExpanded = expandedProvider === prov.id;
                       return (
                         <div
                           key={prov.id}
-                          className="overflow-hidden rounded-[14px] neo-border"
+                          className="overflow-hidden rounded-[15px] neo-border"
                           style={{
                             background: connected || isExpanded ? prov.color : "#ffffff",
                           }}
@@ -278,7 +278,7 @@ export function SettingsView() {
                               !connected &&
                               setExpandedProvider(isExpanded ? null : prov.id)
                             }
-                            className="cursor-pointer px-4 pt-4 pb-3"
+                            className="cursor-pointer px-5 pt-5 pb-2.5"
                           >
                             <div className="mb-1 flex items-start justify-between">
                               <span className="font-heading text-[15px] font-extrabold">
@@ -297,7 +297,7 @@ export function SettingsView() {
                             <div className="text-xs text-[#555]">{prov.desc}</div>
                           </div>
                           {isExpanded && !connected && (
-                            <div className="border-t-2 border-[var(--foreground)] px-4 pb-4">
+                            <div className="border-t-2.5 border-[var(--foreground)] px-5 pb-5">
                               <NeoButton
                                 variant="secondary"
                                 size="sm"
@@ -326,8 +326,8 @@ export function SettingsView() {
             <div className="flex flex-col gap-5">
               <div>
                 <label className="mb-1.5 block text-xs font-bold">Email</label>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-center">
-                  <div className="flex min-h-[42px] items-center rounded-full bg-[#f5f5f5] px-4 py-2.5 text-sm text-[#444] neo-border-sm">
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-center">
+                  <div className="flex min-h-[42px] items-center rounded-full bg-[#f5f5f5] px-5 py-2.5 text-sm text-[#444] neo-border-sm">
                     <span className="truncate">{accountEmail}</span>
                   </div>
                   <NeoButton
@@ -343,11 +343,11 @@ export function SettingsView() {
 
               <div>
                 <label className="mb-1.5 block text-xs font-bold">Password</label>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-center">
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-center">
                   <div className="relative min-w-0">
-                    <div className="flex min-h-[42px] items-center rounded-full bg-[#f5f5f5] py-2.5 pr-12 pl-4 text-sm text-[#444] neo-border-sm">
+                    <div className="flex min-h-[40px] items-center rounded-full bg-[#f5f5f5] py-2.5 pr-10 pl-5 text-sm text-[#444] neo-border-sm">
                       {showPassword ? (
-                        <span className="truncate font-medium text-[#666]">
+                        <span className="truncate font-medium text-gray-500">
                           Secured by Clerk — not shown for safety
                         </span>
                       ) : (
@@ -358,7 +358,7 @@ export function SettingsView() {
                       type="button"
                       onClick={() => setShowPassword((value) => !value)}
                       aria-label={showPassword ? "Hide password" : "View password"}
-                      className="absolute top-1/2 right-3 flex h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-none bg-white text-[var(--foreground)] neo-border-sm transition-transform hover:scale-105"
+                      className="absolute top-1/2 right-3 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-none bg-white text-[var(--foreground)] neo-border-sm transition-transform hover:scale-105"
                     >
                       {showPassword ? (
                         <svg
@@ -420,11 +420,11 @@ export function SettingsView() {
               return (
               <div
                 key={item.id}
-                className="flex items-center justify-between py-3"
+                className="flex items-center justify-between py-2.5"
                 style={{
                   borderBottom:
                     i < arr.length - 1
-                      ? "2px solid var(--foreground)"
+                      ? "2.5px solid var(--foreground)"
                       : undefined,
                 }}
               >
@@ -444,11 +444,11 @@ export function SettingsView() {
                     }));
                     toast("Preference updated");
                   }}
-                  className="relative h-6 w-11 shrink-0 cursor-pointer rounded-full neo-border-sm"
+                  className="relative h-5 w-15 shrink-0 cursor-pointer rounded-full neo-border-sm"
                   style={{ background: on ? "var(--mint)" : "#dddddd" }}
                 >
                   <div
-                    className="absolute top-0.5 h-4 w-4 rounded-full bg-white neo-border-sm transition-[left] duration-200"
+                    className="absolute top-0.5 h-5 w-5 rounded-full bg-white neo-border-sm transition-[left] duration-200"
                     style={{ left: on ? 22 : 2 }}
                   />
                 </button>
@@ -460,7 +460,7 @@ export function SettingsView() {
 
         <SettingsSection title="Danger Zone">
           <NeoCard className="bg-[var(--red-l)]">
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-5">
               {[
                 {
                   label: "Delete all resume data",

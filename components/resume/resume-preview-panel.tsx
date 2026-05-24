@@ -35,21 +35,21 @@ export function ResumePreviewPanel({
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-[var(--background)]">
-      <div className="flex shrink-0 items-center justify-between gap-4 border-b-[2.5px] border-[var(--foreground)] bg-white px-8 py-4">
+      <div className="flex shrink-0 items-center justify-between gap-5 border-b-[2.5px] border-[var(--foreground)] bg-white px-10 py-">
         <div>
           <button
             type="button"
             onClick={onBack}
-            className="mb-1 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors hover:text-[var(--foreground)]"
+            className="mb-1.5 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors hover:text-[var(--foreground)]"
           >
             ← Back to library
           </button>
-          <h1 className="font-heading text-[22px] font-extrabold">{resume.title}</h1>
-          <p className="text-sm font-medium text-[#666]">
+          <h1 className="font-heading text-[20px] font-extrabold">{resume.title}</h1>
+          <p className="text-sm font-medium text-gray-500">
             {resume.matchJob} · {resume.templateName} template
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2.5">
           {editing ? (
             <>
               <NeoButton
@@ -94,12 +94,12 @@ export function ResumePreviewPanel({
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-8">
+        <div className="flex-1 overflow-y-auto p-10">
           <div className="mx-auto max-w-[720px]">
-            <div className="mb-6 flex items-start gap-4 rounded-2xl bg-white p-5 neo-border">
+            <div className="mb-6 flex items-start gap-5 rounded-2xl bg-white p-5 neo-border">
               <MatchScore score={resume.matchScore} size="lg" />
               <div className="flex-1">
-                <div className="mb-2 font-heading text-base font-extrabold">
+                <div className="mb-2.5 font-heading text-base font-extrabold">
                   Keyword Match
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -121,10 +121,10 @@ export function ResumePreviewPanel({
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                className="min-h-[520px] w-full resize-y rounded-xl bg-white p-8 font-sans text-[13px] leading-relaxed outline-none neo-border"
+                className="min-h-[520px] w-full resize-y rounded-xl bg-white p-10 font-sans text-[15px] leading-relaxed outline-none neo-border"
               />
             ) : (
-              <div className="rounded-xl bg-white p-8 text-[13px] leading-relaxed whitespace-pre-line neo-border">
+              <div className="rounded-xl bg-white p-10 text-[15px] leading-relaxed whitespace-pre-line neo-border">
                 {content}
               </div>
             )}

@@ -14,6 +14,7 @@ import {
   buildMockResumeContent,
   type GeneratedResume,
 } from "@/components/resume/resume-preview-panel";
+import { DocumentIcon } from "@/components/ui/provider-icons";
 
 const WIZARD_STEPS = ["Select job", "Template", "Generate"];
 
@@ -80,7 +81,7 @@ function SourceCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex cursor-pointer flex-col items-start gap-2 rounded-2xl p-4 text-left transition-[background,transform] duration-150 neo-border",
+        "flex cursor-pointer flex-col items-start gap-2.5 rounded-2.5xl p-5 text-left transition-[background,transform] duration-150 neo-border",
         active ? "bg-[var(--mint-l)]" : "bg-white hover:bg-[var(--background)]",
       )}
     >
@@ -88,7 +89,7 @@ function SourceCard({
         {icon}
       </div>
       <div className="font-heading text-[15px] font-extrabold">{title}</div>
-      <p className="text-xs font-medium leading-relaxed text-[#666]">{description}</p>
+      <p className="text-xs font-medium leading-relaxed text-gray-500">{description}</p>
     </button>
   );
 }
@@ -198,9 +199,9 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
   };
 
   const renderSavedJobs = () => (
-    <div className="flex max-h-[340px] flex-col gap-2 overflow-y-auto">
+    <div className="flex max-h-[340px] flex-col gap-2.5 overflow-y-auto">
       {jobs.length === 0 ? (
-        <p className="rounded-xl bg-[var(--background)] p-4 text-sm font-medium text-[#888] neo-border-sm">
+        <p className="rounded-xl bg-[var(--background)] p-2.5 text-sm font-medium text-[#888] neo-border-sm">
           No saved jobs yet. Add a new job posting instead.
         </p>
       ) : (
@@ -212,12 +213,12 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
               type="button"
               onClick={() => setSelectedJobId(job.id)}
               className={cn(
-                "cursor-pointer rounded-xl px-4 py-3 text-left transition-colors neo-border-sm",
+                "cursor-pointer rounded-xl px-5 py-2.5 text-left transition-colors neo-border-sm",
                 active ? "bg-[var(--mint-l)]" : "bg-white hover:bg-[var(--background)]",
               )}
             >
               <div className="text-sm font-bold">{job.title}</div>
-              <div className="text-xs font-medium text-[#666]">{job.company}</div>
+              <div className="text-xs font-medium text-gray-500">{job.company}</div>
             </button>
           );
         })
@@ -226,7 +227,7 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
   );
 
   const renderNewJob = () => (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <div className="flex overflow-hidden rounded-full neo-border">
         {(
           [
@@ -242,13 +243,13 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
               setAnalyzed(false);
             }}
             className={cn(
-              "flex-1 cursor-pointer border-none px-4 py-2.5 font-sans text-[13px] font-bold transition-colors",
+              "flex-1 cursor-pointer border-none px-5 py-2.5 font-sans text-[15px] font-bold transition-colors",
               newJobMode === mode
                 ? "bg-[var(--foreground)] text-white"
                 : "bg-white text-[var(--foreground)] hover:bg-[var(--mint-l)]",
             )}
             style={{
-              borderRight: idx === 0 ? "2px solid var(--foreground)" : undefined,
+              borderRight: idx === 0 ? "2.5px solid var(--foreground)" : undefined,
             }}
           >
             {label}
@@ -257,14 +258,14 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
       </div>
 
       {newJobMode === "link" && !analyzed && (
-        <div className="rounded-2xl bg-[var(--lav-l)] p-4 neo-border">
+        <div className="rounded-2.5xl bg-[var(--lav-l)] p-5 neo-border">
           <NeoInput
             label="Job posting link"
             placeholder="https://linkedin.com/jobs/view/..."
             value={jobUrl}
             onChange={(e) => setJobUrl(e.target.value)}
           />
-          <div className="mt-3 flex justify-end">
+          <div className="mt-2.5 flex justify-end">
             <NeoButton
               variant="primary"
               size="sm"
@@ -275,7 +276,7 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
             </NeoButton>
           </div>
           {analyzing && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
               {["Fetching page", "Parsing JD", "Extracting keywords"].map((s, i) => (
                 <NeoBadge
                   key={s}
@@ -291,15 +292,15 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
       )}
 
       {newJobMode === "link" && analyzed && (
-        <div className="rounded-xl bg-[var(--mint-l)] px-4 py-3 neo-border-sm">
-          <div className="text-[13px] font-extrabold">✦ AI extracted details</div>
-          <div className="mt-1 text-sm font-bold">
+        <div className="rounded-xl bg-[var(--mint-l)] px-5 py-2.5 neo-border-sm">
+          <div className="text-[15px] font-extrabold">✦ AI extracted details</div>
+          <div className="mt-1.5 text-sm font-bold">
             {DEMO_EXTRACT.title} @ {DEMO_EXTRACT.company}
           </div>
           <button
             type="button"
             onClick={() => setAnalyzed(false)}
-            className="mt-2 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline"
+            className="mt-2.5 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline"
           >
             Try another link
           </button>
@@ -307,7 +308,7 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
       )}
 
       {newJobMode === "manual" && (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2.5">
           <NeoInput
             label="Job Title *"
             placeholder="e.g. Frontend Engineer"
@@ -344,16 +345,16 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
       title="New Resume"
       width={520}
     >
-      <div className="mb-6">
+      <div className="mb-5">
         <ProgressSteps steps={WIZARD_STEPS} currentStep={step} />
       </div>
 
       {step === 1 && (
         <div className="animate-tab-panel flex flex-col gap-5">
-          <p className="text-[13px] font-medium text-[#666]">
+          <p className="text-[15px] font-medium text-gray-500">
             Which job is this resume for?
           </p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2.5">
             <SourceCard
               active={jobSource === "saved"}
               onClick={() => {
@@ -376,7 +377,7 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
           {jobSource === "saved" && renderSavedJobs()}
           {jobSource === "new" && renderNewJob()}
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex justify-end gap-2.5 pt-2.5">
             <NeoButton variant="secondary" size="sm" onClick={onClose}>
               Cancel
             </NeoButton>
@@ -393,15 +394,15 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
       )}
 
       {step === 2 && (
-        <div className="animate-tab-panel flex flex-col gap-4">
-          <p className="text-[13px] font-medium text-[#666]">
+        <div className="animate-tab-panel flex flex-col gap-5">
+          <p className="text-[15px] font-medium text-gray-500">
             Choose a template.{" "}
             <span className="font-bold text-[var(--foreground)]">
               ATS Classic
             </span>{" "}
             is selected by default.
           </p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2.5">
             {RESUME_TEMPLATES.map((template) => {
               const active = selectedTemplateId === template.id;
               return (
@@ -410,25 +411,25 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
                   type="button"
                   onClick={() => setSelectedTemplateId(template.id)}
                   className={cn(
-                    "cursor-pointer rounded-xl p-4 text-left transition-[background,transform] neo-border",
+                    "cursor-pointer rounded-xl p-5 text-left transition-[background,transform] neo-border",
                     active ? "bg-[var(--mint-l)]" : "bg-white hover:bg-[var(--background)]",
                   )}
                 >
                   <div
-                    className="mb-2.5 flex h-[60px] w-12 items-center justify-center rounded-md neo-border-sm"
+                    className="mb-2.5 flex h-[60px] w-10 items-center justify-center rounded-md neo-border-sm"
                     style={{ background: template.color }}
                   >
-                    📄
+                    <DocumentIcon className="h-5 w-5 text-[var(--foreground)]" />
                   </div>
                   <div className="mb-1 flex items-center gap-1.5">
-                    <span className="text-[13px] font-bold">{template.name}</span>
+                    <span className="text-[15px] font-bold">{template.name}</span>
                     {template.id === DEFAULT_TEMPLATE_ID && (
-                      <NeoBadge color="var(--mint)" className="text-[9px]">
+                      <NeoBadge color="var(--mint)" className="text-[10px]">
                         Default
                       </NeoBadge>
                     )}
                   </div>
-                  <p className="text-[11px] leading-snug font-medium text-[#777]">
+                  <p className="text-[10px] leading-snug font-medium text-[#777]">
                     {template.description}
                   </p>
                 </button>
@@ -437,13 +438,13 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
           </div>
 
           {jobContext && (
-            <div className="rounded-xl bg-[var(--background)] px-4 py-3 text-xs font-medium text-[#666] neo-border-sm">
+            <div className="rounded-xl bg-[var(--background)] px-5 py-2.5 text-xs font-medium text-gray-500 neo-border-sm">
               Tailoring for{" "}
               <strong className="text-[var(--foreground)]">{jobContext.matchJob}</strong>
             </div>
           )}
 
-          <div className="flex justify-between gap-2 pt-2">
+          <div className="flex justify-between gap-2.5 pt-2.5">
             <NeoButton variant="secondary" size="sm" onClick={() => setStep(1)}>
               ← Back
             </NeoButton>
@@ -455,11 +456,11 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
       )}
 
       {step === 3 && generating && (
-        <div className="animate-tab-panel flex flex-col items-center gap-4 py-10 text-center">
-          <div className="flex h-[72px] w-[72px] animate-pulse-soft items-center justify-center rounded-[20px] bg-[var(--lav)] text-[32px] neo-border">
+        <div className="animate-tab-panel flex flex-col items-center gap-5 py-10 text-center">
+          <div className="flex h-[70px] w-[70px] animate-pulse-soft items-center justify-center rounded-[20px] bg-[var(--lav)] text-[30px] neo-border">
             ✦
           </div>
-          <div className="font-heading text-[22px] font-extrabold">
+          <div className="font-heading text-[20px] font-extrabold">
             Generating your resume...
           </div>
           <div className="flex flex-wrap justify-center gap-1.5">
@@ -468,7 +469,7 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
                 <NeoBadge
                   key={s}
                   color="var(--lav-l)"
-                  className="animate-fade-in text-[11px]"
+                  className="animate-fade-in text-[10px]"
                   style={{ animationDelay: `${i * 0.3}s` }}
                 >
                   {s}

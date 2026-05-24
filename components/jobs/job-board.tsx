@@ -95,7 +95,7 @@ function ChevronPipeline({
   const total = TRACKER_STAGES.reduce((sum, s) => sum + counts[s.key], 0);
 
   return (
-    <div className="mb-6 overflow-hidden rounded-2xl neo-border bg-white">
+    <div className="mb-6 overflow-hidden rounded-2.5xl neo-border bg-white">
       <div className="flex">
         {TRACKER_STAGES.map((stage, i) => {
           const count = counts[stage.key];
@@ -119,7 +119,7 @@ function ChevronPipeline({
                 }
               }}
               className={cn(
-                "min-w-0 flex-1 cursor-pointer px-3 py-[18px] text-center transition-[background] duration-200 ease-in-out",
+                "min-w-0 flex-1 cursor-pointer px-2.5 py-[20px] text-center transition-[background] duration-200 ease-in-out",
                 i > 0 && "border-l-2 border-[var(--foreground)]",
               )}
               style={{ background: baseBg }}
@@ -134,7 +134,7 @@ function ChevronPipeline({
                 }
               }}
             >
-              <div className="relative mx-auto mb-1 flex h-[76px] w-[76px] items-center justify-center">
+              <div className="relative mx-auto mb-1.5 flex h-[75px] w-[75px] items-center justify-center">
                 <StagePieChart
                   count={count}
                   total={total}
@@ -149,7 +149,7 @@ function ChevronPipeline({
                 </div>
               </div>
               <div
-                className="text-[10px] font-extrabold tracking-[0.08em]"
+                className="text-[10px] font-extrabold tracking-[0.1em]"
                 style={{ color: hasItems ? "var(--foreground)" : "#bbbbbb" }}
               >
                 {stage.label}
@@ -277,21 +277,21 @@ function TrackerFilterPanel({
   return (
     <>
       <div className="fixed inset-0 z-[100]" onClick={onClose} aria-hidden />
-      <div className="absolute top-full right-0 z-[101] mt-2 w-[300px] rounded-2xl bg-white p-4 neo-border">
-        <div className="mb-3 flex items-center justify-between">
+      <div className="absolute top-full right-0 z-[100] mt-2.5 w-[300px] rounded-2xl bg-white p-5 neo-border">
+        <div className="mb-2.5 flex items-center justify-between">
           <span className="font-heading text-sm font-extrabold">Filters</span>
           <button
             type="button"
             onClick={onClose}
-            className="cursor-pointer border-none bg-transparent p-1 text-[#888] hover:text-[var(--foreground)]"
+            className="cursor-pointer border-none bg-transparent p-1.5 text-[#888] hover:text-[var(--foreground)]"
             aria-label="Close filters"
           >
             ✕
           </button>
         </div>
 
-        <div className="mb-4">
-          <div className="mb-2 text-[11px] font-bold tracking-wide text-[#888]">
+        <div className="mb-5">
+          <div className="mb-2.5 text-[10px] font-bold tracking-wide text-[#888]">
             STATUS
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -302,7 +302,7 @@ function TrackerFilterPanel({
                   key={status}
                   type="button"
                   onClick={() => toggleStatus(status)}
-                  className="cursor-pointer rounded-full px-2.5 py-1 text-[11px] font-bold neo-border-sm transition-[background] duration-150"
+                  className="cursor-pointer rounded-full px-2.5 py-1.5 text-[11px] font-bold neo-border-sm transition-[background] duration-150"
                   style={{
                     background: active
                       ? (STATUS_COLORS[status] ?? "#ffffff")
@@ -316,8 +316,8 @@ function TrackerFilterPanel({
           </div>
         </div>
 
-        <div className="mb-4">
-          <label className="mb-2 block text-[11px] font-bold tracking-wide text-[#888]">
+        <div className="mb-5">
+          <label className="mb-2.5 block text-[10px] font-bold tracking-wide text-[#888]">
             LOCATION
           </label>
           <input
@@ -326,15 +326,15 @@ function TrackerFilterPanel({
               onChange({ ...filters, location: e.target.value })
             }
             placeholder="e.g. Remote, NYC"
-            className="w-full rounded-full border-2 border-[var(--foreground)] bg-white px-3 py-2 font-sans text-[13px] outline-none"
+            className="w-full rounded-full border-2.5 border-[var(--foreground)] bg-white px-2.5 py-2.5 font-sans text-[15px] outline-none"
           />
         </div>
 
-        <div className="mb-4">
-          <label className="mb-2 block text-[11px] font-bold tracking-wide text-[#888]">
+        <div className="mb-5">
+          <label className="mb-2.5 block text-[10px] font-bold tracking-wide text-[#888]">
             MIN. EXCITEMENT
           </label>
-          <div className="flex gap-1">
+          <div className="flex gap-1.5">
             {[0, 1, 2, 3, 4, 5].map((level) => (
               <button
                 key={level}
@@ -342,7 +342,7 @@ function TrackerFilterPanel({
                 onClick={() =>
                   onChange({ ...filters, minExcitement: level })
                 }
-                className="flex-1 cursor-pointer rounded-lg border-2 py-1.5 text-xs font-bold transition-[background] duration-150"
+                className="flex-1 cursor-pointer rounded-lg border-2.5 py-1.5 text-xs font-bold transition-[background] duration-150"
                 style={{
                   borderColor: "var(--foreground)",
                   background:
@@ -357,7 +357,7 @@ function TrackerFilterPanel({
           </div>
         </div>
 
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2.5">
           <NeoButton variant="secondary" size="sm" onClick={onClear}>
             Clear
           </NeoButton>
@@ -390,14 +390,14 @@ function ColHeader({
     <th
       onClick={() => onSort(sortKey)}
       className={cn(
-        "sticky top-0 z-10 cursor-pointer border-b-[2.5px] border-r-2 border-[var(--foreground)] bg-white px-3 py-2.5 text-left text-xs font-bold whitespace-nowrap select-none transition-colors duration-150",
+        "sticky top-0 z-10 cursor-pointer border-b-[2.5px] border-r-2.5 border-[var(--foreground)] bg-white px-2.5 py-2.5 text-left text-xs font-bold whitespace-nowrap select-none transition-colors duration-150",
         active ? "text-[var(--foreground)]" : "text-[#888]",
         className,
       )}
     >
       {label}
       <span
-        className="ml-1 text-[10px]"
+        className="ml-1.5 text-[10px]"
         style={{ color: active ? "var(--foreground)" : "#cccccc" }}
       >
         {active ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
@@ -539,9 +539,9 @@ export function JobBoardView() {
         onClose={() => setShowAddJob(false)}
       />
 
-      <div className="flex-1 overflow-y-auto px-8 py-7">
+      <div className="flex-1 overflow-y-auto px-10 py-7.5">
         {loading && jobs.length === 0 ? (
-          <div className="py-16 text-center text-sm font-semibold text-[#888]">
+          <div className="py-15 text-center text-sm font-semibold text-[#888]">
             Loading jobs…
           </div>
         ) : (
@@ -552,7 +552,7 @@ export function JobBoardView() {
           onStageClick={setActiveStage}
         />
 
-        <div className="mb-4 flex flex-wrap items-center gap-2.5">
+        <div className="mb-5 flex flex-wrap items-center gap-2.5">
           <div className="relative">
             <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-[#aaa]">
               <svg
@@ -571,12 +571,12 @@ export function JobBoardView() {
               placeholder="Search jobs..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-[200px] rounded-full border-2 border-[var(--foreground)] bg-white py-2 pr-3.5 pl-9 font-sans text-[13px] outline-none transition-shadow duration-150 focus:shadow-[0_0_0_3px_rgba(199,184,234,0.35)]"
+              className="w-[200px] rounded-full border-2.5 border-[var(--foreground)] bg-white py-2.5 pr-3.5 pl-10 font-sans text-[15px] outline-none transition-shadow duration-150 focus:shadow-[0_0_0_3px_rgba(199,184,234,0.35)]"
             />
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="rounded-full border-2 border-[var(--foreground)] bg-white px-3.5 py-1.5">
+            <div className="rounded-full border-2.5 border-[var(--foreground)] bg-white px-3.5 py-1.5">
               <span className="text-[13px] font-bold text-[#666]">
                 {selected.size} selected
               </span>
@@ -585,7 +585,7 @@ export function JobBoardView() {
               <NeoButton
                 variant="danger"
                 size="sm"
-                className="px-2.5 py-1 text-[11px]"
+                className="px-2.5 py-1.5 text-[10px]"
                 onClick={() => void handleRemoveSelected()}
               >
                 Remove
@@ -601,12 +601,12 @@ export function JobBoardView() {
                 key={v}
                 type="button"
                 onClick={() => setViewMode(v)}
-                className="cursor-pointer border-none px-3.5 py-2 text-[15px] font-bold transition-[background,color] duration-150"
+                className="cursor-pointer border-none px-3.5 py-2.5 text-[15px] font-bold transition-[background,color] duration-150"
                 style={{
                   background: viewMode === v ? "var(--foreground)" : "#ffffff",
                   color: viewMode === v ? "#ffffff" : "var(--foreground)",
                   borderRight:
-                    idx === 0 ? "2px solid var(--foreground)" : undefined,
+                    idx === 0 ? "2.5px solid var(--foreground)" : undefined,
                 }}
                 aria-label={v === "list" ? "List view" : "Grid view"}
               >
@@ -620,7 +620,7 @@ export function JobBoardView() {
               type="button"
               onClick={() => setShowFilters((open) => !open)}
               className={cn(
-                "flex cursor-pointer items-center gap-1.5 rounded-[10px] px-3 py-2 text-[13px] font-bold neo-border transition-neo",
+                "flex cursor-pointer items-center gap-1.5 rounded-[10px] px-3 py-2.5 text-[15px] font-bold neo-border transition-neo",
                 hasActiveFilters
                   ? "bg-[var(--mint)]"
                   : "bg-white hover:bg-[var(--mint-l)]",
@@ -676,12 +676,12 @@ export function JobBoardView() {
         </div>
 
         {viewMode === "list" ? (
-          <div className="overflow-hidden rounded-2xl bg-white neo-border">
+          <div className="overflow-hidden rounded-2.5xl bg-white neo-border">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
                 <thead>
                   <tr>
-                    <th className="sticky top-0 z-10 w-11 border-b-[2.5px] border-r-2 border-[var(--foreground)] bg-white px-3 py-2.5 text-left">
+                    <th className="sticky top-0 z-10 w-10 border-b-[2.5px] border-r-2.5 border-[var(--foreground)] bg-white px-2.5 py-2.5 text-left">
                       <TrackerCheckbox
                         checked={allSelected}
                         indeterminate={someSelected}
@@ -711,7 +711,7 @@ export function JobBoardView() {
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
-                      className="min-w-[96px]"
+                      className="min-w-[95px]"
                     />
                     <ColHeader
                       label="Location"
@@ -719,7 +719,7 @@ export function JobBoardView() {
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
-                      className="min-w-[96px]"
+                      className="min-w-[95px]"
                     />
                     <ColHeader
                       label="Status"
@@ -727,7 +727,7 @@ export function JobBoardView() {
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
-                      className="min-w-[96px]"
+                      className="min-w-[95px]"
                     />
                     <ColHeader
                       label="Excitement"
@@ -735,7 +735,7 @@ export function JobBoardView() {
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
-                      className="min-w-[108px]"
+                      className="min-w-[110px]"
                     />
                     <ColHeader
                       label="Date Saved"
@@ -743,7 +743,7 @@ export function JobBoardView() {
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
-                      className="min-w-[96px]"
+                      className="min-w-[95px]"
                     />
                     <ColHeader
                       label="Deadline"
@@ -751,7 +751,7 @@ export function JobBoardView() {
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
-                      className="min-w-[88px]"
+                      className="min-w-[90px]"
                     />
                     <ColHeader
                       label="Date Applied"
@@ -759,7 +759,7 @@ export function JobBoardView() {
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
-                      className="min-w-[96px]"
+                      className="min-w-[95px]"
                     />
                     <ColHeader
                       label="Follow Up"
@@ -767,7 +767,7 @@ export function JobBoardView() {
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
-                      className="min-w-[96px] border-r-0"
+                      className="min-w-[95px] border-r-0"
                     />
                   </tr>
                 </thead>
@@ -776,7 +776,7 @@ export function JobBoardView() {
                     <tr>
                       <td
                         colSpan={11}
-                        className="py-12 text-center text-sm font-semibold text-[#aaa]"
+                        className="py-10 text-center text-sm font-semibold text-[#aaa]"
                       >
                         No jobs found. Try adjusting your search or filters.
                       </td>
@@ -805,31 +805,31 @@ export function JobBoardView() {
                             e.currentTarget.style.background = rowBg;
                           }}
                         >
-                          <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle">
+                          <td className="border-b-2.5 border-r-2.5 border-[var(--foreground)] px-2.5 py-2.5 align-middle">
                             <TrackerCheckbox
                               checked={isSelected}
                               onChange={() => toggleSelect(job.id)}
                               ariaLabel={`Select ${job.title}`}
                             />
                           </td>
-                          <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle">
+                          <td className="border-b-2.5 border-r-2.5 border-[var(--foreground)] px-2.5 py-2.5 align-middle">
                             <Link
                               href={`/jobs?selected=${job.id}`}
-                              className="font-sans text-[13px] font-bold text-[var(--foreground)] underline underline-offset-[3px] transition-opacity duration-150 hover:opacity-70"
+                              className="font-sans text-[15px] font-bold text-[var(--foreground)] underline underline-offset-[2.5px] transition-opacity duration-150 hover:opacity-70"
                             >
                               {job.title}
                             </Link>
                           </td>
-                          <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px] font-medium text-[#555]">
+                          <td className="border-b-2.5 border-r-2.5 border-[var(--foreground)] px-2.5 py-2.5 align-middle text-[15px] font-medium text-[#555]">
                             {job.company}
                           </td>
-                          <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px] text-[#555]">
+                          <td className="border-b-2.5 border-r-2.5 border-[var(--foreground)] px-2.5 py-2.5 align-middle text-[15px] text-[#555]">
                             {job.salary}
                           </td>
-                          <td className="max-w-[120px] border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px] text-[#555]">
+                          <td className="max-w-[120px] border-b-2.5 border-r-2.5 border-[var(--foreground)] px-2.5 py-2.5 align-middle text-[15px] text-[#555]">
                             <span className="block truncate">{job.location}</span>
                           </td>
-                          <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle">
+                          <td className="border-b-2.5 border-r-2.5 border-[var(--foreground)] px-2.5 py-2.5 align-middle">
                             <select
                               value={job.status}
                               onChange={(e) =>
@@ -838,7 +838,7 @@ export function JobBoardView() {
                                   e.target.value as JobStatus,
                                 )
                               }
-                              className="cursor-pointer rounded-full px-2.5 py-1 font-sans text-xs font-bold text-[var(--foreground)] outline-none neo-border-sm transition-[background] duration-150"
+                              className="cursor-pointer rounded-full px-2.5 py-1.5 font-sans text-xs font-bold text-[var(--foreground)] outline-none neo-border-sm transition-[background] duration-150"
                               style={{
                                 background:
                                   STATUS_COLORS[job.status] ?? "#ffffff",
@@ -852,7 +852,7 @@ export function JobBoardView() {
                               <option value="Rejected">Rejected</option>
                             </select>
                           </td>
-                          <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle">
+                          <td className="border-b-2.5 border-r-2.5 border-[var(--foreground)] px-2.5 py-2.5 align-middle">
                             <StarRating
                               value={job.excitement}
                               onChange={(val) =>
@@ -860,19 +860,19 @@ export function JobBoardView() {
                               }
                             />
                           </td>
-                          <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px] text-[#555]">
+                          <td className="border-b-2.5 border-r-2.5 border-[var(--foreground)] px-2.5 py-2.5 align-middle text-[15px] text-[#555]">
                             {job.dateAdded}
                           </td>
-                          <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px] text-[#aaa]">
+                          <td className="border-b-2.5 border-r-2.5 border-[var(--foreground)] px-2.5 py-2.5 align-middle text-[15px] text-[#aaa]">
                             {job.deadline || "N/A"}
                           </td>
                           <td
-                            className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px]"
+                            className="border-b-2.5 border-r-2.5 border-[var(--foreground)] px-2.5 py-2.5 align-middle text-[15px]"
                             style={{ color: job.dateApplied ? "#555555" : "#aaaaaa" }}
                           >
                             {job.dateApplied || "—"}
                           </td>
-                          <td className="border-b-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px] text-[#aaa]">
+                          <td className="border-b-2.5 border-[var(--foreground)] px-2.5 py-2.5 align-middle text-[15px] text-[#aaa]">
                             {job.followUp ? (
                               <span className="text-[#555]">{job.followUp}</span>
                             ) : (
@@ -894,14 +894,14 @@ export function JobBoardView() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-5">
             {filtered.map((job) => (
               <Link
                 key={job.id}
                 href={`/jobs?selected=${job.id}`}
-                className="cursor-pointer rounded-2xl bg-white p-5 neo-border transition-neo hover:-translate-y-0.5 hover:bg-[var(--mint-l)]"
+                className="cursor-pointer rounded-2.5xl bg-white p-5 neo-border transition-neo hover:-translate-y-0.5 hover:bg-[var(--mint-l)]"
               >
-                <div className="mb-2 flex items-start justify-between gap-2">
+                <div className="mb-2.5 flex items-start justify-between gap-2.5">
                   <div>
                     <div className="text-sm font-extrabold">{job.title}</div>
                     <div className="text-xs font-medium text-[#666]">
