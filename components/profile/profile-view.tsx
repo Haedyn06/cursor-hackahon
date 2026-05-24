@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { useEffect, useState } from "react";
+import { api } from "@/convex/_generated/api";
 import { useToast } from "@/components/providers";
 import { NeoBadge } from "@/components/ui/neo-badge";
 import { NeoButton } from "@/components/ui/neo-button";
@@ -12,17 +14,10 @@ import {
   ProfileSectionStack,
 } from "@/components/ui/collapsible-section";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { formatProfileExport } from "@/lib/ai/client";
-import { loadAiSession } from "@/lib/ai/session";
 import {
   getInitialProfile,
-  saveStoredProfile,
-  type StoredProfile,
+  toProfileLibraryItems,
 } from "@/lib/onboarding-storage";
-import {
-  buildProfileExportDocument,
-  exportProfileDocument,
-} from "@/lib/profile-export";
 
 const NAV_ITEMS = [
   { id: "personal", label: "Personal Info" },
@@ -98,22 +93,13 @@ function EditActions({
 export function ProfileView() {
   const toast = useToast();
   const { confirm, dialog } = useConfirm();
+  const onboardingState = useQuery(api.onboarding.getOnboardingState);
+  const saveProfileMutation = useMutation(api.onboarding.saveProfile);
   const [activeSection, setActiveSection] = useState("personal");
   const [newSkill, setNewSkill] = useState("");
   const [exportFormat, setExportFormat] = useState<"pdf" | "docx" | "txt">("pdf");
-  const [exporting, setExporting] = useState(false);
-  const hasAiSession = useMemo(() => !!loadAiSession(), []);
-  const [profile, setProfileState] = useState(() => getInitialProfile());
-
-  const setProfile = (
-    updater: StoredProfile | ((prev: StoredProfile) => StoredProfile),
-  ) => {
-    setProfileState((prev) => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      saveStoredProfile(next);
-      return next;
-    });
-  };
+  const [profile, setProfile] = useState<ReturnType<typeof getInitialProfile> | null>(null);
+  const [hydrated, setHydrated] = useState(false);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(NAV_ITEMS.map((item) => [item.id, true])),
   );
@@ -121,6 +107,132 @@ export function ProfileView() {
   const [editDraft, setEditDraft] = useState<Record<string, unknown> | null>(
     null,
   );
+
+  useEffect(() => {
+    if (onboardingState === undefined || hydrated) return;
+
+    queueMicrotask(() => {
+      if (!onboardingState?.profile) {
+        setProfile(getInitialProfile());
+        setHydrated(true);
+        return;
+      }
+
+      const fallback = getInitialProfile();
+      setProfile({
+        ...fallback,
+        name: onboardingState.profile.fullName || fallback.name,
+        location: onboardingState.profile.location || fallback.location,
+        email: onboardingState.profile.email || fallback.email,
+        phone: onboardingState.profile.phone ?? fallback.phone,
+        targetRole: onboardingState.profile.targetRole || fallback.targetRole,
+        experience: onboardingState.profile.experienceLevel || fallback.experience,
+        about: onboardingState.profile.about || fallback.about,
+        links:
+          (onboardingState.links ?? []).length > 0
+            ? [...(onboardingState.links ?? [])]
+                .sort((a, b) => a.position - b.position)
+                .map((link, index) => ({
+                  id: index + 1,
+                  name: link.name,
+                  url: link.url,
+                }))
+            : fallback.links,
+        skills:
+          (onboardingState.skills ?? []).length > 0
+            ? [...(onboardingState.skills ?? [])]
+                .sort((a, b) => a.position - b.position)
+                .map((skill) => skill.name)
+            : fallback.skills,
+        languages:
+          (onboardingState.languages ?? []).length > 0
+            ? [...(onboardingState.languages ?? [])]
+                .sort((a, b) => a.position - b.position)
+                .map((language, index) => ({
+                  id: index + 1,
+                  name: language.name,
+                  level: language.level,
+                }))
+            : fallback.languages,
+        certifications:
+          (onboardingState.certifications ?? []).length > 0
+            ? [...(onboardingState.certifications ?? [])]
+                .sort((a, b) => a.position - b.position)
+                .map((certification, index) => ({
+                  id: index + 1,
+                  name: certification.name,
+                  issuer: certification.issuer,
+                  date: certification.date,
+                }))
+            : fallback.certifications,
+        experience_entries:
+          (onboardingState.experienceEntries ?? []).length > 0
+            ? [...(onboardingState.experienceEntries ?? [])]
+                .sort((a, b) => a.position - b.position)
+                .map((entry, index) => ({
+                  id: index + 1,
+                  title: entry.title,
+                  company: entry.company,
+                  dates: entry.dates,
+                  bullets: entry.bullets
+                    .split("\n")
+                    .map((line, bulletIndex) => ({
+                      id: bulletIndex + 1,
+                      text: line.replace(/^[-•*]\s*/, "").trim(),
+                      active: true,
+                    }))
+                    .filter((bullet) => bullet.text),
+                }))
+            : fallback.experience_entries,
+        resumeLibrary: toProfileLibraryItems(onboardingState.importedResumes ?? []),
+      });
+      setHydrated(true);
+    });
+  }, [hydrated, onboardingState]);
+
+  const persistProfile = async (nextProfile: typeof profile) => {
+    if (!nextProfile) {
+      return;
+    }
+
+    await saveProfileMutation({
+      profile: {
+        fullName: nextProfile.name,
+        location: nextProfile.location,
+        email: nextProfile.email,
+        phone: nextProfile.phone,
+        linkedin: "",
+        github: "",
+        portfolio: "",
+        targetRole: nextProfile.targetRole,
+        experienceLevel: nextProfile.experience,
+        about: nextProfile.about,
+        links: nextProfile.links.map((entry) => ({
+          name: entry.name,
+          url: entry.url,
+        })),
+        skills: nextProfile.skills,
+        languages: nextProfile.languages.map((entry) => ({
+          name: entry.name,
+          level: entry.level,
+        })),
+        certifications: nextProfile.certifications.map((entry) => ({
+          name: entry.name,
+          issuer: entry.issuer,
+          date: entry.date,
+        })),
+        experienceEntries: nextProfile.experience_entries.map((entry) => ({
+          title: entry.title,
+          company: entry.company,
+          dates: entry.dates,
+          bullets: entry.bullets
+            .filter((bullet) => bullet.active && bullet.text.trim())
+            .map((bullet) => bullet.text.trim())
+            .join("\n"),
+        })),
+      },
+    });
+  };
 
   const isEditing = (key: string) => editingKey === key;
 
@@ -134,8 +246,11 @@ export function ProfileView() {
     setEditDraft(null);
   };
 
-  const saveEdit = (onSave: () => void) => {
-    onSave();
+  const saveEdit = async (onSave: (current: NonNullable<typeof profile>) => NonNullable<typeof profile>) => {
+    if (!profile) return;
+    const nextProfile = onSave(profile);
+    setProfile(nextProfile);
+    await persistProfile(nextProfile);
     setEditingKey(null);
     setEditDraft(null);
     toast("Changes saved!");
@@ -201,6 +316,10 @@ export function ProfileView() {
       behavior: "smooth",
     });
   };
+
+  if (!hydrated || !profile) {
+    return null;
+  }
 
   return (
     <div className="flex flex-1 overflow-hidden bg-[var(--background)]">
@@ -380,18 +499,16 @@ export function ProfileView() {
                   <EditActions
                     onCancel={cancelEdit}
                     onSave={() =>
-                      saveEdit(() =>
-                        setProfile((p) => ({
-                          ...p,
-                          name: String(editDraft.name ?? p.name),
-                          location: String(editDraft.location ?? p.location),
-                          email: String(editDraft.email ?? p.email),
-                          phone: String(editDraft.phone ?? p.phone),
-                          targetRole: String(editDraft.targetRole ?? p.targetRole),
-                          experience: String(editDraft.experience ?? p.experience),
-                          about: String(editDraft.about ?? p.about),
-                        })),
-                      )
+                      saveEdit((p) => ({
+                        ...p,
+                        name: String(editDraft.name ?? p.name),
+                        location: String(editDraft.location ?? p.location),
+                        email: String(editDraft.email ?? p.email),
+                        phone: String(editDraft.phone ?? p.phone),
+                        targetRole: String(editDraft.targetRole ?? p.targetRole),
+                        experience: String(editDraft.experience ?? p.experience),
+                        about: String(editDraft.about ?? p.about),
+                      }))
                     }
                   />
                 </>
@@ -458,10 +575,14 @@ export function ProfileView() {
                 size="sm"
                 onClick={() => {
                   const newLink = { id: Date.now(), name: "", url: "" };
-                  setProfile((p) => ({
-                    ...p,
-                    links: [...p.links, newLink],
-                  }));
+                  setProfile((p) =>
+                    p
+                      ? {
+                          ...p,
+                          links: [...p.links, newLink],
+                        }
+                      : p,
+                  );
                   startEdit(`link-${newLink.id}`, { name: "", url: "" });
                 }}
               >
@@ -493,20 +614,18 @@ export function ProfileView() {
                     <EditActions
                       onCancel={cancelEdit}
                       onSave={() =>
-                        saveEdit(() =>
-                          setProfile((p) => ({
-                            ...p,
-                            links: p.links.map((item) =>
-                              item.id === link.id
-                                ? {
-                                    ...item,
-                                    name: String(editDraft.name ?? ""),
-                                    url: String(editDraft.url ?? ""),
-                                  }
-                                : item,
-                            ),
-                          })),
-                        )
+                        saveEdit((p) => ({
+                          ...p,
+                          links: p.links.map((item) =>
+                            item.id === link.id
+                              ? {
+                                  ...item,
+                                  name: String(editDraft.name ?? ""),
+                                  url: String(editDraft.url ?? ""),
+                                }
+                              : item,
+                          ),
+                        }))
                       }
                     />
                   </>
@@ -541,10 +660,14 @@ export function ProfileView() {
                             });
                             if (!confirmed) return;
                             if (isEditing(linkKey)) cancelEdit();
-                            setProfile((p) => ({
-                              ...p,
-                              links: p.links.filter((item) => item.id !== link.id),
-                            }));
+                            setProfile((p) =>
+                              p
+                                ? {
+                                    ...p,
+                                    links: p.links.filter((item) => item.id !== link.id),
+                                  }
+                                : p,
+                            );
                           }}
                           className="cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
                         >
@@ -578,10 +701,14 @@ export function ProfileView() {
                     dates: "",
                     bullets: [],
                   };
-                  setProfile((p) => ({
-                    ...p,
-                    experience_entries: [...p.experience_entries, newEntry],
-                  }));
+                  setProfile((p) =>
+                    p
+                      ? {
+                          ...p,
+                          experience_entries: [...p.experience_entries, newEntry],
+                        }
+                      : p,
+                  );
                   startEdit(`experience-${newEntry.id}`, newEntry);
                 }}
               >
@@ -679,22 +806,20 @@ export function ProfileView() {
                     <EditActions
                       onCancel={cancelEdit}
                       onSave={() =>
-                        saveEdit(() =>
-                          setProfile((p) => ({
-                            ...p,
-                            experience_entries: p.experience_entries.map((e) =>
-                              e.id === entry.id
-                                ? {
-                                    ...e,
-                                    title: String(editDraft.title ?? e.title),
-                                    company: String(editDraft.company ?? e.company),
-                                    dates: String(editDraft.dates ?? e.dates),
-                                    bullets: draftBullets,
-                                  }
-                                : e,
-                            ),
-                          })),
-                        )
+                        saveEdit((p) => ({
+                          ...p,
+                          experience_entries: p.experience_entries.map((e) =>
+                            e.id === entry.id
+                              ? {
+                                  ...e,
+                                  title: String(editDraft.title ?? e.title),
+                                  company: String(editDraft.company ?? e.company),
+                                  dates: String(editDraft.dates ?? e.dates),
+                                  bullets: draftBullets,
+                                }
+                              : e,
+                          ),
+                        }))
                       }
                     />
                   </>
@@ -736,12 +861,16 @@ export function ProfileView() {
                               });
                               if (!confirmed) return;
                               if (isEditing(entryKey)) cancelEdit();
-                              setProfile((p) => ({
-                                ...p,
-                                experience_entries: p.experience_entries.filter(
-                                  (e) => e.id !== entry.id,
-                                ),
-                              }));
+                              setProfile((p) =>
+                                p
+                                  ? {
+                                      ...p,
+                                      experience_entries: p.experience_entries.filter(
+                                        (e) => e.id !== entry.id,
+                                      ),
+                                    }
+                                  : p,
+                              );
                             }}
                             className="cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
                           >
@@ -795,10 +924,14 @@ export function ProfileView() {
                     desc: "",
                     active: true,
                   };
-                  setProfile((p) => ({
-                    ...p,
-                    projects: [...p.projects, newProj],
-                  }));
+                  setProfile((p) =>
+                    p
+                      ? {
+                          ...p,
+                          projects: [...p.projects, newProj],
+                        }
+                      : p,
+                  );
                   startEdit(`project-${newProj.id}`, newProj);
                 }}
               >
@@ -846,22 +979,20 @@ export function ProfileView() {
                     <EditActions
                       onCancel={cancelEdit}
                       onSave={() =>
-                        saveEdit(() =>
-                          setProfile((p) => ({
-                            ...p,
-                            projects: p.projects.map((item) =>
-                              item.id === proj.id
-                                ? {
-                                    ...item,
-                                    title: String(editDraft.title ?? ""),
-                                    url: String(editDraft.url ?? ""),
-                                    desc: String(editDraft.desc ?? ""),
-                                    active: Boolean(editDraft.active),
-                                  }
-                                : item,
-                            ),
-                          })),
-                        )
+                        saveEdit((p) => ({
+                          ...p,
+                          projects: p.projects.map((item) =>
+                            item.id === proj.id
+                              ? {
+                                  ...item,
+                                  title: String(editDraft.title ?? ""),
+                                  url: String(editDraft.url ?? ""),
+                                  desc: String(editDraft.desc ?? ""),
+                                  active: Boolean(editDraft.active),
+                                }
+                              : item,
+                          ),
+                        }))
                       }
                     />
                   </>
@@ -905,10 +1036,14 @@ export function ProfileView() {
                           });
                           if (!confirmed) return;
                           if (isEditing(projKey)) cancelEdit();
-                          setProfile((p) => ({
-                            ...p,
-                            projects: p.projects.filter((item) => item.id !== proj.id),
-                          }));
+                          setProfile((p) =>
+                            p
+                              ? {
+                                  ...p,
+                                  projects: p.projects.filter((item) => item.id !== proj.id),
+                                }
+                              : p,
+                          );
                         }}
                         className="cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline hover:text-[#cc0000]"
                       >
@@ -943,10 +1078,14 @@ export function ProfileView() {
                         confirmLabel: "Remove",
                       });
                       if (!confirmed) return;
-                      setProfile((p) => ({
-                        ...p,
-                        skills: p.skills.filter((x) => x !== s),
-                      }));
+                      setProfile((p) =>
+                        p
+                          ? {
+                              ...p,
+                              skills: p.skills.filter((x) => x !== s),
+                            }
+                          : p,
+                      );
                     }}
                   >
                     {s} ✕
@@ -962,10 +1101,14 @@ export function ProfileView() {
                       newSkill.trim()
                     ) {
                       e.preventDefault();
-                      setProfile((p) => ({
-                        ...p,
-                        skills: [...p.skills, newSkill.trim()],
-                      }));
+                      setProfile((p) =>
+                        p
+                          ? {
+                              ...p,
+                              skills: [...p.skills, newSkill.trim()],
+                            }
+                          : p,
+                      );
                       setNewSkill("");
                     }
                   }}
@@ -991,10 +1134,14 @@ export function ProfileView() {
                     name: "",
                     level: "Conversational",
                   };
-                  setProfile((p) => ({
-                    ...p,
-                    languages: [...p.languages, newLang],
-                  }));
+                  setProfile((p) =>
+                    p
+                      ? {
+                          ...p,
+                          languages: [...p.languages, newLang],
+                        }
+                      : p,
+                  );
                   startEdit(`language-${newLang.id}`, newLang);
                 }}
               >
@@ -1032,20 +1179,18 @@ export function ProfileView() {
                     <EditActions
                       onCancel={cancelEdit}
                       onSave={() =>
-                        saveEdit(() =>
-                          setProfile((p) => ({
-                            ...p,
-                            languages: p.languages.map((l) =>
-                              l.id === lang.id
-                                ? {
-                                    ...l,
-                                    name: String(editDraft.name ?? ""),
-                                    level: String(editDraft.level ?? l.level),
-                                  }
-                                : l,
-                            ),
-                          })),
-                        )
+                        saveEdit((p) => ({
+                          ...p,
+                          languages: p.languages.map((l) =>
+                            l.id === lang.id
+                              ? {
+                                  ...l,
+                                  name: String(editDraft.name ?? ""),
+                                  level: String(editDraft.level ?? l.level),
+                                }
+                              : l,
+                          ),
+                        }))
                       }
                     />
                   </>
@@ -1080,10 +1225,14 @@ export function ProfileView() {
                             });
                             if (!confirmed) return;
                             if (isEditing(langKey)) cancelEdit();
-                            setProfile((p) => ({
-                              ...p,
-                              languages: p.languages.filter((l) => l.id !== lang.id),
-                            }));
+                            setProfile((p) =>
+                              p
+                                ? {
+                                    ...p,
+                                    languages: p.languages.filter((l) => l.id !== lang.id),
+                                  }
+                                : p,
+                            );
                           }}
                           className="cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
                         >
@@ -1116,10 +1265,14 @@ export function ProfileView() {
                     issuer: "",
                     date: "",
                   };
-                  setProfile((p) => ({
-                    ...p,
-                    certifications: [...p.certifications, newCert],
-                  }));
+                  setProfile((p) =>
+                    p
+                      ? {
+                          ...p,
+                          certifications: [...p.certifications, newCert],
+                        }
+                      : p,
+                  );
                   startEdit(`cert-${newCert.id}`, newCert);
                 }}
               >
@@ -1157,21 +1310,19 @@ export function ProfileView() {
                     <EditActions
                       onCancel={cancelEdit}
                       onSave={() =>
-                        saveEdit(() =>
-                          setProfile((p) => ({
-                            ...p,
-                            certifications: p.certifications.map((c) =>
-                              c.id === cert.id
-                                ? {
-                                    ...c,
-                                    name: String(editDraft.name ?? ""),
-                                    issuer: String(editDraft.issuer ?? ""),
-                                    date: String(editDraft.date ?? ""),
-                                  }
-                                : c,
-                            ),
-                          })),
-                        )
+                        saveEdit((p) => ({
+                          ...p,
+                          certifications: p.certifications.map((c) =>
+                            c.id === cert.id
+                              ? {
+                                  ...c,
+                                  name: String(editDraft.name ?? ""),
+                                  issuer: String(editDraft.issuer ?? ""),
+                                  date: String(editDraft.date ?? ""),
+                                }
+                              : c,
+                          ),
+                        }))
                       }
                     />
                   </>
@@ -1208,12 +1359,16 @@ export function ProfileView() {
                             });
                             if (!confirmed) return;
                             if (isEditing(certKey)) cancelEdit();
-                            setProfile((p) => ({
-                              ...p,
-                              certifications: p.certifications.filter(
-                                (c) => c.id !== cert.id,
-                              ),
-                            }));
+                            setProfile((p) =>
+                              p
+                                ? {
+                                    ...p,
+                                    certifications: p.certifications.filter(
+                                      (c) => c.id !== cert.id,
+                                    ),
+                                  }
+                                : p,
+                            );
                           }}
                           className="cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
                         >
@@ -1247,10 +1402,14 @@ export function ProfileView() {
                     dates: "",
                     gpa: "",
                   };
-                  setProfile((p) => ({
-                    ...p,
-                    education: [...p.education, newEdu],
-                  }));
+                  setProfile((p) =>
+                    p
+                      ? {
+                          ...p,
+                          education: [...p.education, newEdu],
+                        }
+                      : p,
+                  );
                   startEdit(`education-${newEdu.id}`, newEdu);
                 }}
               >
@@ -1290,22 +1449,20 @@ export function ProfileView() {
                     <EditActions
                       onCancel={cancelEdit}
                       onSave={() =>
-                        saveEdit(() =>
-                          setProfile((p) => ({
-                            ...p,
-                            education: p.education.map((item) =>
-                              item.id === edu.id
-                                ? {
-                                    ...item,
-                                    degree: String(editDraft.degree ?? ""),
-                                    school: String(editDraft.school ?? ""),
-                                    dates: String(editDraft.dates ?? ""),
-                                    gpa: String(editDraft.gpa ?? ""),
-                                  }
-                                : item,
-                            ),
-                          })),
-                        )
+                        saveEdit((p) => ({
+                          ...p,
+                          education: p.education.map((item) =>
+                            item.id === edu.id
+                              ? {
+                                  ...item,
+                                  degree: String(editDraft.degree ?? ""),
+                                  school: String(editDraft.school ?? ""),
+                                  dates: String(editDraft.dates ?? ""),
+                                  gpa: String(editDraft.gpa ?? ""),
+                                }
+                              : item,
+                          ),
+                        }))
                       }
                     />
                   </>
@@ -1348,12 +1505,16 @@ export function ProfileView() {
                             });
                             if (!confirmed) return;
                             if (isEditing(eduKey)) cancelEdit();
-                            setProfile((p) => ({
-                              ...p,
-                              education: p.education.filter(
-                                (item) => item.id !== edu.id,
-                              ),
-                            }));
+                            setProfile((p) =>
+                              p
+                                ? {
+                                    ...p,
+                                    education: p.education.filter(
+                                      (item) => item.id !== edu.id,
+                                    ),
+                                  }
+                                : p,
+                            );
                           }}
                           className="cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline hover:text-[#cc0000]"
                         >

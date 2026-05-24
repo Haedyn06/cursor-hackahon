@@ -1,8 +1,9 @@
 "use client";
 
+import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/layout/logo";
 
@@ -154,8 +155,23 @@ const PAGE_TITLES: Record<string, string> = {
 
 function UserMenu() {
   const router = useRouter();
+  const { user } = useUser();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const userInitials = useMemo(() => {
+    const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim();
+    if (fullName) {
+      return fullName
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? "")
+        .join("");
+    }
+
+    const email = user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses[0]?.emailAddress;
+    return (email?.slice(0, 2) ?? "U").toUpperCase();
+  }, [user]);
 
   useEffect(() => {
     if (!open) return;
@@ -186,9 +202,18 @@ function UserMenu() {
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label="Account menu"
-        className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-[var(--lav)] font-heading text-sm font-extrabold neo-border-sm transition-transform duration-150 hover:scale-105"
+        className="flex h-9 w-9 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-[var(--lav)] font-heading text-sm font-extrabold neo-border-sm transition-transform duration-150 hover:scale-105"
       >
-        AJ
+        {user?.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={user.imageUrl}
+            alt={user.fullName ?? "User avatar"}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          userInitials
+        )}
       </button>
 
       {open && (

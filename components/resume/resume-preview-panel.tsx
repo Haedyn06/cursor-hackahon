@@ -12,6 +12,36 @@ import {
   type ResumeDocument,
 } from "@/lib/resume-document";
 
+export type ResumeProfileContext = {
+  fullName?: string | null;
+  email?: string | null;
+  location?: string | null;
+  phone?: string | null;
+  targetRole?: string | null;
+  about?: string | null;
+  skills?: string[];
+};
+
+const DEFAULT_SUMMARY =
+  "Frontend Engineer with 4 years of experience building high-performance, accessible web applications using React, TypeScript, and GraphQL. Passionate about developer experience and pixel-perfect UI.";
+
+const DEFAULT_SKILLS = "React · TypeScript · GraphQL · CSS · Next.js · Node.js · Jest · Git";
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function replaceLine(content: string, currentLine: string, nextLine: string) {
+  return content.replace(new RegExp(`^${escapeRegExp(currentLine)}$`, "m"), nextLine);
+}
+
+function replaceSection(content: string, heading: string, nextValue: string) {
+  return content.replace(
+    new RegExp(`(${escapeRegExp(heading)}\\n)([\\s\\S]*?)(\\n\\n[A-Z][A-Z\\s]+\\n|$)`),
+    (_, start, __, end) => `${start}${nextValue}${end}`,
+  );
+}
+
 export type GeneratedResume = {
   id: number;
   title: string;
@@ -176,10 +206,56 @@ export function ResumePreviewPanel({
   );
 }
 
-export function buildMockResumeContent(jobTitle: string, company: string): string {
-  return resumeDocumentToPlainText(buildResumeDocument(jobTitle, company));
-}
+export function buildMockResumeContent(
+  jobTitle: string,
+  company: string,
+  profile?: ResumeProfileContext,
+): string {
+  let content = MOCK_RESUME.replace(
+    "Frontend Engineer with 4 years",
+    `${jobTitle} candidate with 4 years`,
+  ).replace("Acme Corp", company);
 
-export function buildMockResume(jobTitle: string, company: string): ResumeDocument {
-  return buildResumeDocument(jobTitle, company);
+  const fullName = profile?.fullName?.trim();
+  const email = profile?.email?.trim();
+  const location = profile?.location?.trim();
+  const phone = profile?.phone?.trim();
+  const targetRole = profile?.targetRole?.trim();
+  const about = profile?.about?.trim();
+  const skills = profile?.skills?.filter((skill) => skill.trim()).join(" · ");
+
+  if (fullName) {
+    content = replaceLine(content, "ALEX JOHNSON", fullName.toUpperCase());
+  }
+
+  const contactParts = [email, phone, location].filter(Boolean);
+  if (contactParts.length > 0) {
+    content = replaceLine(
+      content,
+      "alex@example.com · github.com/alexj · linkedin.com/in/alexj · San Francisco, CA",
+      contactParts.join(" · "),
+    );
+  }
+
+  if (targetRole || about) {
+    content = replaceSection(
+      content,
+      "SUMMARY",
+      about || `${targetRole ?? jobTitle} candidate with relevant experience.`,
+    );
+  } else {
+    content = replaceSection(
+      content,
+      "SUMMARY",
+      `${jobTitle} candidate with relevant experience.`,
+    );
+  }
+
+  if (skills) {
+    content = replaceSection(content, "SKILLS", skills);
+  } else {
+    content = replaceSection(content, "SKILLS", DEFAULT_SKILLS);
+  }
+
+  return content.replace(DEFAULT_SUMMARY, `${jobTitle} candidate with 4 years of experience.`);
 }

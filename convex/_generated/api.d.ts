@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as jobs from "../jobs.js";
 import type * as onboarding from "../onboarding.js";
 import type * as users from "../users.js";
 
@@ -18,6 +19,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  jobs: typeof jobs;
   onboarding: typeof onboarding;
   users: typeof users;
 }>;

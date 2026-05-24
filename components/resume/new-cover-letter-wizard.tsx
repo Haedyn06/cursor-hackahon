@@ -18,12 +18,6 @@ import type { GeneratedCoverLetter } from "@/components/resume/cover-letter-prev
 
 const WIZARD_STEPS = ["Select job", "Generate"];
 
-const DEMO_EXTRACT = {
-  title: "Frontend Engineer",
-  company: "Stripe",
-  jd: "React, TypeScript, and modern frontend experience required.",
-};
-
 type JobSource = "saved" | "new" | null;
 type NewJobMode = "link" | "manual";
 
@@ -69,16 +63,12 @@ export function NewCoverLetterWizard({
   onClose,
   onComplete,
 }: NewCoverLetterWizardProps) {
-  const toast = useToast();
-  const { jobs, updateJob } = useJobs();
+  const { jobs } = useJobs();
 
   const [step, setStep] = useState(1);
   const [jobSource, setJobSource] = useState<JobSource>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [newJobMode, setNewJobMode] = useState<NewJobMode>("link");
-  const [jobUrl, setJobUrl] = useState("");
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analyzed, setAnalyzed] = useState(false);
+  const [newJobMode, setNewJobMode] = useState<NewJobMode>("manual");
   const [manualForm, setManualForm] = useState({
     title: "",
     company: "",
@@ -94,10 +84,7 @@ export function NewCoverLetterWizard({
         setStep(1);
         setJobSource(null);
         setSelectedJobId(null);
-        setNewJobMode("link");
-        setJobUrl("");
-        setAnalyzing(false);
-        setAnalyzed(false);
+        setNewJobMode("manual");
         setManualForm({ title: "", company: "", jd: "" });
         setGenerating(false);
         setGenerateError(null);
@@ -124,14 +111,6 @@ export function NewCoverLetterWizard({
       };
     }
     if (jobSource === "new") {
-      if (newJobMode === "link" && analyzed) {
-        return {
-          title: DEMO_EXTRACT.title,
-          company: DEMO_EXTRACT.company,
-          matchJob: `${DEMO_EXTRACT.title} @ ${DEMO_EXTRACT.company}`,
-          description: DEMO_EXTRACT.jd,
-        };
-      }
       if (newJobMode === "manual" && manualForm.title && manualForm.company) {
         return {
           title: manualForm.title,
@@ -152,18 +131,10 @@ export function NewCoverLetterWizard({
     jobSource === "saved"
       ? !!selectedJob
       : jobSource === "new" &&
-        ((newJobMode === "link" && analyzed) ||
-          (newJobMode === "manual" && manualForm.title && manualForm.company));
+        newJobMode === "manual" &&
+        manualForm.title &&
+        manualForm.company;
 
-  const handleAnalyze = () => {
-    if (!jobUrl.trim()) return;
-    setAnalyzing(true);
-    setTimeout(() => {
-      setAnalyzing(false);
-      setAnalyzed(true);
-      toast("Job details extracted!");
-    }, 1800);
-  };
 
   const handleGenerate = async () => {
     if (!jobContext) return;
@@ -250,85 +221,6 @@ export function NewCoverLetterWizard({
 
   const renderNewJob = () => (
     <div className="flex flex-col gap-4">
-      <div className="flex overflow-hidden rounded-full neo-border">
-        {(
-          [
-            ["link", "From link"],
-            ["manual", "Manual"],
-          ] as const
-        ).map(([mode, label], idx) => (
-          <button
-            key={mode}
-            type="button"
-            onClick={() => {
-              setNewJobMode(mode);
-              setAnalyzed(false);
-            }}
-            className={cn(
-              "flex-1 cursor-pointer border-none px-4 py-2.5 font-sans text-[13px] font-bold transition-colors",
-              newJobMode === mode
-                ? "bg-[var(--foreground)] text-white"
-                : "bg-white text-[var(--foreground)] hover:bg-[var(--yellow-l)]",
-            )}
-            style={{
-              borderRight: idx === 0 ? "2px solid var(--foreground)" : undefined,
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {newJobMode === "link" && !analyzed && (
-        <div className="rounded-2xl bg-[var(--lav-l)] p-4 neo-border">
-          <NeoInput
-            label="Job posting link"
-            placeholder="https://linkedin.com/jobs/view/..."
-            value={jobUrl}
-            onChange={(e) => setJobUrl(e.target.value)}
-          />
-          <div className="mt-3 flex justify-end">
-            <NeoButton
-              variant="primary"
-              size="sm"
-              disabled={jobUrl.trim().length < 8 || analyzing}
-              onClick={handleAnalyze}
-            >
-              {analyzing ? "Analyzing…" : "✦ Analyze link"}
-            </NeoButton>
-          </div>
-          {analyzing && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {["Fetching page", "Parsing JD", "Extracting keywords"].map((s, i) => (
-                <NeoBadge
-                  key={s}
-                  color={i === 0 ? "var(--mint)" : "#ffffff"}
-                  className="text-[10px]"
-                >
-                  {i === 0 ? "✓" : "…"} {s}
-                </NeoBadge>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {newJobMode === "link" && analyzed && (
-        <div className="rounded-xl bg-[var(--yellow-l)] px-4 py-3 neo-border-sm">
-          <div className="text-[13px] font-extrabold">✦ AI extracted details</div>
-          <div className="mt-1 text-sm font-bold">
-            {DEMO_EXTRACT.title} @ {DEMO_EXTRACT.company}
-          </div>
-          <button
-            type="button"
-            onClick={() => setAnalyzed(false)}
-            className="mt-2 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline"
-          >
-            Try another link
-          </button>
-        </div>
-      )}
-
       {newJobMode === "manual" && (
         <div className="flex flex-col gap-3">
           <NeoInput

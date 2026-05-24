@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "convex/react";
 import { createPortal } from "react-dom";
+import { api } from "@/convex/_generated/api";
 import { useToast } from "@/components/providers";
 import { NeoButton } from "@/components/ui/neo-button";
 import { NeoCard } from "@/components/ui/neo-card";
@@ -13,13 +15,8 @@ import {
   DownloadIcon,
   useDownloadFormat,
 } from "@/components/ui/download-format-dialog";
-import { getInitialResumeLibrary } from "@/lib/onboarding-storage";
-import type { ToastType } from "@/lib/types";
-import {
-  MOCK_COVER_LETTERS,
-  MOCK_INTERVIEW_PREP,
-  type MockDocument,
-} from "@/lib/mock-data";
+import { type MockDocument } from "@/lib/mock-data";
+import { toLibraryDocuments } from "@/lib/onboarding-storage";
 import { NewResumeWizard } from "@/components/resume/new-resume-wizard";
 import { NewCoverLetterWizard } from "@/components/resume/new-cover-letter-wizard";
 import {
@@ -861,6 +858,7 @@ function DocumentSection({
 
 export function ResumeLibraryView() {
   const toast = useToast();
+  const onboardingState = useQuery(api.onboarding.getOnboardingState);
   const { pickFormat, dialog: downloadDialog } = useDownloadFormat();
   const [activeTab, setActiveTab] = useState<LibraryTab>("resumes");
   const [resumeSearch, setResumeSearch] = useState("");
@@ -871,13 +869,40 @@ export function ResumeLibraryView() {
   const [interviewViewMode, setInterviewViewMode] = useState<"grid" | "list">(
     "list",
   );
-  const [resumes, setResumes] = useState(() => getInitialResumeLibrary());
-  const [coverLetters, setCoverLetters] = useState(() =>
-    structuredClone(MOCK_COVER_LETTERS),
-  );
-  const [interviewPrep, setInterviewPrep] = useState(() =>
-    structuredClone(MOCK_INTERVIEW_PREP),
-  );
+  const [resumes, setResumes] = useState<MockDocument[]>([]);
+
+  const importedResumeLibrary = useMemo(() => {
+    if (!onboardingState?.importedResumes) {
+      return [] as MockDocument[];
+    }
+
+    return toLibraryDocuments(
+      onboardingState.importedResumes.map((resume, index) => ({
+        id: index + 1,
+        file: resume.fileName,
+        aiName: resume.displayName,
+        naming: false,
+      })),
+      [],
+    );
+  }, [onboardingState]);
+
+  const resumeDocuments = useMemo(() => {
+    const base = importedResumeLibrary;
+    return [
+      ...resumes,
+      ...base.filter((item) => !resumes.some((entry) => entry.id === item.id)),
+    ];
+  }, [importedResumeLibrary, resumes]);
+
+  const saveResumeDocuments = (
+    updater: (items: MockDocument[]) => MockDocument[],
+  ) => {
+    setResumes((current) => updater(current.length > 0 ? current : resumeDocuments));
+  };
+
+  const [coverLetters, setCoverLetters] = useState<MockDocument[]>([]);
+  const [interviewPrep, setInterviewPrep] = useState<MockDocument[]>([]);
   const [showNewResumeWizard, setShowNewResumeWizard] = useState(false);
   const [showNewCoverLetterWizard, setShowNewCoverLetterWizard] = useState(false);
   const [previewResume, setPreviewResume] = useState<GeneratedResume | null>(
@@ -891,7 +916,7 @@ export function ResumeLibraryView() {
     useState<GeneratedInterviewPrep | null>(null);
 
   const saveGeneratedResume = (generated: GeneratedResume) => {
-    setResumes((r) => [
+    saveResumeDocuments((items) => [
       {
         id: generated.id,
         title: generated.title,
@@ -899,7 +924,7 @@ export function ResumeLibraryView() {
         edited: new Date().toLocaleDateString("en-US"),
         color: "var(--mint)",
       },
-      ...r.filter((item) => item.id !== generated.id),
+      ...items.filter((item) => item.id !== generated.id),
     ]);
     setActiveTab("resumes");
     setPreviewResume(null);
@@ -972,6 +997,10 @@ export function ResumeLibraryView() {
     const format = await pickFormat(title);
     if (format) toast(`Downloading ${title} as ${format.toUpperCase()}...`);
   };
+
+  if (onboardingState === undefined) {
+    return null;
+  }
 
   if (previewResume) {
     return (
@@ -1078,7 +1107,7 @@ export function ResumeLibraryView() {
             {activeTab === "resumes" && (
               <DocumentSection
                 kind="resume"
-                documents={resumes}
+                documents={resumeDocuments}
                 search={resumeSearch}
                 onSearchChange={setResumeSearch}
                 viewMode={resumeViewMode}
@@ -1088,13 +1117,15 @@ export function ResumeLibraryView() {
                 emptyActionLabel="+ New Resume"
                 onEmptyAction={() => handleAction("new")}
                 onRemoveSelected={(ids) =>
-                  setResumes((items) => items.filter((item) => !ids.includes(item.id)))
+                  saveResumeDocuments((items) =>
+                    items.filter((item) => !ids.includes(item.id)),
+                  )
                 }
                 onToast={toast}
                 onOpenDocument={(doc) => setPreviewResume(resumeFromLibrary(doc))}
                 onPracticeDocument={() => {}}
                 onRenameDocument={(doc, title) =>
-                  setResumes((items) =>
+                  saveResumeDocuments((items) =>
                     items.map((item) =>
                       item.id === doc.id ? { ...item, title } : item,
                     ),

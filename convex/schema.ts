@@ -94,4 +94,29 @@ export default defineSchema({
     ),
     createdAt: v.number(),
   }).index("by_userId", ["userId"]),
+
+  jobs: defineTable({
+    userId: v.id("users"),
+    title: v.string(),
+    company: v.string(),
+    location: v.string(),
+    status: v.string(),
+    matchScore: v.union(v.number(), v.null()),
+    source: v.string(),
+    dateAdded: v.string(),
+    url: v.string(),
+    jd: v.string(),
+    matchedKeywords: v.array(v.string()),
+    missingKeywords: v.array(v.string()),
+    resumeGenerated: v.boolean(),
+    salary: v.string(),
+    deadline: v.union(v.string(), v.null()),
+    dateApplied: v.union(v.string(), v.null()),
+    followUp: v.union(v.string(), v.null()),
+    excitement: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_status", ["userId", "status"]),
 });
