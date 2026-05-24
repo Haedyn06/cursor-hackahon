@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useQuery } from "convex/react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { api } from "@/convex/_generated/api";
 import { NeoBadge } from "@/components/ui/neo-badge";
 import { NeoButton } from "@/components/ui/neo-button";
 import { NeoInput } from "@/components/ui/neo-input";
@@ -47,12 +49,6 @@ const RESUME_TEMPLATES = [
 
 const DEFAULT_TEMPLATE_ID = "ats-classic";
 
-const DEMO_EXTRACT = {
-  title: "Frontend Engineer",
-  company: "Stripe",
-  jd: "React, TypeScript, and modern frontend experience required.",
-};
-
 type JobSource = "saved" | "new" | null;
 type NewJobMode = "link" | "manual";
 
@@ -94,16 +90,13 @@ function SourceCard({
 }
 
 export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardProps) {
-  const toast = useToast();
   const { jobs } = useJobs();
+  const onboardingState = useQuery(api.onboarding.getOnboardingState);
 
   const [step, setStep] = useState(1);
   const [jobSource, setJobSource] = useState<JobSource>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [newJobMode, setNewJobMode] = useState<NewJobMode>("link");
-  const [jobUrl, setJobUrl] = useState("");
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analyzed, setAnalyzed] = useState(false);
+  const [newJobMode, setNewJobMode] = useState<NewJobMode>("manual");
   const [manualForm, setManualForm] = useState({
     title: "",
     company: "",
@@ -118,10 +111,7 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
         setStep(1);
         setJobSource(null);
         setSelectedJobId(null);
-        setNewJobMode("link");
-        setJobUrl("");
-        setAnalyzing(false);
-        setAnalyzed(false);
+        setNewJobMode("manual");
         setManualForm({ title: "", company: "", jd: "" });
         setSelectedTemplateId(DEFAULT_TEMPLATE_ID);
         setGenerating(false);
@@ -133,6 +123,20 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
   const selectedTemplate =
     RESUME_TEMPLATES.find((t) => t.id === selectedTemplateId) ?? RESUME_TEMPLATES[0];
 
+  const resumeProfileContext = useMemo(() => ({
+    fullName: onboardingState?.profile?.fullName ?? null,
+    email: onboardingState?.profile?.email ?? null,
+    location: onboardingState?.profile?.location ?? null,
+    phone: onboardingState?.profile?.phone ?? null,
+    targetRole: onboardingState?.profile?.targetRole ?? null,
+    about: onboardingState?.profile?.about ?? null,
+    skills:
+      onboardingState?.skills
+        ?.slice()
+        .sort((a, b) => a.position - b.position)
+        .map((skill) => skill.name) ?? [],
+  }), [onboardingState]);
+
   const resolvedJob = (): { title: string; company: string; matchJob: string } | null => {
     if (jobSource === "saved" && selectedJob) {
       return {
@@ -142,13 +146,6 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
       };
     }
     if (jobSource === "new") {
-      if (newJobMode === "link" && analyzed) {
-        return {
-          title: DEMO_EXTRACT.title,
-          company: DEMO_EXTRACT.company,
-          matchJob: `${DEMO_EXTRACT.title} @ ${DEMO_EXTRACT.company}`,
-        };
-      }
       if (newJobMode === "manual" && manualForm.title && manualForm.company) {
         return {
           title: manualForm.title,
@@ -166,18 +163,10 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
     jobSource === "saved"
       ? !!selectedJob
       : jobSource === "new" &&
-        ((newJobMode === "link" && analyzed) ||
-          (newJobMode === "manual" && manualForm.title && manualForm.company));
+        newJobMode === "manual" &&
+        manualForm.title &&
+        manualForm.company;
 
-  const handleAnalyze = () => {
-    if (!jobUrl.trim()) return;
-    setAnalyzing(true);
-    setTimeout(() => {
-      setAnalyzing(false);
-      setAnalyzed(true);
-      toast("Job details extracted!");
-    }, 1800);
-  };
 
   const handleGenerate = () => {
     if (!jobContext) return;
@@ -190,7 +179,11 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
         title: `${jobContext.company} — ${jobContext.title}`,
         matchJob: jobContext.matchJob,
         templateName: selectedTemplate.name,
-        content: buildMockResumeContent(jobContext.title, jobContext.company),
+        content: buildMockResumeContent(
+          jobContext.title,
+          jobContext.company,
+          resumeProfileContext,
+        ),
         matchScore: 87,
         matchedKeywords: ["React", "TypeScript", "GraphQL", "CSS"],
         missingKeywords: ["Kubernetes", "Python"],
@@ -229,85 +222,6 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
 
   const renderNewJob = () => (
     <div className="flex flex-col gap-4">
-      <div className="flex overflow-hidden rounded-full neo-border">
-        {(
-          [
-            ["link", "From link"],
-            ["manual", "Manual"],
-          ] as const
-        ).map(([mode, label], idx) => (
-          <button
-            key={mode}
-            type="button"
-            onClick={() => {
-              setNewJobMode(mode);
-              setAnalyzed(false);
-            }}
-            className={cn(
-              "flex-1 cursor-pointer border-none px-4 py-2.5 font-sans text-[13px] font-bold transition-colors",
-              newJobMode === mode
-                ? "bg-[var(--foreground)] text-white"
-                : "bg-white text-[var(--foreground)] hover:bg-[var(--mint-l)]",
-            )}
-            style={{
-              borderRight: idx === 0 ? "2px solid var(--foreground)" : undefined,
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {newJobMode === "link" && !analyzed && (
-        <div className="rounded-2xl bg-[var(--lav-l)] p-4 neo-border">
-          <NeoInput
-            label="Job posting link"
-            placeholder="https://linkedin.com/jobs/view/..."
-            value={jobUrl}
-            onChange={(e) => setJobUrl(e.target.value)}
-          />
-          <div className="mt-3 flex justify-end">
-            <NeoButton
-              variant="primary"
-              size="sm"
-              disabled={jobUrl.trim().length < 8 || analyzing}
-              onClick={handleAnalyze}
-            >
-              {analyzing ? "Analyzing…" : "✦ Analyze link"}
-            </NeoButton>
-          </div>
-          {analyzing && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {["Fetching page", "Parsing JD", "Extracting keywords"].map((s, i) => (
-                <NeoBadge
-                  key={s}
-                  color={i === 0 ? "var(--mint)" : "#ffffff"}
-                  className="text-[10px]"
-                >
-                  {i === 0 ? "✓" : "…"} {s}
-                </NeoBadge>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {newJobMode === "link" && analyzed && (
-        <div className="rounded-xl bg-[var(--mint-l)] px-4 py-3 neo-border-sm">
-          <div className="text-[13px] font-extrabold">✦ AI extracted details</div>
-          <div className="mt-1 text-sm font-bold">
-            {DEMO_EXTRACT.title} @ {DEMO_EXTRACT.company}
-          </div>
-          <button
-            type="button"
-            onClick={() => setAnalyzed(false)}
-            className="mt-2 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline"
-          >
-            Try another link
-          </button>
-        </div>
-      )}
-
       {newJobMode === "manual" && (
         <div className="flex flex-col gap-3">
           <NeoInput

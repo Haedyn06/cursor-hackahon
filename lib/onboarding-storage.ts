@@ -1,9 +1,4 @@
-import {
-  MOCK_PROFILE,
-  MOCK_RESUMES,
-  type MockDocument,
-  type OnboardingResume,
-} from "@/lib/mock-data";
+import { MOCK_RESUMES, type MockDocument, type OnboardingResume } from "@/lib/mock-data";
 
 const PROFILE_KEY = "rezume_user_profile";
 const RESUME_LIBRARY_KEY = "rezume_resume_library";
@@ -15,7 +10,63 @@ export type ProfileResumeLibraryItem = {
   date: string;
 };
 
-export type StoredProfile = typeof MOCK_PROFILE;
+export type StoredProfile = {
+  name: string;
+  email: string;
+  phone: string;
+  location: string;
+  links: { id: number; name: string; url: string }[];
+  targetRole: string;
+  experience: string;
+  about: string;
+  skills: string[];
+  languages: { id: number; name: string; level: string }[];
+  certifications: { id: number; name: string; issuer: string; date: string }[];
+  experience_entries: {
+    id: number;
+    title: string;
+    company: string;
+    dates: string;
+    bullets: { id: number; text: string; active: boolean }[];
+  }[];
+  projects: {
+    id: number;
+    title: string;
+    url: string;
+    desc: string;
+    active: boolean;
+  }[];
+  education: {
+    id: number;
+    degree: string;
+    school: string;
+    dates: string;
+    gpa: string;
+  }[];
+  resumeLibrary: ProfileResumeLibraryItem[];
+};
+
+const EMPTY_PROFILE: StoredProfile = {
+  name: "",
+  email: "",
+  phone: "",
+  location: "",
+  links: [],
+  targetRole: "",
+  experience: "",
+  about: "",
+  skills: [],
+  languages: [],
+  certifications: [],
+  experience_entries: [],
+  projects: [],
+  education: [],
+  resumeLibrary: [],
+};
+
+function getEmptyProfile(): StoredProfile {
+  return structuredClone(EMPTY_PROFILE);
+}
 
 export type OnboardingProfileState = {
   name: string;
@@ -89,7 +140,7 @@ export function mergeProfileFromOnboarding(
   state: OnboardingProfileState,
   existing?: StoredProfile,
 ): StoredProfile {
-  const base = existing ?? structuredClone(MOCK_PROFILE);
+  const base = existing ?? getEmptyProfile();
 
   return {
     ...base,
@@ -230,5 +281,5 @@ export function getInitialResumeLibrary(): MockDocument[] {
 }
 
 export function getInitialProfile(): StoredProfile {
-  return loadStoredProfile() ?? structuredClone(MOCK_PROFILE);
+  return loadStoredProfile() ?? getEmptyProfile();
 }

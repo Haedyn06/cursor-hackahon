@@ -1,5 +1,17 @@
+import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { JobsServiceError, deleteJobs } from "@/lib/services/jobs.service";
+import {
+  CLERK_CONVEX_TEMPLATE,
+  JobsServiceError,
+  deleteJobs,
+} from "@/lib/services/jobs.service";
+
+async function getJobsServiceOptions() {
+  const { getToken } = await auth();
+  return {
+    token: await getToken({ template: CLERK_CONVEX_TEMPLATE }),
+  };
+}
 
 export async function POST(request: Request) {
   try {
@@ -13,7 +25,7 @@ export async function POST(request: Request) {
       );
     }
 
-    await deleteJobs(ids);
+    await deleteJobs(ids, await getJobsServiceOptions());
     return NextResponse.json({ ok: true, deleted: ids.length });
   } catch (error) {
     if (error instanceof JobsServiceError) {

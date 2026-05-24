@@ -36,9 +36,13 @@ function toResumeDisplayName(fileName: string) {
   return fileName.replace(/\.[^.]+$/, "");
 }
 
+function now() {
+  return Date.now();
+}
+
 function makeResumeItem(partial: Omit<ResumeItem, "id">): ResumeItem {
   return {
-    id: Date.now() + Math.floor(Math.random() * 1000),
+    id: now() + Math.floor(Math.random() * 1000),
     ...partial,
   };
 }
@@ -75,17 +79,18 @@ function ApiKeyCard({
   apiKey: string;
   setApiKey: (v: string) => void;
   verified: boolean;
-  onVerify: () => void;
+  onVerify: () => Promise<void>;
 }) {
   const [verifying, setVerifying] = useState(false);
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     if (!apiKey.trim()) return;
     setVerifying(true);
-    setTimeout(() => {
+    try {
+      await onVerify();
+    } finally {
       setVerifying(false);
-      onVerify();
-    }, 1400);
+    }
   };
 
   return (
@@ -882,25 +887,52 @@ export default function OnboardingPage() {
     }
   };
 
+  const buildProviderConnections = () => [
+    ...API_PROVIDERS.filter((provider) => verified[provider.id]).map((provider) => ({
+      providerId: provider.id,
+      providerName: provider.name,
+      connectionType: "apikey" as const,
+      status: "connected" as const,
+      lastVerifiedAt: Date.now(),
+    })),
+    ...OAUTH_PROVIDERS.filter((provider) => oauthConnected[provider.id]).map((provider) => ({
+      providerId: provider.id,
+      providerName: provider.name,
+      connectionType: "oauth" as const,
+      status: "connected" as const,
+    })),
+  ];
+
+  const handleVerifyProvider = async (providerId: string) => {
+    const lastVerifiedAt = now();
+    setVerified((current) => ({ ...current, [providerId]: true }));
+    try {
+      await saveProviderConnections({
+        connections: buildProviderConnections().concat(
+          verified[providerId]
+            ? []
+            : [
+                {
+                  providerId,
+                  providerName: API_PROVIDERS.find((provider) => provider.id === providerId)?.name ?? providerId,
+                  connectionType: "apikey" as const,
+                  status: "connected" as const,
+                  lastVerifiedAt,
+                },
+              ],
+        ),
+      });
+    } catch (error) {
+      setVerified((current) => ({ ...current, [providerId]: false }));
+      throw error;
+    }
+  };
+
   const handleContinueFromProviders = async (nextStep: number) => {
     setSavingStep(1);
     try {
       await saveProviderConnections({
-        connections: [
-          ...API_PROVIDERS.filter((provider) => verified[provider.id]).map((provider) => ({
-            providerId: provider.id,
-            providerName: provider.name,
-            connectionType: "apikey" as const,
-            status: "connected" as const,
-            lastVerifiedAt: Date.now(),
-          })),
-          ...OAUTH_PROVIDERS.filter((provider) => oauthConnected[provider.id]).map((provider) => ({
-            providerId: provider.id,
-            providerName: provider.name,
-            connectionType: "oauth" as const,
-            status: "connected" as const,
-          })),
-        ],
+        connections: buildProviderConnections(),
       });
       setStep(nextStep);
     } finally {
@@ -1031,7 +1063,7 @@ export default function OnboardingPage() {
                       setVerified((k) => ({ ...k, [prov.id]: false }));
                     }}
                     verified={!!verified[prov.id]}
-                    onVerify={() => setVerified((k) => ({ ...k, [prov.id]: true }))}
+                    onVerify={() => handleVerifyProvider(prov.id)}
                   />
                 ))}
               </div>

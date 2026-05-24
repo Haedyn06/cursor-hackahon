@@ -1,23 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useUser } from "@clerk/nextjs";
+import { useQuery } from "convex/react";
+import { useMemo, useState } from "react";
+import { api } from "@/convex/_generated/api";
+import { API_PROVIDERS, OAUTH_PROVIDERS } from "@/lib/constants";
 import { useToast } from "@/components/providers";
 import { NeoBadge } from "@/components/ui/neo-badge";
 import { NeoButton } from "@/components/ui/neo-button";
 import { NeoCard } from "@/components/ui/neo-card";
 import { NeoInput } from "@/components/ui/neo-input";
 
-const PROVIDERS = [
-  { id: "openai", name: "OpenAI", desc: "GPT-4o & o1", badge: "Pay-as-you-go", color: "var(--mint)" },
-  { id: "anthropic", name: "Anthropic", desc: "Claude 3.5 Sonnet", badge: "Free tier", color: "var(--lav)" },
-  { id: "groq", name: "Groq", desc: "Llama 3.3 — ultra fast", badge: "Free tier", color: "var(--peach)" },
-  { id: "gemini", name: "Gemini", desc: "Gemini 1.5 Pro", badge: "Free tier", color: "var(--yellow)" },
-];
-
-const OAUTH = [
-  { id: "copilot", name: "GitHub Copilot", desc: "GPT-4o via GitHub", badge: "OAuth", color: "var(--mint)" },
-  { id: "cursor", name: "Cursor", desc: "Cursor IDE AI models", badge: "OAuth", color: "var(--yellow)" },
-];
+const PROVIDERS = API_PROVIDERS;
+const OAUTH = OAUTH_PROVIDERS;
 
 function SettingsSection({
   title,
@@ -38,6 +33,8 @@ function SettingsSection({
 
 export function SettingsView() {
   const toast = useToast();
+  const { user } = useUser();
+  const onboardingState = useQuery(api.onboarding.getOnboardingState);
   const [showProviderUI, setShowProviderUI] = useState(false);
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
   const [providerType, setProviderType] = useState<"apikey" | "oauth">("apikey");
@@ -45,14 +42,42 @@ export function SettingsView() {
   const [verified, setVerified] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [showDangerConfirm, setShowDangerConfirm] = useState<string | null>(null);
-  const [oauthConnected, setOauthConnected] = useState<Record<string, boolean>>({});
 
-  const currentProvider = {
-    name: "Anthropic",
-    model: "claude-3-5-sonnet-20241022",
-    maskedKey: "sk-ant-••••••••••••••••••XK4D",
-    color: "var(--lav)",
-  };
+  const oauthConnected = useMemo(() => {
+    const nextOauth: Record<string, boolean> = {};
+    for (const connection of onboardingState?.providerConnections ?? []) {
+      if (connection.connectionType === "oauth" && connection.status === "connected") {
+        nextOauth[connection.providerId] = true;
+      }
+    }
+    return nextOauth;
+  }, [onboardingState]);
+
+
+  const currentProvider = useMemo(() => {
+    const connected = onboardingState?.providerConnections.find(
+      (connection) => connection.status === "connected",
+    );
+
+    if (!connected) {
+      return null;
+    }
+
+    const providerMeta = [...PROVIDERS, ...OAUTH].find(
+      (provider) => provider.id === connected.providerId,
+    );
+
+    return {
+      name: connected.providerName,
+      model: connected.connectionType === "apikey" ? "API key connected" : "OAuth connected",
+      maskedKey: connected.connectionType === "apikey" ? "Stored client-side" : "No API key required",
+      color: providerMeta?.color ?? "var(--lav)",
+    };
+  }, [onboardingState]);
+
+  const accountName = user?.fullName ?? onboardingState?.user?.name ?? "—";
+  const accountEmail =
+    user?.primaryEmailAddress?.emailAddress ?? onboardingState?.user?.email ?? "—";
 
   const handleVerify = () => {
     if (!apiKey.trim()) return;
@@ -76,17 +101,19 @@ export function SettingsView() {
               <div className="flex items-center gap-3.5">
                 <div
                   className="flex h-11 w-11 items-center justify-center rounded-xl font-heading text-base font-extrabold neo-border"
-                  style={{ background: currentProvider.color }}
+                  style={{ background: currentProvider?.color ?? "#ffffff" }}
                 >
-                  {currentProvider.name[0]}
+                  {currentProvider?.name[0] ?? "?"}
                 </div>
                 <div>
-                  <div className="text-base font-extrabold">{currentProvider.name}</div>
+                  <div className="text-base font-extrabold">
+                    {currentProvider?.name ?? "No provider connected"}
+                  </div>
                   <div className="mt-0.5 text-xs font-medium text-[#888]">
-                    {currentProvider.model}
+                    {currentProvider?.model ?? "Connect an AI provider to start generating."}
                   </div>
                   <div className="mt-0.5 font-mono text-xs text-[#aaa]">
-                    {currentProvider.maskedKey}
+                    {currentProvider?.maskedKey ?? "No active connection"}
                   </div>
                 </div>
               </div>
@@ -139,17 +166,24 @@ export function SettingsView() {
               {providerType === "apikey" && (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   {PROVIDERS.map((prov) => {
+                    const isConnected = onboardingState?.providerConnections.some(
+                      (connection) =>
+                        connection.providerId === prov.id &&
+                        connection.connectionType === "apikey" &&
+                        connection.status === "connected",
+                    );
                     const isExpanded = expandedProvider === prov.id;
                     return (
                       <div
                         key={prov.id}
                         className="overflow-hidden rounded-[14px] transition-colors neo-border"
                         style={{
-                          background: isExpanded ? prov.color : "#ffffff",
+                          background: isConnected || isExpanded ? prov.color : "#ffffff",
                         }}
                       >
                         <div
                           onClick={() =>
+                            !isConnected &&
                             setExpandedProvider(isExpanded ? null : prov.id)
                           }
                           className="cursor-pointer px-4 pt-4 pb-3"
@@ -158,13 +192,19 @@ export function SettingsView() {
                             <span className="font-heading text-[15px] font-extrabold">
                               {prov.name}
                             </span>
-                            <NeoBadge color="#ffffff" className="text-[10px]">
-                              {prov.badge}
-                            </NeoBadge>
+                            {isConnected ? (
+                              <NeoBadge color="var(--mint)" className="text-[10px]">
+                                ✓ Connected
+                              </NeoBadge>
+                            ) : (
+                              <NeoBadge color="#ffffff" className="text-[10px]">
+                                {prov.badge}
+                              </NeoBadge>
+                            )}
                           </div>
                           <div className="text-xs text-[#666]">{prov.desc}</div>
                         </div>
-                        {isExpanded && (
+                        {isExpanded && !isConnected && (
                           <div className="border-t-2 border-[var(--foreground)] px-4 pb-4">
                             <a
                               href="#"
@@ -252,7 +292,6 @@ export function SettingsView() {
                                 variant="secondary"
                                 size="sm"
                                 onClick={() => {
-                                  setOauthConnected((p) => ({ ...p, [prov.id]: true }));
                                   toast(`Connected to ${prov.name}!`);
                                   setShowProviderUI(false);
                                 }}
@@ -277,13 +316,13 @@ export function SettingsView() {
               <div>
                 <label className="mb-1.5 block text-xs font-bold">Full Name</label>
                 <div className="rounded-full bg-[#f5f5f5] px-4 py-2.5 text-sm text-[#666] neo-border-sm">
-                  Alex Johnson
+                  {accountName}
                 </div>
               </div>
               <div>
                 <label className="mb-1.5 block text-xs font-bold">Email</label>
                 <div className="rounded-full bg-[#f5f5f5] px-4 py-2.5 text-sm text-[#666] neo-border-sm">
-                  alex@example.com
+                  {accountEmail}
                 </div>
               </div>
             </div>
