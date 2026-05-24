@@ -94,23 +94,13 @@ function ChevronPipeline({
 
   const total = TRACKER_STAGES.reduce((sum, s) => sum + counts[s.key], 0);
 
-  const chevronClip = (isFirst: boolean, isLast: boolean) => {
-    if (isLast) return undefined;
-    if (isFirst) {
-      return "polygon(0 0, calc(100% - 18px) 0, 100% 50%, calc(100% - 18px) 100%, 0 100%, 0 0)";
-    }
-    return "polygon(18px 0, calc(100% - 18px) 0, 100% 50%, calc(100% - 18px) 100%, 18px 100%, 0 50%)";
-  };
-
   return (
-    <div className="mb-6 overflow-hidden rounded-2xl neo-border">
+    <div className="mb-6 overflow-hidden rounded-2xl neo-border bg-white">
       <div className="flex">
         {TRACKER_STAGES.map((stage, i) => {
           const count = counts[stage.key];
           const active = activeStage === stage.key;
           const hasItems = count > 0;
-          const isFirst = i === 0;
-          const isLast = i === TRACKER_STAGES.length - 1;
           const baseBg = active
             ? STATUS_COLORS[stage.key]
             : hasItems
@@ -128,14 +118,11 @@ function ChevronPipeline({
                   onStageClick(active ? null : stage.key);
                 }
               }}
-              className="min-w-0 flex-1 cursor-pointer py-[18px] text-center transition-[background] duration-200 ease-in-out"
-              style={{
-                paddingLeft: isFirst ? 12 : 24,
-                paddingRight: 12,
-                background: baseBg,
-                clipPath: chevronClip(isFirst, isLast),
-                marginRight: isLast ? 0 : -12,
-              }}
+              className={cn(
+                "min-w-0 flex-1 cursor-pointer px-3 py-[18px] text-center transition-[background] duration-200 ease-in-out",
+                i > 0 && "border-l-2 border-[var(--foreground)]",
+              )}
+              style={{ background: baseBg }}
               onMouseEnter={(e) => {
                 if (!active) {
                   e.currentTarget.style.background = `${STATUS_COLORS[stage.key]}88`;
@@ -588,21 +575,17 @@ export function JobBoardView() {
             />
           </div>
 
-          <div className="flex items-center gap-2 rounded-full border-2 border-[var(--foreground)] bg-white px-3.5 py-1.5">
-            <TrackerCheckbox
-              checked={allSelected}
-              indeterminate={someSelected}
-              onChange={toggleAll}
-              ariaLabel="Select all visible jobs"
-            />
-            <span className="text-[13px] font-bold text-[#666]">
-              {selected.size} selected
-            </span>
+          <div className="flex items-center gap-2">
+            <div className="rounded-full border-2 border-[var(--foreground)] bg-white px-3.5 py-1.5">
+              <span className="text-[13px] font-bold text-[#666]">
+                {selected.size} selected
+              </span>
+            </div>
             {selected.size > 0 && (
               <NeoButton
                 variant="danger"
                 size="sm"
-                className="ml-1 px-2.5 py-1 text-[11px]"
+                className="px-2.5 py-1 text-[11px]"
                 onClick={() => void handleRemoveSelected()}
               >
                 Remove
@@ -695,7 +678,7 @@ export function JobBoardView() {
         {viewMode === "list" ? (
           <div className="overflow-hidden rounded-2xl bg-white neo-border">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] border-collapse">
+              <table className="w-full border-collapse">
                 <thead>
                   <tr>
                     <th className="sticky top-0 z-10 w-11 border-b-[2.5px] border-r-2 border-[var(--foreground)] bg-white px-3 py-2.5 text-left">
@@ -712,7 +695,7 @@ export function JobBoardView() {
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
-                      className="min-w-[180px]"
+                      className="min-w-[140px]"
                     />
                     <ColHeader
                       label="Company"
@@ -720,15 +703,15 @@ export function JobBoardView() {
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
-                      className="min-w-[120px]"
+                      className="min-w-[100px]"
                     />
                     <ColHeader
-                      label="Max. Salary"
+                      label="Salary Range"
                       sortKey="salary"
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
-                      className="min-w-[110px]"
+                      className="min-w-[96px]"
                     />
                     <ColHeader
                       label="Location"
@@ -736,7 +719,7 @@ export function JobBoardView() {
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
-                      className="min-w-[130px]"
+                      className="min-w-[96px]"
                     />
                     <ColHeader
                       label="Status"
@@ -744,39 +727,7 @@ export function JobBoardView() {
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
-                      className="min-w-[110px]"
-                    />
-                    <ColHeader
-                      label="Date Saved"
-                      sortKey="dateAdded"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                      className="min-w-[110px]"
-                    />
-                    <ColHeader
-                      label="Deadline"
-                      sortKey="deadline"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                      className="min-w-[100px]"
-                    />
-                    <ColHeader
-                      label="Date Applied"
-                      sortKey="dateApplied"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                      className="min-w-[120px]"
-                    />
-                    <ColHeader
-                      label="Follow Up"
-                      sortKey="followUp"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                      className="min-w-[110px]"
+                      className="min-w-[96px]"
                     />
                     <ColHeader
                       label="Excitement"
@@ -784,7 +735,39 @@ export function JobBoardView() {
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
-                      className="min-w-[130px] border-r-0"
+                      className="min-w-[108px]"
+                    />
+                    <ColHeader
+                      label="Date Saved"
+                      sortKey="dateAdded"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                      className="min-w-[96px]"
+                    />
+                    <ColHeader
+                      label="Deadline"
+                      sortKey="deadline"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                      className="min-w-[88px]"
+                    />
+                    <ColHeader
+                      label="Date Applied"
+                      sortKey="dateApplied"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                      className="min-w-[96px]"
+                    />
+                    <ColHeader
+                      label="Follow Up"
+                      sortKey="followUp"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                      className="min-w-[96px] border-r-0"
                     />
                   </tr>
                 </thead>
@@ -843,7 +826,7 @@ export function JobBoardView() {
                           <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px] text-[#555]">
                             {job.salary}
                           </td>
-                          <td className="max-w-[130px] border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px] text-[#555]">
+                          <td className="max-w-[120px] border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px] text-[#555]">
                             <span className="block truncate">{job.location}</span>
                           </td>
                           <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle">
@@ -869,6 +852,14 @@ export function JobBoardView() {
                               <option value="Rejected">Rejected</option>
                             </select>
                           </td>
+                          <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle">
+                            <StarRating
+                              value={job.excitement}
+                              onChange={(val) =>
+                                void handleExcitementChange(job.id, val)
+                              }
+                            />
+                          </td>
                           <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px] text-[#555]">
                             {job.dateAdded}
                           </td>
@@ -881,7 +872,7 @@ export function JobBoardView() {
                           >
                             {job.dateApplied || "—"}
                           </td>
-                          <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px] text-[#aaa]">
+                          <td className="border-b-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px] text-[#aaa]">
                             {job.followUp ? (
                               <span className="text-[#555]">{job.followUp}</span>
                             ) : (
@@ -893,14 +884,6 @@ export function JobBoardView() {
                                 Add date
                               </button>
                             )}
-                          </td>
-                          <td className="border-b-2 border-[var(--foreground)] px-3 py-3 align-middle">
-                            <StarRating
-                              value={job.excitement}
-                              onChange={(val) =>
-                                void handleExcitementChange(job.id, val)
-                              }
-                            />
                           </td>
                         </tr>
                       );

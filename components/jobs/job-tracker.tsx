@@ -546,11 +546,11 @@ function KanbanView({
   const columns = [...STATUS_STAGES, "Rejected" as const];
 
   return (
-    <div className="flex flex-1 items-start gap-4 overflow-x-auto p-6">
+    <div className="flex flex-1 items-start gap-3 overflow-hidden p-6">
       {columns.map((col) => {
         const colJobs = jobs.filter((j) => j.status === col);
         return (
-          <div key={col} className="w-[220px] shrink-0">
+          <div key={col} className="flex min-w-0 flex-1 flex-col">
             <div className="mb-3 flex items-center gap-2">
               <NeoBadge
                 color={STATUS_COLORS[col] ?? "#ffffff"}
@@ -558,7 +558,9 @@ function KanbanView({
               >
                 {col}
               </NeoBadge>
-              <span className="text-xs font-semibold text-[#888]">{colJobs.length}</span>
+              <span className="text-xs font-semibold text-[#888]">
+                {colJobs.length}
+              </span>
             </div>
             <div className="flex flex-col gap-2.5">
               {colJobs.map((job) => (
@@ -568,7 +570,9 @@ function KanbanView({
                   className="cursor-pointer rounded-[14px] bg-white p-4 neo-border transition-neo hover:-translate-y-0.5 hover:bg-[var(--mint-l)]"
                 >
                   <div className="mb-1 text-[13px] font-bold">{job.title}</div>
-                  <div className="mb-2 text-xs font-medium text-[#666]">{job.company}</div>
+                  <div className="mb-2 text-xs font-medium text-[#666]">
+                    {job.company}
+                  </div>
                   {job.matchScore !== null && (
                     <MatchScore score={job.matchScore} size="sm" />
                   )}
@@ -576,7 +580,7 @@ function KanbanView({
               ))}
               {colJobs.length === 0 && (
                 <div className="rounded-[14px] border-2 border-dashed border-[#ddd] p-4 text-center text-xs text-[#aaa]">
-                  No jobs
+                  No job displayed here
                 </div>
               )}
             </div>

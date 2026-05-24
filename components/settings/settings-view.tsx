@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useClerk, useUser } from "@clerk/nextjs";
 import { useToast } from "@/components/providers";
 import { NeoBadge } from "@/components/ui/neo-badge";
 import { NeoButton } from "@/components/ui/neo-button";
 import { NeoCard } from "@/components/ui/neo-card";
 import { NeoInput } from "@/components/ui/neo-input";
+import { KeyIcon, LinkIcon, LockIcon } from "@/components/ui/provider-icons";
 
 const PROVIDERS = [
   { id: "openai", name: "OpenAI", desc: "GPT-4o & o1", badge: "Pay-as-you-go", color: "var(--mint)" },
@@ -38,6 +40,8 @@ function SettingsSection({
 
 export function SettingsView() {
   const toast = useToast();
+  const { user } = useUser();
+  const { openUserProfile } = useClerk();
   const [showProviderUI, setShowProviderUI] = useState(false);
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
   const [providerType, setProviderType] = useState<"apikey" | "oauth">("apikey");
@@ -46,6 +50,50 @@ export function SettingsView() {
   const [verifying, setVerifying] = useState(false);
   const [showDangerConfirm, setShowDangerConfirm] = useState<string | null>(null);
   const [oauthConnected, setOauthConnected] = useState<Record<string, boolean>>({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [notifications, setNotifications] = useState({
+    resumeComplete: true,
+    applicationReminders: false,
+    weeklySummary: true,
+  });
+
+  const notificationItems = [
+    {
+      id: "resumeComplete" as const,
+      label: "Resume generation complete",
+      desc: "Get notified when your AI resume is ready",
+    },
+    {
+      id: "applicationReminders" as const,
+      label: "Application reminders",
+      desc: "Reminders to follow up on applications",
+    },
+    {
+      id: "weeklySummary" as const,
+      label: "Weekly summary",
+      desc: "A digest of your job hunt activity",
+    },
+  ];
+
+  const accountEmail =
+    user?.primaryEmailAddress?.emailAddress ?? "alex@example.com";
+  const maskedPassword = "••••••••••••";
+
+  const handleChangeEmail = () => {
+    if (openUserProfile) {
+      openUserProfile();
+      return;
+    }
+    toast("Redirecting to change email...");
+  };
+
+  const handleChangePassword = () => {
+    if (openUserProfile) {
+      openUserProfile();
+      return;
+    }
+    toast("Redirecting to change password...");
+  };
 
   const currentProvider = {
     name: "Anthropic",
@@ -114,24 +162,25 @@ export function SettingsView() {
               <div className="mb-4 flex w-fit overflow-hidden rounded-full neo-border">
                 {(
                   [
-                    ["apikey", "🔑  API Key"],
-                    ["oauth", "🔗  OAuth / SSO"],
+                    ["apikey", "API Key", KeyIcon] as const,
+                    ["oauth", "OAuth / SSO", LinkIcon] as const,
                   ] as const
-                ).map(([v, l]) => (
+                ).map(([v, label, Icon]) => (
                   <button
                     key={v}
                     onClick={() => {
                       setProviderType(v);
                       setExpandedProvider(null);
                     }}
-                    className="cursor-pointer border-none px-5 py-2 font-sans text-[13px] font-bold"
+                    className="inline-flex cursor-pointer items-center gap-2 border-none px-5 py-2 font-sans text-[13px] font-bold"
                     style={{
                       background:
                         providerType === v ? "var(--foreground)" : "#ffffff",
                       color: providerType === v ? "#ffffff" : "var(--foreground)",
                     }}
                   >
-                    {l}
+                    <Icon />
+                    {label}
                   </button>
                 ))}
               </div>
@@ -208,8 +257,9 @@ export function SettingsView() {
 
               {providerType === "oauth" && (
                 <>
-                  <div className="mb-3 rounded-[10px] bg-[var(--lav-l)] px-3.5 py-2 text-xs font-medium text-[#555] neo-border-sm">
-                    🔒 We never read your code or files — only the AI inference endpoint.
+                  <div className="mb-3 flex items-center gap-2 rounded-[10px] bg-[var(--lav-l)] px-3.5 py-2 text-xs font-medium text-[#555] neo-border-sm">
+                    <LockIcon className="shrink-0" />
+                    We never read your code or files — only the AI inference endpoint.
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     {OAUTH.map((prov) => {
@@ -273,54 +323,103 @@ export function SettingsView() {
 
         <SettingsSection title="Account">
           <NeoCard>
-            <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <label className="mb-1.5 block text-xs font-bold">Full Name</label>
-                <div className="rounded-full bg-[#f5f5f5] px-4 py-2.5 text-sm text-[#666] neo-border-sm">
-                  Alex Johnson
-                </div>
-              </div>
+            <div className="flex flex-col gap-5">
               <div>
                 <label className="mb-1.5 block text-xs font-bold">Email</label>
-                <div className="rounded-full bg-[#f5f5f5] px-4 py-2.5 text-sm text-[#666] neo-border-sm">
-                  alex@example.com
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-center">
+                  <div className="flex min-h-[42px] items-center rounded-full bg-[#f5f5f5] px-4 py-2.5 text-sm text-[#444] neo-border-sm">
+                    <span className="truncate">{accountEmail}</span>
+                  </div>
+                  <NeoButton
+                    variant="secondary"
+                    size="sm"
+                    className="w-full justify-center sm:w-[12rem]"
+                    onClick={handleChangeEmail}
+                  >
+                    Change email →
+                  </NeoButton>
                 </div>
               </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-bold">Password</label>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-center">
+                  <div className="relative min-w-0">
+                    <div className="flex min-h-[42px] items-center rounded-full bg-[#f5f5f5] py-2.5 pr-12 pl-4 text-sm text-[#444] neo-border-sm">
+                      {showPassword ? (
+                        <span className="truncate font-medium text-[#666]">
+                          Secured by Clerk — not shown for safety
+                        </span>
+                      ) : (
+                        <span className="font-mono">{maskedPassword}</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((value) => !value)}
+                      aria-label={showPassword ? "Hide password" : "View password"}
+                      className="absolute top-1/2 right-3 flex h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-none bg-white text-[var(--foreground)] neo-border-sm transition-transform hover:scale-105"
+                    >
+                      {showPassword ? (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden
+                        >
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                          <line x1="1" y1="1" x2="23" y2="23" />
+                        </svg>
+                      ) : (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden
+                        >
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                  <NeoButton
+                    variant="secondary"
+                    size="sm"
+                    className="w-full justify-center sm:w-[12rem]"
+                    onClick={handleChangePassword}
+                  >
+                    Change password →
+                  </NeoButton>
+                </div>
+              </div>
+
+              <p className="text-xs text-[#888]">
+                Email and password are managed through your auth provider (Clerk).
+                Update your full name on the Profile page.
+              </p>
             </div>
-            <p className="mb-4 text-xs text-[#888]">
-              Name and email are managed through your auth provider (Clerk).
-            </p>
-            <NeoButton
-              variant="secondary"
-              size="sm"
-              onClick={() => toast("Redirecting to change password...")}
-            >
-              Change password →
-            </NeoButton>
           </NeoCard>
         </SettingsSection>
 
         <SettingsSection title="Notifications">
           <NeoCard>
-            {[
-              {
-                label: "Resume generation complete",
-                desc: "Get notified when your AI resume is ready",
-                on: true,
-              },
-              {
-                label: "Application reminders",
-                desc: "Reminders to follow up on applications",
-                on: false,
-              },
-              {
-                label: "Weekly summary",
-                desc: "A digest of your job hunt activity",
-                on: true,
-              },
-            ].map((item, i, arr) => (
+            {notificationItems.map((item, i, arr) => {
+              const on = notifications[item.id];
+              return (
               <div
-                key={item.label}
+                key={item.id}
                 className="flex items-center justify-between py-3"
                 style={{
                   borderBottom:
@@ -334,17 +433,28 @@ export function SettingsView() {
                   <div className="mt-0.5 text-xs text-[#888]">{item.desc}</div>
                 </div>
                 <button
-                  onClick={() => toast("Preference updated")}
+                  type="button"
+                  role="switch"
+                  aria-checked={on}
+                  aria-label={item.label}
+                  onClick={() => {
+                    setNotifications((prev) => ({
+                      ...prev,
+                      [item.id]: !prev[item.id],
+                    }));
+                    toast("Preference updated");
+                  }}
                   className="relative h-6 w-11 shrink-0 cursor-pointer rounded-full neo-border-sm"
-                  style={{ background: item.on ? "var(--mint)" : "#dddddd" }}
+                  style={{ background: on ? "var(--mint)" : "#dddddd" }}
                 >
                   <div
-                    className="absolute top-0.5 h-4 w-4 rounded-full bg-white neo-border-sm transition-[left]"
-                    style={{ left: item.on ? 22 : 2 }}
+                    className="absolute top-0.5 h-4 w-4 rounded-full bg-white neo-border-sm transition-[left] duration-200"
+                    style={{ left: on ? 22 : 2 }}
                   />
                 </button>
               </div>
-            ))}
+            );
+            })}
           </NeoCard>
         </SettingsSection>
 

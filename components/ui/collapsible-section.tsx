@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { Children, isValidElement, useState, type ReactElement, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 type CollapsibleSectionProps = {
@@ -157,11 +157,28 @@ export function CollapsibleSection({
 export function ProfileSectionStack({
   children,
   className,
+  layout = "columns",
 }: {
   children: ReactNode;
   className?: string;
+  layout?: "single" | "columns";
 }) {
+  const items = Children.toArray(children).filter(isValidElement) as ReactElement[];
+
+  if (layout === "single") {
+    return <div className={cn("flex flex-col gap-3", className)}>{items}</div>;
+  }
+
+  const left = items.filter((_, index) => index % 2 === 0);
+  const right = items.filter((_, index) => index % 2 === 1);
+
   return (
-    <div className={cn("flex flex-col gap-3", className)}>{children}</div>
+    <div className={cn(className)}>
+      <div className="flex flex-col gap-3 md:hidden">{items}</div>
+      <div className="hidden items-start gap-3 md:flex">
+        <div className="flex min-w-0 flex-1 flex-col gap-3">{left}</div>
+        <div className="flex min-w-0 flex-1 flex-col gap-3">{right}</div>
+      </div>
+    </div>
   );
 }

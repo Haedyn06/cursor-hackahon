@@ -64,7 +64,7 @@ export const API_PROVIDERS = [
     desc: "GPT-4o, o1, o3",
     badge: "API Key",
     color: COLORS.mint,
-    icon: "⬡",
+    icon: "hexagon",
   },
   {
     id: "anthropic",
@@ -72,7 +72,7 @@ export const API_PROVIDERS = [
     desc: "Claude 3.5 Sonnet/Haiku",
     badge: "API Key",
     color: COLORS.lav,
-    icon: "◈",
+    icon: "layers",
   },
   {
     id: "groq",
@@ -80,7 +80,7 @@ export const API_PROVIDERS = [
     desc: "Llama 3.3 — ultra fast",
     badge: "Free tier",
     color: COLORS.peach,
-    icon: "▲",
+    icon: "triangle",
   },
   {
     id: "gemini",
@@ -88,7 +88,7 @@ export const API_PROVIDERS = [
     desc: "Gemini 1.5 / 2.0 Flash",
     badge: "Free tier",
     color: COLORS.yellow,
-    icon: "◆",
+    icon: "diamond",
   },
   {
     id: "mistral",
@@ -96,7 +96,7 @@ export const API_PROVIDERS = [
     desc: "Mistral Large 2",
     badge: "Free tier",
     color: COLORS.mintL,
-    icon: "◇",
+    icon: "diamond-outline",
   },
   {
     id: "together",
@@ -104,7 +104,7 @@ export const API_PROVIDERS = [
     desc: "70+ open-source models",
     badge: "Free tier",
     color: COLORS.lavL,
-    icon: "⊕",
+    icon: "nodes",
   },
 ] as const;
 
@@ -115,7 +115,7 @@ export const OAUTH_PROVIDERS = [
     desc: "GPT-4o via GitHub — use existing subscription",
     badge: "OAuth",
     color: COLORS.mint,
-    icon: "⬡",
+    icon: "hexagon",
   },
   {
     id: "codex",
@@ -123,7 +123,7 @@ export const OAUTH_PROVIDERS = [
     desc: "Code-optimized models via OpenAI platform",
     badge: "OAuth",
     color: COLORS.lav,
-    icon: "{ }",
+    icon: "brackets",
   },
   {
     id: "antigravity",
@@ -131,7 +131,7 @@ export const OAUTH_PROVIDERS = [
     desc: "Next-gen reasoning & code models",
     badge: "OAuth · New",
     color: COLORS.peach,
-    icon: "∞",
+    icon: "infinity",
   },
   {
     id: "cursor",
@@ -139,7 +139,7 @@ export const OAUTH_PROVIDERS = [
     desc: "AI models from the Cursor IDE platform",
     badge: "OAuth",
     color: COLORS.yellow,
-    icon: "↗",
+    icon: "arrow-up-right",
   },
   {
     id: "codeium",
@@ -147,7 +147,7 @@ export const OAUTH_PROVIDERS = [
     desc: "Codeium AI models — generous free tier",
     badge: "OAuth · Free",
     color: COLORS.mintL,
-    icon: "≈",
+    icon: "waves",
   },
   {
     id: "amazonq",
@@ -155,7 +155,7 @@ export const OAUTH_PROVIDERS = [
     desc: "AWS-native AI — great for AWS workloads",
     badge: "OAuth",
     color: COLORS.lavL,
-    icon: "▸",
+    icon: "chevron-right",
   },
 ] as const;
 

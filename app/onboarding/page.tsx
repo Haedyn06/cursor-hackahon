@@ -17,6 +17,12 @@ import {
   ProfileSectionStack,
 } from "@/components/ui/collapsible-section";
 import {
+  KeyIcon,
+  LinkIcon,
+  LockIcon,
+  ProviderIconBadge,
+} from "@/components/ui/provider-icons";
+import {
   API_PROVIDERS,
   OAUTH_PROVIDERS,
 } from "@/lib/constants";
@@ -61,9 +67,11 @@ function ApiKeyCard({
     >
       <div onClick={onExpand} className="cursor-pointer px-[18px] pt-[18px] pb-3.5">
         <div className="mb-1.5 flex items-start gap-2">
-          <span className="shrink-0 font-mono text-lg font-extrabold leading-snug">
-            {prov.icon}
-          </span>
+          <ProviderIconBadge
+            providerId={prov.id}
+            icon={prov.icon}
+            color={prov.color}
+          />
           <div className="min-w-0">
             <div className="mb-1 font-heading text-sm font-extrabold leading-tight">
               {prov.name}
@@ -141,9 +149,11 @@ function OAuthCard({
     >
       <div onClick={onExpand} className="cursor-pointer px-[18px] pt-[18px] pb-3.5">
         <div className="mb-1.5 flex items-start gap-2">
-          <span className="shrink-0 font-mono text-lg font-extrabold leading-snug">
-            {prov.icon}
-          </span>
+          <ProviderIconBadge
+            providerId={prov.id}
+            icon={prov.icon}
+            color={prov.color}
+          />
           <div className="min-w-0">
             <div className="mb-1 font-heading text-sm font-extrabold leading-tight">
               {prov.name}
@@ -855,7 +865,7 @@ export default function OnboardingPage() {
         <div className="w-[120px]" />
       </div>
 
-      <div className="mx-auto w-full max-w-[800px] flex-1 px-6 py-12">
+      <div className="mx-auto w-full max-w-[1100px] flex-1 px-8 py-12 lg:px-10">
         {step === 1 && (
           <div>
             <div className="mb-10 text-center">
@@ -874,24 +884,25 @@ export default function OnboardingPage() {
             <div className="mx-auto mb-7 flex w-fit overflow-hidden rounded-full neo-border">
               {(
                 [
-                  ["apikey", "🔑  API Key"],
-                  ["oauth", "🔗  OAuth / SSO"],
+                  ["apikey", "API Key", KeyIcon] as const,
+                  ["oauth", "OAuth / SSO", LinkIcon] as const,
                 ] as const
-              ).map(([v, l]) => (
+              ).map(([v, label, Icon]) => (
                 <button
                   key={v}
                   onClick={() => {
                     setProviderType(v);
                     setExpandedProvider(null);
                   }}
-                  className="cursor-pointer border-none px-7 py-2.5 font-sans text-sm font-bold"
+                  className="inline-flex cursor-pointer items-center gap-2 border-none px-7 py-2.5 font-sans text-sm font-bold"
                   style={{
                     background:
                       providerType === v ? "var(--foreground)" : "#ffffff",
                     color: providerType === v ? "#ffffff" : "var(--foreground)",
                   }}
                 >
-                  {l}
+                  <Icon />
+                  {label}
                 </button>
               ))}
             </div>
@@ -924,8 +935,9 @@ export default function OnboardingPage() {
 
             {providerType === "oauth" && (
               <>
-                <div className="mb-4 rounded-xl bg-[var(--lav-l)] px-4 py-2.5 text-[13px] font-medium text-[#555] neo-border-sm">
-                  🔒 OAuth connection never shares your code or files.
+                <div className="mb-4 flex items-center gap-2 rounded-xl bg-[var(--lav-l)] px-4 py-2.5 text-[13px] font-medium text-[#555] neo-border-sm">
+                  <LockIcon className="shrink-0" />
+                  OAuth connection never shares your code or files.
                 </div>
                 <div className="mb-7 grid grid-cols-1 gap-3.5 sm:grid-cols-3">
                   {OAUTH_PROVIDERS.map((prov) => (
@@ -1021,11 +1033,6 @@ export default function OnboardingPage() {
                 description="LinkedIn, portfolio, GitHub, and other profiles"
                 color="var(--lav)"
                 defaultOpen={false}
-                action={
-                  <NeoButton variant="secondary" size="sm" onClick={addLinkEntry}>
-                    + Add
-                  </NeoButton>
-                }
               >
                 <div className="flex flex-col gap-3">
                   {profile.links.map((entry) => (
@@ -1067,6 +1074,9 @@ export default function OnboardingPage() {
                       )}
                     </ProfileFormEntry>
                   ))}
+                  <NeoButton variant="secondary" size="sm" onClick={addLinkEntry}>
+                    + Add link
+                  </NeoButton>
                 </div>
               </CollapsibleSection>
 
@@ -1156,11 +1166,6 @@ export default function OnboardingPage() {
                 description="Roles, companies, and bullet points for your resume"
                 color="var(--lav)"
                 defaultOpen={false}
-                action={
-                  <NeoButton variant="secondary" size="sm" onClick={addExperienceEntry}>
-                    + Add role
-                  </NeoButton>
-                }
               >
                 <div className="flex flex-col gap-3">
                   {profile.experience_entries.map((entry) => (
@@ -1230,6 +1235,13 @@ export default function OnboardingPage() {
                       )}
                     </ProfileFormEntry>
                   ))}
+                  <NeoButton
+                    variant="secondary"
+                    size="sm"
+                    onClick={addExperienceEntry}
+                  >
+                    + Add role
+                  </NeoButton>
                 </div>
               </CollapsibleSection>
 
@@ -1238,11 +1250,6 @@ export default function OnboardingPage() {
                 description="Languages you speak and your proficiency level"
                 color="var(--lav-l)"
                 defaultOpen={false}
-                action={
-                  <NeoButton variant="secondary" size="sm" onClick={addLanguageEntry}>
-                    + Add
-                  </NeoButton>
-                }
               >
                 <div className="flex flex-col gap-3">
                   {profile.languages.map((entry) => (
@@ -1294,6 +1301,9 @@ export default function OnboardingPage() {
                       )}
                     </ProfileFormEntry>
                   ))}
+                  <NeoButton variant="secondary" size="sm" onClick={addLanguageEntry}>
+                    + Add language
+                  </NeoButton>
                 </div>
               </CollapsibleSection>
 
@@ -1302,15 +1312,6 @@ export default function OnboardingPage() {
                 description="Professional certs, licenses, and credentials"
                 color="var(--peach-l)"
                 defaultOpen={false}
-                action={
-                  <NeoButton
-                    variant="secondary"
-                    size="sm"
-                    onClick={addCertificationEntry}
-                  >
-                    + Add
-                  </NeoButton>
-                }
               >
                 <div className="flex flex-col gap-3">
                   {profile.certifications.map((entry) => (
@@ -1372,18 +1373,25 @@ export default function OnboardingPage() {
                       )}
                     </ProfileFormEntry>
                   ))}
+                  <NeoButton
+                    variant="secondary"
+                    size="sm"
+                    onClick={addCertificationEntry}
+                  >
+                    + Add certification
+                  </NeoButton>
                 </div>
               </CollapsibleSection>
-
-              <div className="flex justify-between pt-2">
-                <NeoButton variant="secondary" onClick={() => setStep(1)}>
-                  ← Back
-                </NeoButton>
-                <NeoButton variant="primary" onClick={() => setStep(3)}>
-                  Save & Continue →
-                </NeoButton>
-              </div>
             </ProfileSectionStack>
+
+            <div className="mt-3 flex justify-between pt-2">
+              <NeoButton variant="secondary" onClick={() => setStep(1)}>
+                ← Back
+              </NeoButton>
+              <NeoButton variant="primary" onClick={() => setStep(3)}>
+                Save & Continue →
+              </NeoButton>
+            </div>
           </div>
         )}
 
@@ -1409,12 +1417,9 @@ export default function OnboardingPage() {
                 ← Back
               </NeoButton>
               <div className="flex items-center gap-3">
-                <button
-                  onClick={finish}
-                  className="cursor-pointer border-none bg-transparent text-[13px] font-semibold text-[#888] underline"
-                >
-                  Skip
-                </button>
+                <NeoButton variant="secondary" onClick={finish}>
+                  Skip for now
+                </NeoButton>
                 <NeoButton
                   variant="primary"
                   onClick={finish}

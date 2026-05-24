@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useToast } from "@/components/providers";
 import { NeoBadge } from "@/components/ui/neo-badge";
 import { NeoButton } from "@/components/ui/neo-button";
@@ -33,6 +33,12 @@ const LANGUAGE_LEVELS = [
   "Conversational",
   "Basic",
 ];
+
+const EXPORT_FORMATS = [
+  { id: "pdf", label: "PDF" },
+  { id: "docx", label: "DOCX" },
+  { id: "txt", label: "TXT" },
+] as const;
 
 function PencilButton({
   onClick,
@@ -89,12 +95,12 @@ export function ProfileView() {
   const toast = useToast();
   const { confirm, dialog } = useConfirm();
   const [activeSection, setActiveSection] = useState("personal");
-  const [newSkill, setNewSkill] = useState("");
   const [exportFormat, setExportFormat] = useState<"pdf" | "docx" | "txt">("pdf");
   const [profile, setProfile] = useState(() => getInitialProfile());
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(NAV_ITEMS.map((item) => [item.id, true])),
   );
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Record<string, unknown> | null>(
     null,
@@ -124,7 +130,10 @@ export function ProfileView() {
   };
 
   const handleExportProfile = () => {
-    toast(`Export as ${exportFormat.toUpperCase()} — coming soon!`);
+    const formatLabel =
+      EXPORT_FORMATS.find((format) => format.id === exportFormat)?.label ??
+      exportFormat.toUpperCase();
+    toast(`Export as ${formatLabel} document — coming soon!`);
   };
 
   const setSectionOpen = (id: string, open: boolean) => {
@@ -134,10 +143,17 @@ export function ProfileView() {
   const scrollTo = (id: string) => {
     setActiveSection(id);
     setSectionOpen(id, true);
-    document.getElementById(`section-${id}`)?.scrollIntoView({
-      block: "start",
-      behavior: "smooth",
-    });
+    window.setTimeout(() => {
+      const container = scrollContainerRef.current;
+      const section = document.getElementById(`section-${id}`);
+      if (!container || !section) return;
+
+      const containerTop = container.getBoundingClientRect().top;
+      const sectionTop = section.getBoundingClientRect().top;
+      const offset = sectionTop - containerTop + container.scrollTop - 24;
+
+      container.scrollTo({ top: offset, behavior: "smooth" });
+    }, 320);
   };
 
   return (
@@ -161,18 +177,23 @@ export function ProfileView() {
       </div>
 
       <div
+        ref={scrollContainerRef}
         className="flex-1 overflow-y-auto px-10 py-8"
         onScroll={() => {
+          const container = scrollContainerRef.current;
+          if (!container) return;
+
           for (const item of NAV_ITEMS) {
             const el = document.getElementById(`section-${item.id}`);
-            if (el) {
-              const rect = el.getBoundingClientRect();
-              if (rect.top <= 200) setActiveSection(item.id);
-            }
+            if (!el) continue;
+
+            const containerTop = container.getBoundingClientRect().top;
+            const sectionTop = el.getBoundingClientRect().top - containerTop;
+            if (sectionTop <= 120) setActiveSection(item.id);
           }
         }}
       >
-        <div className="max-w-[720px]">
+        <div className="max-w-[800px]">
           <NeoCard className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-start gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--yellow)] text-lg neo-border-sm">
@@ -188,20 +209,14 @@ export function ProfileView() {
                 </p>
               </div>
             </div>
-            <div className="flex shrink-0 flex-col items-stretch gap-2.5 sm:items-end">
-              <div className="flex overflow-hidden rounded-full neo-border-sm">
-                {(
-                  [
-                    ["pdf", "PDF"],
-                    ["docx", "DOCX"],
-                    ["txt", "TXT"],
-                  ] as const
-                ).map(([id, label], idx) => (
+            <div className="flex w-full shrink-0 flex-col gap-2 sm:w-[240px]">
+              <div className="flex w-full overflow-hidden rounded-full neo-border-sm">
+                {EXPORT_FORMATS.map(({ id, label }, idx) => (
                   <button
                     key={id}
                     type="button"
                     onClick={() => setExportFormat(id)}
-                    className="cursor-pointer border-none px-3 py-1.5 font-sans text-[11px] font-bold transition-[background,color] duration-150"
+                    className="flex-1 cursor-pointer border-none px-3 py-2 font-sans text-[11px] font-bold transition-[background,color] duration-150"
                     style={{
                       background:
                         exportFormat === id
@@ -210,7 +225,9 @@ export function ProfileView() {
                       color:
                         exportFormat === id ? "#ffffff" : "var(--foreground)",
                       borderRight:
-                        idx < 2 ? "2px solid var(--foreground)" : undefined,
+                        idx < EXPORT_FORMATS.length - 1
+                          ? "2px solid var(--foreground)"
+                          : undefined,
                     }}
                   >
                     {label}
@@ -221,7 +238,7 @@ export function ProfileView() {
                 variant="secondary"
                 size="sm"
                 onClick={handleExportProfile}
-                className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
+                className="inline-flex w-full items-center justify-center gap-1.5 whitespace-nowrap"
               >
                 <svg
                   width="14"
@@ -238,16 +255,19 @@ export function ProfileView() {
                   <polyline points="7 10 12 15 17 10" />
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
-                Export as document
+                Export as{" "}
+                {EXPORT_FORMATS.find((format) => format.id === exportFormat)
+                  ?.label ?? exportFormat.toUpperCase()}{" "}
+                document
               </NeoButton>
             </div>
           </NeoCard>
 
-          <ProfileSectionStack>
+          <ProfileSectionStack layout="single">
           <CollapsibleSection
             id="section-personal"
             label="Personal Info"
-            description="Name, contact details, and professional summary"
+            description="Your name and how employers can reach you"
             color="var(--mint)"
             open={openSections.personal}
             onOpenChange={(open) => setSectionOpen("personal", open)}
@@ -278,37 +298,6 @@ export function ProfileView() {
                       onChange={(e) => updateDraft({ phone: e.target.value })}
                     />
                   </div>
-                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <NeoInput
-                      label="Target Role"
-                      value={String(editDraft.targetRole ?? "")}
-                      onChange={(e) => updateDraft({ targetRole: e.target.value })}
-                    />
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold">Experience Level</label>
-                      <select
-                        value={String(editDraft.experience ?? "")}
-                        onChange={(e) =>
-                          updateDraft({ experience: e.target.value })
-                        }
-                        className="rounded-full bg-white px-4 py-2.5 font-sans text-sm outline-none neo-border"
-                      >
-                        <option>Internship</option>
-                        <option>Entry Level (0-2 yrs)</option>
-                        <option>Mid Level (2-5 yrs)</option>
-                        <option>Senior (5+ yrs)</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <NeoInput
-                      label="About You"
-                      value={String(editDraft.about ?? "")}
-                      multiline
-                      rows={4}
-                      onChange={(e) => updateDraft({ about: e.target.value })}
-                    />
-                  </div>
                   <EditActions
                     onCancel={cancelEdit}
                     onSave={() =>
@@ -319,9 +308,6 @@ export function ProfileView() {
                           location: String(editDraft.location ?? p.location),
                           email: String(editDraft.email ?? p.email),
                           phone: String(editDraft.phone ?? p.phone),
-                          targetRole: String(editDraft.targetRole ?? p.targetRole),
-                          experience: String(editDraft.experience ?? p.experience),
-                          about: String(editDraft.about ?? p.about),
                         })),
                       )
                     }
@@ -334,9 +320,6 @@ export function ProfileView() {
                       <div className="font-heading text-xl font-extrabold">
                         {profile.name}
                       </div>
-                      <div className="mt-0.5 text-sm font-medium text-[#666]">
-                        {profile.targetRole} · {profile.experience}
-                      </div>
                     </div>
                     <PencilButton
                       label="Edit personal info"
@@ -346,32 +329,23 @@ export function ProfileView() {
                           location: profile.location,
                           email: profile.email,
                           phone: profile.phone,
-                          targetRole: profile.targetRole,
-                          experience: profile.experience,
-                          about: profile.about,
                         })
                       }
                     />
                   </div>
-                  <div className="grid grid-cols-1 gap-3 text-[13px] sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <div>
                       <div className="text-[11px] font-bold text-[#888]">LOCATION</div>
-                      <div className="font-medium">{profile.location}</div>
+                      <div className="mt-1 font-medium">{profile.location}</div>
                     </div>
                     <div>
                       <div className="text-[11px] font-bold text-[#888]">EMAIL</div>
-                      <div className="font-medium">{profile.email}</div>
+                      <div className="mt-1 font-medium">{profile.email}</div>
                     </div>
                     <div>
                       <div className="text-[11px] font-bold text-[#888]">PHONE</div>
-                      <div className="font-medium">{profile.phone}</div>
+                      <div className="mt-1 font-medium">{profile.phone}</div>
                     </div>
-                  </div>
-                  <div className="mt-3">
-                    <div className="text-[11px] font-bold text-[#888]">ABOUT</div>
-                    <p className="text-[13px] leading-relaxed font-medium text-[#555]">
-                      {profile.about}
-                    </p>
                   </div>
                 </>
               )}
@@ -384,23 +358,8 @@ export function ProfileView() {
             color="var(--lav)"
             open={openSections.links}
             onOpenChange={(open) => setSectionOpen("links", open)}
-            action={
-              <NeoButton
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  const newLink = { id: Date.now(), name: "", url: "" };
-                  setProfile((p) => ({
-                    ...p,
-                    links: [...p.links, newLink],
-                  }));
-                  startEdit(`link-${newLink.id}`, { name: "", url: "" });
-                }}
-              >
-                + Add Link
-              </NeoButton>
-            }
           >
+            <div className="flex flex-col gap-3">
             {profile.links.map((link) => {
               const linkKey = `link-${link.id}`;
               const editing = isEditing(linkKey) && editDraft;
@@ -462,7 +421,7 @@ export function ProfileView() {
                           })
                         }
                       />
-                      {profile.links.length > 1 && (
+                      {profile.links.length > 0 && (
                         <button
                           type="button"
                           onClick={async () => {
@@ -489,6 +448,21 @@ export function ProfileView() {
               </ProfileFormEntry>
             );
             })}
+              <NeoButton
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const newLink = { id: Date.now(), name: "", url: "" };
+                  setProfile((p) => ({
+                    ...p,
+                    links: [...p.links, newLink],
+                  }));
+                  startEdit(`link-${newLink.id}`, { name: "", url: "" });
+                }}
+              >
+                + Add link
+              </NeoButton>
+            </div>
           </CollapsibleSection>
 
           <CollapsibleSection
@@ -498,29 +472,8 @@ export function ProfileView() {
             color="var(--lav)"
             open={openSections.experience}
             onOpenChange={(open) => setSectionOpen("experience", open)}
-            action={
-              <NeoButton
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  const newEntry = {
-                    id: Date.now(),
-                    title: "New Role",
-                    company: "",
-                    dates: "",
-                    bullets: [],
-                  };
-                  setProfile((p) => ({
-                    ...p,
-                    experience_entries: [...p.experience_entries, newEntry],
-                  }));
-                  startEdit(`experience-${newEntry.id}`, newEntry);
-                }}
-              >
-                + Add Role
-              </NeoButton>
-            }
           >
+            <div className="flex flex-col gap-3">
             {profile.experience_entries.map((entry) => {
               const entryKey = `experience-${entry.id}`;
               const editing = isEditing(entryKey) && editDraft;
@@ -657,7 +610,7 @@ export function ProfileView() {
                             })
                           }
                         />
-                        {profile.experience_entries.length > 1 && (
+                        {profile.experience_entries.length > 0 && (
                           <button
                             type="button"
                             onClick={async () => {
@@ -706,6 +659,27 @@ export function ProfileView() {
               </ProfileFormEntry>
             );
             })}
+              <NeoButton
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const newEntry = {
+                    id: Date.now(),
+                    title: "New Role",
+                    company: "",
+                    dates: "",
+                    bullets: [],
+                  };
+                  setProfile((p) => ({
+                    ...p,
+                    experience_entries: [...p.experience_entries, newEntry],
+                  }));
+                  startEdit(`experience-${newEntry.id}`, newEntry);
+                }}
+              >
+                + Add role
+              </NeoButton>
+            </div>
           </CollapsibleSection>
 
           <CollapsibleSection
@@ -715,29 +689,8 @@ export function ProfileView() {
             color="var(--peach)"
             open={openSections.projects}
             onOpenChange={(open) => setSectionOpen("projects", open)}
-            action={
-              <NeoButton
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  const newProj = {
-                    id: Date.now(),
-                    title: "New Project",
-                    url: "",
-                    desc: "",
-                    active: true,
-                  };
-                  setProfile((p) => ({
-                    ...p,
-                    projects: [...p.projects, newProj],
-                  }));
-                  startEdit(`project-${newProj.id}`, newProj);
-                }}
-              >
-                + Add Project
-              </NeoButton>
-            }
           >
+            <div className="flex flex-col gap-3">
             {profile.projects.map((proj) => {
               const projKey = `project-${proj.id}`;
               const editing = isEditing(projKey) && editDraft;
@@ -852,58 +805,222 @@ export function ProfileView() {
               </ProfileFormEntry>
             );
             })}
+              <NeoButton
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const newProj = {
+                    id: Date.now(),
+                    title: "New Project",
+                    url: "",
+                    desc: "",
+                    active: true,
+                  };
+                  setProfile((p) => ({
+                    ...p,
+                    projects: [...p.projects, newProj],
+                  }));
+                  startEdit(`project-${newProj.id}`, newProj);
+                }}
+              >
+                + Add project
+              </NeoButton>
+            </div>
           </CollapsibleSection>
 
           <CollapsibleSection
             id="section-skills"
             label="Skills"
-            description="Technologies and tools you work with"
+            description="Target role, summary, and technical skills"
             color="var(--yellow)"
             open={openSections.skills}
             onOpenChange={(open) => setSectionOpen("skills", open)}
           >
-              <div className="flex min-h-12 flex-wrap gap-2 rounded-xl bg-white px-3 py-2 neo-border-sm">
-                {profile.skills.map((s) => (
-                  <NeoBadge
-                    key={s}
-                    color="var(--mint)"
-                    className="cursor-pointer px-3 py-1 text-[13px]"
-                    onClick={async () => {
-                      const confirmed = await confirm({
-                        title: "Remove skill?",
-                        message: `Remove "${s}" from your skills?`,
-                        confirmLabel: "Remove",
-                      });
-                      if (!confirmed) return;
-                      setProfile((p) => ({
-                        ...p,
-                        skills: p.skills.filter((x) => x !== s),
-                      }));
-                    }}
-                  >
-                    {s} ✕
-                  </NeoBadge>
-                ))}
-                <input
-                  placeholder="Add skill, press Enter..."
-                  value={newSkill}
-                  onChange={(e) => setNewSkill(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (
-                      (e.key === "Enter" || e.key === ",") &&
-                      newSkill.trim()
-                    ) {
-                      e.preventDefault();
-                      setProfile((p) => ({
-                        ...p,
-                        skills: [...p.skills, newSkill.trim()],
-                      }));
-                      setNewSkill("");
+            <div className="flex flex-col gap-4">
+              {isEditing("career-summary") && editDraft ? (
+                <>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <NeoInput
+                      label="Target Role"
+                      value={String(editDraft.targetRole ?? "")}
+                      onChange={(e) => updateDraft({ targetRole: e.target.value })}
+                    />
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold">Experience Level</label>
+                      <select
+                        value={String(editDraft.experience ?? "")}
+                        onChange={(e) =>
+                          updateDraft({ experience: e.target.value })
+                        }
+                        className="rounded-full bg-white px-4 py-2.5 font-sans text-sm outline-none neo-border"
+                      >
+                        <option>Internship</option>
+                        <option>Entry Level (0-2 yrs)</option>
+                        <option>Mid Level (2-5 yrs)</option>
+                        <option>Senior (5+ yrs)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <NeoInput
+                    label="About"
+                    value={String(editDraft.about ?? "")}
+                    multiline
+                    rows={4}
+                    onChange={(e) => updateDraft({ about: e.target.value })}
+                  />
+                  <EditActions
+                    onCancel={cancelEdit}
+                    onSave={() =>
+                      saveEdit(() =>
+                        setProfile((p) => ({
+                          ...p,
+                          targetRole: String(editDraft.targetRole ?? p.targetRole),
+                          experience: String(editDraft.experience ?? p.experience),
+                          about: String(editDraft.about ?? p.about),
+                        })),
+                      )
                     }
+                  />
+                </>
+              ) : (
+                <div className="rounded-xl border-2 border-[#e8e8e8] bg-[var(--yellow-l)] p-4">
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-[11px] font-bold text-[#888]">
+                        TARGET ROLE
+                      </div>
+                      <div className="font-heading text-lg font-extrabold">
+                        {profile.targetRole}
+                      </div>
+                      <div className="mt-1 text-sm font-medium text-[#666]">
+                        {profile.experience}
+                      </div>
+                    </div>
+                    <PencilButton
+                      label="Edit career summary"
+                      onClick={() =>
+                        startEdit("career-summary", {
+                          targetRole: profile.targetRole,
+                          experience: profile.experience,
+                          about: profile.about,
+                        })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-bold text-[#888]">ABOUT</div>
+                    <p className="mt-1 text-[13px] leading-relaxed font-medium text-[#555]">
+                      {profile.about}
+                    </p>
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-col gap-3">
+                <div className="text-xs font-bold text-[#888]">SKILLS</div>
+                {profile.skills.map((skill, index) => {
+                  const skillKey = `skill-${index}`;
+                  const editing = isEditing(skillKey) && editDraft;
+                  return (
+                    <ProfileFormEntry key={`${skill}-${index}`}>
+                      {editing ? (
+                        <>
+                          <NeoInput
+                            label="Skill"
+                            value={String(editDraft.name ?? "")}
+                            placeholder="e.g. React"
+                            onChange={(e) => updateDraft({ name: e.target.value })}
+                          />
+                          <EditActions
+                            onCancel={() => {
+                              if (!skill.trim()) {
+                                setProfile((p) => ({
+                                  ...p,
+                                  skills: p.skills.filter((_, i) => i !== index),
+                                }));
+                              }
+                              cancelEdit();
+                            }}
+                            onSave={() =>
+                              saveEdit(() =>
+                                setProfile((p) => {
+                                  const nextName = String(editDraft.name ?? "").trim();
+                                  if (!nextName) {
+                                    return {
+                                      ...p,
+                                      skills: p.skills.filter((_, i) => i !== index),
+                                    };
+                                  }
+                                  const duplicate = p.skills.some(
+                                    (s, i) => i !== index && s === nextName,
+                                  );
+                                  if (duplicate) return p;
+                                  return {
+                                    ...p,
+                                    skills: p.skills.map((s, i) =>
+                                      i === index ? nextName : s,
+                                    ),
+                                  };
+                                }),
+                              )
+                            }
+                          />
+                        </>
+                      ) : (
+                        <div className="flex items-center justify-between gap-3">
+                          <NeoBadge color="var(--mint)" className="px-3 py-1 text-[13px]">
+                            {skill || "Untitled skill"}
+                          </NeoBadge>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <PencilButton
+                              label={`Edit ${skill || "skill"}`}
+                              onClick={() =>
+                                startEdit(skillKey, {
+                                  name: skill,
+                                  index,
+                                })
+                              }
+                            />
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const confirmed = await confirm({
+                                  title: "Remove skill?",
+                                  message: `Remove "${skill || "this skill"}"? This can't be undone.`,
+                                  confirmLabel: "Remove",
+                                });
+                                if (!confirmed) return;
+                                if (isEditing(skillKey)) cancelEdit();
+                                setProfile((p) => ({
+                                  ...p,
+                                  skills: p.skills.filter((_, i) => i !== index),
+                                }));
+                              }}
+                              className="cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </ProfileFormEntry>
+                  );
+                })}
+                <NeoButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    const index = profile.skills.length;
+                    setProfile((p) => ({
+                      ...p,
+                      skills: [...p.skills, ""],
+                    }));
+                    startEdit(`skill-${index}`, { name: "", index });
                   }}
-                  className="min-w-[140px] flex-1 border-none bg-transparent font-sans text-[13px] outline-none"
-                />
+                >
+                  + Add skill
+                </NeoButton>
               </div>
+            </div>
           </CollapsibleSection>
 
           <CollapsibleSection
@@ -913,27 +1030,8 @@ export function ProfileView() {
             color="var(--lav-l)"
             open={openSections.languages}
             onOpenChange={(open) => setSectionOpen("languages", open)}
-            action={
-              <NeoButton
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  const newLang = {
-                    id: Date.now(),
-                    name: "",
-                    level: "Conversational",
-                  };
-                  setProfile((p) => ({
-                    ...p,
-                    languages: [...p.languages, newLang],
-                  }));
-                  startEdit(`language-${newLang.id}`, newLang);
-                }}
-              >
-                + Add Language
-              </NeoButton>
-            }
           >
+            <div className="flex flex-col gap-3">
             {profile.languages.map((lang) => {
               const langKey = `language-${lang.id}`;
               const editing = isEditing(langKey) && editDraft;
@@ -1001,7 +1099,7 @@ export function ProfileView() {
                           })
                         }
                       />
-                      {profile.languages.length > 1 && (
+                      {profile.languages.length > 0 && (
                         <button
                           type="button"
                           onClick={async () => {
@@ -1028,6 +1126,25 @@ export function ProfileView() {
               </ProfileFormEntry>
             );
             })}
+              <NeoButton
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const newLang = {
+                    id: Date.now(),
+                    name: "",
+                    level: "Conversational",
+                  };
+                  setProfile((p) => ({
+                    ...p,
+                    languages: [...p.languages, newLang],
+                  }));
+                  startEdit(`language-${newLang.id}`, newLang);
+                }}
+              >
+                + Add language
+              </NeoButton>
+            </div>
           </CollapsibleSection>
 
           <CollapsibleSection
@@ -1037,28 +1154,8 @@ export function ProfileView() {
             color="var(--peach-l)"
             open={openSections.certifications}
             onOpenChange={(open) => setSectionOpen("certifications", open)}
-            action={
-              <NeoButton
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  const newCert = {
-                    id: Date.now(),
-                    name: "",
-                    issuer: "",
-                    date: "",
-                  };
-                  setProfile((p) => ({
-                    ...p,
-                    certifications: [...p.certifications, newCert],
-                  }));
-                  startEdit(`cert-${newCert.id}`, newCert);
-                }}
-              >
-                + Add Certification
-              </NeoButton>
-            }
           >
+            <div className="flex flex-col gap-3">
             {profile.certifications.map((cert) => {
               const certKey = `cert-${cert.id}`;
               const editing = isEditing(certKey) && editDraft;
@@ -1129,7 +1226,7 @@ export function ProfileView() {
                           })
                         }
                       />
-                      {profile.certifications.length > 1 && (
+                      {profile.certifications.length > 0 && (
                         <button
                           type="button"
                           onClick={async () => {
@@ -1158,6 +1255,26 @@ export function ProfileView() {
               </ProfileFormEntry>
             );
             })}
+              <NeoButton
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const newCert = {
+                    id: Date.now(),
+                    name: "",
+                    issuer: "",
+                    date: "",
+                  };
+                  setProfile((p) => ({
+                    ...p,
+                    certifications: [...p.certifications, newCert],
+                  }));
+                  startEdit(`cert-${newCert.id}`, newCert);
+                }}
+              >
+                + Add certification
+              </NeoButton>
+            </div>
           </CollapsibleSection>
 
           <CollapsibleSection
@@ -1167,29 +1284,8 @@ export function ProfileView() {
             color="var(--mint-l)"
             open={openSections.education}
             onOpenChange={(open) => setSectionOpen("education", open)}
-            action={
-              <NeoButton
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  const newEdu = {
-                    id: Date.now(),
-                    degree: "New Degree",
-                    school: "",
-                    dates: "",
-                    gpa: "",
-                  };
-                  setProfile((p) => ({
-                    ...p,
-                    education: [...p.education, newEdu],
-                  }));
-                  startEdit(`education-${newEdu.id}`, newEdu);
-                }}
-              >
-                + Add Education
-              </NeoButton>
-            }
           >
+            <div className="flex flex-col gap-3">
             {profile.education.map((edu) => {
               const eduKey = `education-${edu.id}`;
               const editing = isEditing(eduKey) && editDraft;
@@ -1269,7 +1365,7 @@ export function ProfileView() {
                           })
                         }
                       />
-                      {profile.education.length > 1 && (
+                      {profile.education.length > 0 && (
                         <button
                           type="button"
                           onClick={async () => {
@@ -1298,6 +1394,27 @@ export function ProfileView() {
               </ProfileFormEntry>
             );
             })}
+              <NeoButton
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const newEdu = {
+                    id: Date.now(),
+                    degree: "New Degree",
+                    school: "",
+                    dates: "",
+                    gpa: "",
+                  };
+                  setProfile((p) => ({
+                    ...p,
+                    education: [...p.education, newEdu],
+                  }));
+                  startEdit(`education-${newEdu.id}`, newEdu);
+                }}
+              >
+                + Add education
+              </NeoButton>
+            </div>
           </CollapsibleSection>
 
           <CollapsibleSection
@@ -1308,35 +1425,150 @@ export function ProfileView() {
             open={openSections.library}
             onOpenChange={(open) => setSectionOpen("library", open)}
           >
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              {profile.resumeLibrary.map((resume) => (
-                <NeoCard key={resume.id} className="p-4">
-                  <div className="mb-3 flex h-12 w-10 items-center justify-center rounded-lg bg-[var(--lav-l)] text-lg neo-border-sm">
-                    📄
-                  </div>
-                  <div className="mb-1 text-sm font-bold">{resume.label}</div>
-                  <div className="mb-1 text-[11px] text-[#888]">{resume.job}</div>
-                  <div className="mb-3.5 text-[11px] text-[#aaa]">{resume.date}</div>
-                  <div className="flex gap-1.5">
-                    <NeoButton
-                      variant="secondary"
-                      size="sm"
-                      className="px-2.5 py-1 text-[11px]"
-                      onClick={() => toast("Downloading...")}
-                    >
-                      Download
-                    </NeoButton>
-                    <NeoButton
-                      variant="mint"
-                      size="sm"
-                      className="px-2.5 py-1 text-[11px]"
-                      onClick={() => toast("Set as base!")}
-                    >
-                      Use as base
-                    </NeoButton>
-                  </div>
-                </NeoCard>
-              ))}
+            <div className="flex flex-col gap-3">
+              {profile.resumeLibrary.map((resume) => {
+                const resumeKey = `resume-${resume.id}`;
+                const editing = isEditing(resumeKey) && editDraft;
+                return (
+                  <ProfileFormEntry key={resume.id}>
+                    {editing ? (
+                      <>
+                        <div className="grid grid-cols-1 gap-3">
+                          <NeoInput
+                            label="Label"
+                            value={String(editDraft.label ?? "")}
+                            placeholder="e.g. Stripe Application"
+                            onChange={(e) => updateDraft({ label: e.target.value })}
+                          />
+                          <NeoInput
+                            label="Job / Role"
+                            value={String(editDraft.job ?? "")}
+                            placeholder="e.g. Frontend Engineer @ Stripe"
+                            onChange={(e) => updateDraft({ job: e.target.value })}
+                          />
+                          <NeoInput
+                            label="Date"
+                            value={String(editDraft.date ?? "")}
+                            placeholder="e.g. May 21, 2025"
+                            onChange={(e) => updateDraft({ date: e.target.value })}
+                          />
+                        </div>
+                        <EditActions
+                          onCancel={cancelEdit}
+                          onSave={() =>
+                            saveEdit(() =>
+                              setProfile((p) => ({
+                                ...p,
+                                resumeLibrary: p.resumeLibrary.map((item) =>
+                                  item.id === resume.id
+                                    ? {
+                                        ...item,
+                                        label: String(editDraft.label ?? ""),
+                                        job: String(editDraft.job ?? ""),
+                                        date: String(editDraft.date ?? ""),
+                                      }
+                                    : item,
+                                ),
+                              })),
+                            )
+                          }
+                        />
+                      </>
+                    ) : (
+                      <div className="flex items-start gap-4">
+                        <div className="flex h-12 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--lav-l)] text-lg neo-border-sm">
+                          📄
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-heading text-base font-extrabold">
+                            {resume.label || "Untitled resume"}
+                          </div>
+                          <div className="text-sm font-medium text-[#666]">
+                            {resume.job || "No role specified"}
+                          </div>
+                          <div className="mt-1 text-xs font-medium text-[#888]">
+                            {resume.date || "No date"}
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            <NeoButton
+                              variant="secondary"
+                              size="sm"
+                              className="px-2.5 py-1 text-[11px]"
+                              onClick={() => toast("Downloading...")}
+                            >
+                              Download
+                            </NeoButton>
+                            <NeoButton
+                              variant="mint"
+                              size="sm"
+                              className="px-2.5 py-1 text-[11px]"
+                              onClick={() => toast("Set as base!")}
+                            >
+                              Use as base
+                            </NeoButton>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <PencilButton
+                            label={`Edit ${resume.label || "resume"}`}
+                            onClick={() =>
+                              startEdit(resumeKey, {
+                                label: resume.label,
+                                job: resume.job,
+                                date: resume.date,
+                              })
+                            }
+                          />
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const confirmed = await confirm({
+                                title: "Remove resume?",
+                                message: `Remove "${resume.label || "this resume"}"? This can't be undone.`,
+                                confirmLabel: "Remove",
+                              });
+                              if (!confirmed) return;
+                              if (isEditing(resumeKey)) cancelEdit();
+                              setProfile((p) => ({
+                                ...p,
+                                resumeLibrary: p.resumeLibrary.filter(
+                                  (item) => item.id !== resume.id,
+                                ),
+                              }));
+                            }}
+                            className="cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </ProfileFormEntry>
+                );
+              })}
+              <NeoButton
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const newResume = {
+                    id: Date.now(),
+                    label: "",
+                    job: "",
+                    date: new Date().toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    }),
+                  };
+                  setProfile((p) => ({
+                    ...p,
+                    resumeLibrary: [...p.resumeLibrary, newResume],
+                  }));
+                  startEdit(`resume-${newResume.id}`, newResume);
+                }}
+              >
+                + Add resume
+              </NeoButton>
             </div>
           </CollapsibleSection>
           </ProfileSectionStack>
