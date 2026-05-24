@@ -2,44 +2,24 @@
 
 import { useState } from "react";
 import { NeoBadge } from "@/components/ui/neo-badge";
-import { refineTailoredResume } from "@/lib/ai/client";
+import { refineTailoredCoverLetter } from "@/lib/ai/client";
 import { loadAiSession } from "@/lib/ai/session";
-import { computeResumeMatchForDescription } from "@/lib/jobs/resume-flow";
 import { normalizeResumeRefineContext } from "@/lib/jobs/normalize-job";
-import type { ResumeDocument } from "@/lib/resume-document";
+import type { ResumeRefineJobContext } from "@/components/resume/resume-refine-chat";
 
-export type ResumeRefineJobContext = {
-  position?: string;
-  title?: string;
-  company?: string;
-  jobDesc?: string;
-  description?: string;
-  jd?: string;
-  location?: string;
-  incomeRange?: string;
-  workType?: string;
-  environmentType?: string;
-};
-
-type ResumeRefineChatProps = {
-  resume: ResumeDocument;
+type CoverLetterRefineChatProps = {
+  content: string;
   job: ResumeRefineJobContext;
-  onResumeUpdated: (payload: {
-    resume: ResumeDocument;
-    matchScore: number;
-    matchedKeywords: string[];
-    missingKeywords: string[];
-    reply: string;
-  }) => void;
+  onCoverLetterUpdated: (payload: { content: string; reply: string }) => void;
   accentColor?: string;
 };
 
-export function ResumeRefineChat({
-  resume,
+export function CoverLetterRefineChat({
+  content,
   job: rawJob,
-  onResumeUpdated,
-  accentColor = "var(--lav)",
-}: ResumeRefineChatProps) {
+  onCoverLetterUpdated,
+  accentColor = "var(--yellow)",
+}: CoverLetterRefineChatProps) {
   const job = normalizeResumeRefineContext(rawJob);
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState<
@@ -47,7 +27,7 @@ export function ResumeRefineChat({
   >([
     {
       role: "ai",
-      text: "Ask me to adjust tone, add keywords, or emphasize specific experience.",
+      text: "Ask me to adjust tone, shorten paragraphs, or emphasize specific experience.",
     },
   ]);
   const [streaming, setStreaming] = useState(false);
@@ -64,22 +44,17 @@ export function ResumeRefineChat({
     setStreaming(true);
 
     try {
-      const result = await refineTailoredResume({
+      const result = await refineTailoredCoverLetter({
         providerId: session.providerId,
         apiKey: session.apiKey,
         model: session.model,
-        resume,
+        content,
         instruction,
         job,
       });
 
-      const match = computeResumeMatchForDescription(result.resume, job);
-
-      onResumeUpdated({
-        resume: result.resume,
-        matchScore: match.matchScore,
-        matchedKeywords: match.matchedKeywords,
-        missingKeywords: match.missingKeywords,
+      onCoverLetterUpdated({
+        content: result.content,
         reply: result.reply,
       });
 
@@ -114,7 +89,7 @@ export function ResumeRefineChat({
               key={`${message.role}-${index}`}
               className={`rounded-xl px-3 py-2.5 text-xs leading-relaxed neo-border-sm ${
                 message.role === "user"
-                  ? "ml-4 bg-[var(--lav-l)]"
+                  ? "ml-4 bg-[var(--yellow-l)]"
                   : "mr-4 bg-[var(--background)]"
               }`}
             >
@@ -123,7 +98,7 @@ export function ResumeRefineChat({
           ))}
           {streaming ? (
             <div className="rounded-xl bg-[var(--background)] px-3 py-2.5 text-xs neo-border-sm">
-              <span className="animate-pulse-soft">✦ Updating resume...</span>
+              <span className="animate-pulse-soft">✦ Updating cover letter...</span>
             </div>
           ) : null}
         </div>
@@ -132,7 +107,7 @@ export function ResumeRefineChat({
             value={chatInput}
             onChange={(event) => setChatInput(event.target.value)}
             onKeyDown={(event) => event.key === "Enter" && void sendMessage()}
-            placeholder="Adjust this resume..."
+            placeholder="Refine this cover letter..."
             className="flex-1 rounded-full border-2 border-[var(--foreground)] bg-white px-3 py-2 font-sans text-xs outline-none"
           />
           <button

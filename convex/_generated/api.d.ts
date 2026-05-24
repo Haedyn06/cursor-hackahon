@@ -10,6 +10,7 @@
 
 import type * as jobs from "../jobs.js";
 import type * as onboarding from "../onboarding.js";
+import type * as settings from "../settings.js";
 import type * as users from "../users.js";
 
 import type {
@@ -21,6 +22,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   jobs: typeof jobs;
   onboarding: typeof onboarding;
+  settings: typeof settings;
   users: typeof users;
 }>;
 

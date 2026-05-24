@@ -28,15 +28,17 @@ import {
   type GeneratedResume,
   type ResumeDownloadContext,
 } from "@/components/resume/resume-preview-panel";
-import { exportResume } from "@/lib/pdf-export";
+import { exportResume, exportTextDocument } from "@/lib/pdf-export";
+import { parseResumeText } from "@/lib/resume-document";
 import { computeResumeMatchForDescription } from "@/lib/jobs/resume-flow";
+import type { DownloadFormat } from "@/components/ui/download-format-dialog";
 import {
   CoverLetterPreviewPanel,
   buildMockCoverLetterContent,
+  jobContextFromMatchJob,
   type GeneratedCoverLetter,
 } from "@/components/resume/cover-letter-preview-panel";
 import { NewInterviewPrepWizard } from "@/components/resume/new-interview-prep-wizard";
-import { ImportResumePanel } from "@/components/resumes/import-resume-panel";
 import {
   InterviewPrepPreviewPanel,
   buildMockInterviewPrep,
@@ -186,6 +188,7 @@ function coverLetterFromLibrary(
     title: doc.title,
     matchJob: doc.matchJob ?? "",
     content: buildMockCoverLetterContent(title, company),
+    jobContext: jobContextFromMatchJob(doc.matchJob ?? ""),
   };
 }
 
@@ -567,6 +570,25 @@ function DocumentSearchInput({
   );
 }
 
+function resolveResumeDocument(resume: GeneratedResume) {
+  return resume.document ?? parseResumeText(resume.content);
+}
+
+function formatInterviewPrepContent(prep: GeneratedInterviewPrep) {
+  const sections = prep.categories.map((category) => {
+    const items = prep.questions[category.id] ?? [];
+    const body = items
+      .map(
+        (item, index) =>
+          `${index + 1}. ${item.q}\n\nAnswer framework:\n${item.a}`,
+      )
+      .join("\n\n");
+    return `${category.label}\n${"=".repeat(category.label.length)}\n\n${body}`;
+  });
+
+  return `${prep.title}\n${prep.matchJob}\n\n${sections.join("\n\n")}`;
+}
+
 function DocumentSection({
   kind,
   documents,
@@ -583,6 +605,7 @@ function DocumentSection({
   onOpenDocument,
   onPracticeDocument,
   onRenameDocument,
+  onDownloadDocument,
 }: {
   kind: DocumentKind;
   documents: MockDocument[];
@@ -599,10 +622,11 @@ function DocumentSection({
   onOpenDocument: (doc: MockDocument) => void;
   onPracticeDocument: (doc: MockDocument) => void;
   onRenameDocument: (doc: MockDocument, title: string) => void;
+  onDownloadDocument: (doc: MockDocument, format: DownloadFormat) => Promise<void>;
 }) {
   const { confirm, dialog } = useConfirm();
   const { promptRename, dialog: renameDialog } = useRenamePrompt();
-  const { pickFormat, dialog: downloadDialog } = useDownloadFormat();
+  const { requestDownload, dialog: downloadDialog } = useDownloadFormat();
   const [selectionMode, setSelectionMode] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
@@ -680,27 +704,11 @@ function DocumentSection({
 
   const emptyEmoji = kind === "cover" ? "✉️" : kind === "interview" ? "🎤" : "📄";
 
-  const handleDownload = async (doc: MockDocument) => {
-    const format = await pickFormat(doc.title);
-    if (!format) return;
-
-    if (kind !== "resume") {
-      onToast(`Downloading ${doc.title} as ${format.toUpperCase()}...`);
-      return;
-    }
-
-    const { title, company } = parseMatchJob(doc.matchJob);
-    const resumeDoc = buildMockResume(title, company);
-
-    try {
-      await exportResume(null, resumeDoc, doc.title, format);
+  const handleDownload = (doc: MockDocument) => {
+    requestDownload(doc.title, async (format) => {
+      await onDownloadDocument(doc, format);
       onToast(`Downloaded ${doc.title} as ${format.toUpperCase()}`);
-    } catch (error) {
-      onToast(
-        error instanceof Error ? error.message : "Download failed.",
-        "error",
-      );
-    }
+    });
   };
 
   const handleRename = async (doc: MockDocument) => {
@@ -917,7 +925,7 @@ export function ResumeLibraryView() {
     setCoverLetters,
     setInterviewPrep,
   } = useResumeBuilderLibrary();
-  const { pickFormat, dialog: downloadDialog } = useDownloadFormat();
+  const { requestDownload, dialog: downloadDialog } = useDownloadFormat();
   const [activeTab, setActiveTab] = useState<LibraryTab>("resumes");
   const [resumeSearch, setResumeSearch] = useState("");
   const [coverSearch, setCoverSearch] = useState("");
@@ -1017,28 +1025,52 @@ export function ResumeLibraryView() {
     }
   };
 
-  const handleResumeDownload = async ({
+  const handleResumeDownload = ({
     document,
     getExportElement,
   }: ResumeDownloadContext) => {
     if (!previewResume) return;
-    const format = await pickFormat(previewResume.title);
-    if (!format) return;
-
-    try {
-      await exportResume(getExportElement(), document, previewResume.title, format);
-      toast(`Downloaded ${previewResume.title} as ${format.toUpperCase()}`);
-    } catch (error) {
-      toast(
-        error instanceof Error ? error.message : "Download failed.",
-        "error",
+    requestDownload(previewResume.title, async (format) => {
+      await exportResume(
+        getExportElement(),
+        document,
+        previewResume.title,
+        format,
       );
-    }
+      toast(`Downloaded ${previewResume.title} as ${format.toUpperCase()}`);
+    });
   };
 
-  const handleCoverLetterDownload = async (title: string) => {
-    const format = await pickFormat(title);
-    if (format) toast(`Downloading ${title} as ${format.toUpperCase()}...`);
+  const handleCoverLetterDownload = (coverLetter: GeneratedCoverLetter) => {
+    requestDownload(coverLetter.title, async (format) => {
+      await exportTextDocument(coverLetter.content, coverLetter.title, format);
+      toast(`Downloaded ${coverLetter.title} as ${format.toUpperCase()}`);
+    });
+  };
+
+  const downloadResumeDocument = async (
+    doc: MockDocument,
+    format: DownloadFormat,
+  ) => {
+    const resume = resumeFromLibrary(doc, generatedResumeCache);
+    const document = resolveResumeDocument(resume);
+    await exportResume(null, document, doc.title, format);
+  };
+
+  const downloadCoverLetterDocument = async (
+    doc: MockDocument,
+    format: DownloadFormat,
+  ) => {
+    const coverLetter = coverLetterFromLibrary(doc, generatedCoverLetterCache);
+    await exportTextDocument(coverLetter.content, doc.title, format);
+  };
+
+  const downloadInterviewPrepDocument = async (
+    doc: MockDocument,
+    format: DownloadFormat,
+  ) => {
+    const prep = interviewPrepFromLibrary(doc, generatedInterviewPrepCache);
+    await exportTextDocument(formatInterviewPrepContent(prep), doc.title, format);
   };
 
   if (onboardingState === undefined || !libraryHydrated) {
@@ -1067,7 +1099,7 @@ export function ResumeLibraryView() {
           coverLetter={previewCoverLetter}
           onBack={() => setPreviewCoverLetter(null)}
           onSave={saveGeneratedCoverLetter}
-          onDownload={() => void handleCoverLetterDownload(previewCoverLetter.title)}
+          onDownload={() => handleCoverLetterDownload(previewCoverLetter)}
         />
       </>
     );
@@ -1148,10 +1180,6 @@ export function ResumeLibraryView() {
           </div>
           <div className="p-6">
             {activeTab === "resumes" && (
-              <>
-                <div className="mb-6">
-                  <ImportResumePanel />
-                </div>
               <DocumentSection
                 kind="resume"
                 documents={resumeDocuments}
@@ -1180,8 +1208,8 @@ export function ResumeLibraryView() {
                     ),
                   )
                 }
+                onDownloadDocument={downloadResumeDocument}
               />
-              </>
             )}
             {activeTab === "cover-letters" && (
               <DocumentSection
@@ -1214,6 +1242,7 @@ export function ResumeLibraryView() {
                     ),
                   )
                 }
+                onDownloadDocument={downloadCoverLetterDocument}
               />
             )}
             {activeTab === "interview-prep" && (
@@ -1247,6 +1276,7 @@ export function ResumeLibraryView() {
                     ),
                   )
                 }
+                onDownloadDocument={downloadInterviewPrepDocument}
               />
             )}
           </div>

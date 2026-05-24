@@ -113,6 +113,15 @@ export function NewCoverLetterWizard({
         title: `${jobContext.company} — Cover Letter`,
         matchJob: jobContext.matchJob,
         content: result.content,
+        jobContext: {
+          position: jobContext.position,
+          company: jobContext.company,
+          jobDesc: jobContext.jobDesc,
+          location: jobContext.location,
+          incomeRange: jobContext.incomeRange,
+          workType: jobContext.workType,
+          environmentType: jobContext.environmentType,
+        },
       });
 
       onClose();

@@ -19,15 +19,23 @@ function downloadBlob(blob: Blob, filename: string, extension: string) {
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = `${sanitizeFilename(filename)}.${extension}`;
+  anchor.style.display = "none";
+  document.body.appendChild(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  document.body.removeChild(anchor);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function loadHtml2Pdf() {
+  const module = await import("html2pdf.js");
+  return module.default ?? module;
 }
 
 export async function exportElementToPdf(
   element: HTMLElement,
   filename: string,
 ) {
-  const html2pdf = (await import("html2pdf.js")).default;
+  const html2pdf = await loadHtml2Pdf();
 
   await html2pdf()
     .set({
@@ -116,7 +124,7 @@ export async function exportTextDocument(
   try {
     await exportElementToPdf(target, filename);
   } finally {
-    cleanupOffscreenHost(target);
+    target.remove();
   }
 }
 
@@ -132,7 +140,9 @@ export async function exportResumeToDocxFile(
   );
 }
 
-async function renderResumeOffscreen(resume: ResumeDocument): Promise<HTMLElement> {
+async function renderResumeOffscreen(
+  resume: ResumeDocument,
+): Promise<{ element: HTMLElement; cleanup: () => void }> {
   const host = document.createElement("div");
   host.style.position = "fixed";
   host.style.left = "-10000px";
@@ -156,14 +166,13 @@ async function renderResumeOffscreen(resume: ResumeDocument): Promise<HTMLElemen
     throw new Error("Failed to render resume for export.");
   }
 
-  return target;
-}
-
-function cleanupOffscreenHost(target: HTMLElement) {
-  const host = target.parentElement;
-  if (host) {
-    host.remove();
-  }
+  return {
+    element: target,
+    cleanup: () => {
+      root.unmount();
+      host.remove();
+    },
+  };
 }
 
 export async function exportResumeDocumentStandalone(
@@ -181,11 +190,11 @@ export async function exportResumeDocumentStandalone(
     return;
   }
 
-  const target = await renderResumeOffscreen(resume);
+  const { element, cleanup } = await renderResumeOffscreen(resume);
   try {
-    await exportElementToPdf(target, filename);
+    await exportElementToPdf(element, filename);
   } finally {
-    cleanupOffscreenHost(target);
+    cleanup();
   }
 }
 

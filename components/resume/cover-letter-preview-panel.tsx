@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { CoverLetterRefineChat } from "@/components/resume/cover-letter-refine-chat";
+import type { ResumeRefineJobContext } from "@/components/resume/resume-refine-chat";
 import { NeoButton } from "@/components/ui/neo-button";
 
 export type GeneratedCoverLetter = {
@@ -8,7 +10,21 @@ export type GeneratedCoverLetter = {
   title: string;
   matchJob: string;
   content: string;
+  jobContext?: ResumeRefineJobContext;
 };
+
+export function jobContextFromMatchJob(matchJob: string): ResumeRefineJobContext {
+  const atIndex = matchJob.indexOf(" @ ");
+  const position =
+    atIndex !== -1 ? matchJob.slice(0, atIndex).trim() : matchJob.trim() || "Role";
+  const company =
+    atIndex !== -1 ? matchJob.slice(atIndex + 3).trim() : "Company";
+  return {
+    position,
+    company,
+    jobDesc: `${position} at ${company}`,
+  };
+}
 
 type CoverLetterPreviewPanelProps = {
   coverLetter: GeneratedCoverLetter;
@@ -24,7 +40,18 @@ export function CoverLetterPreviewPanel({
   onDownload,
 }: CoverLetterPreviewPanelProps) {
   const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(coverLetter);
   const [content, setContent] = useState(coverLetter.content);
+
+  const refineJob =
+    draft.jobContext ??
+    (draft.matchJob ? jobContextFromMatchJob(draft.matchJob) : null);
+
+  const handleRefineUpdate = (payload: { content: string }) => {
+    setDraft((current) => ({ ...current, content: payload.content }));
+    setContent(payload.content);
+    setEditing(false);
+  };
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-[var(--background)]">
@@ -37,10 +64,8 @@ export function CoverLetterPreviewPanel({
           >
             ← Back to library
           </button>
-          <h1 className="font-heading text-[22px] font-extrabold">
-            {coverLetter.title}
-          </h1>
-          <p className="text-sm font-medium text-[#666]">{coverLetter.matchJob}</p>
+          <h1 className="font-heading text-[22px] font-extrabold">{draft.title}</h1>
+          <p className="text-sm font-medium text-[#666]">{draft.matchJob}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {editing ? (
@@ -49,7 +74,7 @@ export function CoverLetterPreviewPanel({
                 variant="secondary"
                 size="sm"
                 onClick={() => {
-                  setContent(coverLetter.content);
+                  setContent(draft.content);
                   setEditing(false);
                 }}
               >
@@ -59,7 +84,9 @@ export function CoverLetterPreviewPanel({
                 variant="yellow"
                 size="sm"
                 onClick={() => {
-                  onSave({ ...coverLetter, content });
+                  const next = { ...draft, content };
+                  setDraft(next);
+                  onSave(next);
                   setEditing(false);
                 }}
               >
@@ -77,7 +104,11 @@ export function CoverLetterPreviewPanel({
               <NeoButton
                 variant="yellow"
                 size="sm"
-                onClick={() => onSave({ ...coverLetter, content })}
+                onClick={() => {
+                  const next = { ...draft, content };
+                  setDraft(next);
+                  onSave(next);
+                }}
               >
                 Save to Library
               </NeoButton>
@@ -86,20 +117,30 @@ export function CoverLetterPreviewPanel({
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-y-auto p-8">
-        <div className="mx-auto w-full max-w-[720px]">
-          {editing ? (
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              className="min-h-[520px] w-full resize-y rounded-xl bg-white p-8 font-sans text-[13px] leading-relaxed outline-none neo-border"
-            />
-          ) : (
-            <div className="rounded-xl bg-white p-8 text-[13px] leading-relaxed whitespace-pre-line neo-border">
-              {content}
-            </div>
-          )}
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-8">
+          <div className="mx-auto w-full max-w-[720px]">
+            {editing ? (
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                className="min-h-[520px] w-full resize-y rounded-xl bg-white p-8 font-sans text-[13px] leading-relaxed outline-none neo-border"
+              />
+            ) : (
+              <div className="rounded-xl bg-white p-8 text-[13px] leading-relaxed whitespace-pre-line neo-border">
+                {content}
+              </div>
+            )}
+          </div>
         </div>
+
+        {refineJob ? (
+          <CoverLetterRefineChat
+            content={content}
+            job={refineJob}
+            onCoverLetterUpdated={handleRefineUpdate}
+          />
+        ) : null}
       </div>
     </div>
   );

@@ -77,7 +77,7 @@ function ResumeTab({ job }: { job: Job }) {
   const { confirm, dialog: confirmDialog } = useConfirm();
   const { updateJob } = useJobs();
   const { saveGeneratedResume: saveToBuilderLibrary } = useResumeBuilderLibrary();
-  const { pickFormat, dialog: downloadDialog } = useDownloadFormat();
+  const { requestDownload, dialog: downloadDialog } = useDownloadFormat();
   const { profile: appProfile, loading: profileLoading } = useAppProfile();
   const onboardingState = useQuery(api.onboarding.getOnboardingState);
   const getProfileSourceDownloadUrl = useMutation(
@@ -498,25 +498,20 @@ function ResumeTab({ job }: { job: Job }) {
     }
   };
 
-  const handleDownload = async () => {
+  const handleDownload = () => {
     if (!activeDocument) return;
-    const format = await pickFormat(`${job.company} — ${job.position}`);
-    if (!format) return;
-
-    try {
-      await exportResume(
-        exportRef.current,
-        activeDocument,
-        `${job.company}-${job.position}`,
-        format,
-      );
-      toast(`Downloaded resume as ${format.toUpperCase()}`);
-    } catch (error) {
-      toast(
-        error instanceof Error ? error.message : "Download failed.",
-        "error",
-      );
-    }
+    requestDownload(
+      `${job.company} — ${job.position}`,
+      async (format) => {
+        await exportResume(
+          exportRef.current,
+          activeDocument,
+          `${job.company}-${job.position}`,
+          format,
+        );
+        toast(`Downloaded resume as ${format.toUpperCase()}`);
+      },
+    );
   };
 
   if (!generated && !generating && shouldShowSelectionFirst) {
@@ -875,7 +870,7 @@ function CoverLetterTab({ job }: { job: Job }) {
   const { confirm, dialog: confirmDialog } = useConfirm();
   const { updateJob } = useJobs();
   const { saveGeneratedCoverLetter: saveToBuilderLibrary } = useResumeBuilderLibrary();
-  const { pickFormat, dialog: downloadDialog } = useDownloadFormat();
+  const { requestDownload, dialog: downloadDialog } = useDownloadFormat();
   const { profile: appProfile, loading: profileLoading } = useAppProfile();
   const onboardingState = useQuery(api.onboarding.getOnboardingState);
   const getProfileSourceDownloadUrl = useMutation(
@@ -1048,24 +1043,16 @@ function CoverLetterTab({ job }: { job: Job }) {
     }
   };
 
-  const handleDownload = async () => {
+  const handleDownload = () => {
     if (!content.trim()) return;
-    const format = await pickFormat(`${job.company} — cover letter`);
-    if (!format) return;
-
-    try {
+    requestDownload(`${job.company} — cover letter`, async (format) => {
       await exportTextDocument(
         content,
         `${job.company}-${job.position}-cover-letter`,
         format,
       );
       toast(`Downloaded cover letter as ${format.toUpperCase()}`);
-    } catch (error) {
-      toast(
-        error instanceof Error ? error.message : "Download failed.",
-        "error",
-      );
-    }
+    });
   };
 
   const handleBlur = () => {

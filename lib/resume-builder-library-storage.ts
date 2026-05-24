@@ -60,6 +60,11 @@ export function persistBuilderLibrary(store: BuilderLibraryStore) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
 }
 
+export function clearBuilderLibrary(): BuilderLibraryStore {
+  persistBuilderLibrary(EMPTY_STORE);
+  return { ...EMPTY_STORE };
+}
+
 export function upsertGeneratedResume(
   store: BuilderLibraryStore,
   generated: GeneratedResume,
