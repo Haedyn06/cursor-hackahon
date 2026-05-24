@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { UserButton, useAuth } from "@clerk/nextjs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AuthModal } from "@/components/auth/auth-modal";
 import { Logo } from "@/components/layout/logo";
 import { NeoButton } from "@/components/ui/neo-button";
@@ -41,6 +41,21 @@ const providers = [
 export default function LandingPage() {
   const { isSignedIn } = useAuth();
   const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  useEffect(() => {
+    const openModalForClerkCallback = () => {
+      if (window.location.hash.startsWith("#/sso-callback")) {
+        setAuthModalOpen(true);
+      }
+    };
+
+    openModalForClerkCallback();
+    window.addEventListener("hashchange", openModalForClerkCallback);
+
+    return () => {
+      window.removeEventListener("hashchange", openModalForClerkCallback);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
