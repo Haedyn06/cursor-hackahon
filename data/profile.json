@@ -1,10 +1,25 @@
 {
   "name": "Alex Johnson",
   "email": "alex@example.com",
+  "phone": "(415) 555-0123",
   "location": "San Francisco, CA",
-  "linkedin": "linkedin.com/in/alexj",
-  "github": "github.com/alexj",
-  "portfolio": "alexj.dev",
+  "links": [
+    {
+      "id": 1,
+      "name": "LinkedIn",
+      "url": "linkedin.com/in/alexj"
+    },
+    {
+      "id": 2,
+      "name": "GitHub",
+      "url": "github.com/alexj"
+    },
+    {
+      "id": 3,
+      "name": "Portfolio",
+      "url": "alexj.dev"
+    }
+  ],
   "targetRole": "Frontend Engineer",
   "experience": "Mid Level (2-5 yrs)",
   "about": "I'm a frontend engineer with 4 years of experience building accessible, high-performance web apps using React and TypeScript.",
@@ -17,6 +32,32 @@
     "Jest",
     "Node.js",
     "Figma"
+  ],
+  "languages": [
+    {
+      "id": 1,
+      "name": "English",
+      "level": "Native"
+    },
+    {
+      "id": 2,
+      "name": "Spanish",
+      "level": "Conversational"
+    }
+  ],
+  "certifications": [
+    {
+      "id": 1,
+      "name": "Meta Front-End Developer",
+      "issuer": "Meta",
+      "date": "2023"
+    },
+    {
+      "id": 2,
+      "name": "AWS Cloud Practitioner",
+      "issuer": "Amazon Web Services",
+      "date": "2022"
+    }
   ],
   "experience_entries": [
     {

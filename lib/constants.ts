@@ -36,8 +36,20 @@ export const STATUS_COLORS: Record<string, string> = {
   Rejected: COLORS.red,
 };
 
+export const STATUS_SORT_ORDER: Record<JobStatus, number> = {
+  Saved: 0,
+  Applying: 1,
+  Applied: 2,
+  Interview: 3,
+  Offer: 4,
+  Rejected: 5,
+  Accepted: 6,
+};
+
+export const ALL_JOB_STATUSES: JobStatus[] = [...STATUS_STAGES, "Rejected"];
+
 export const TRACKER_STAGES = [
-  { key: "Saved", label: "BOOKMARKED" },
+  { key: "Saved", label: "SAVED" },
   { key: "Applying", label: "APPLYING" },
   { key: "Applied", label: "APPLIED" },
   { key: "Interview", label: "INTERVIEWING" },

@@ -9,12 +9,16 @@ import { NeoButton } from "@/components/ui/neo-button";
 import { MatchScore } from "@/components/ui/match-score";
 import { cn } from "@/lib/utils";
 import {
+  ALL_JOB_STATUSES,
   STATUS_COLORS,
+  STATUS_SORT_ORDER,
   STATUS_STAGES,
   TRACKER_STAGES,
   type JobStatus,
 } from "@/lib/constants";
-import { MOCK_JOBS, type MockJob } from "@/lib/mock-data";
+import { useJobs } from "@/components/providers/jobs-provider";
+import { useConfirm } from "@/components/ui/confirm-dialog";
+import type { Job } from "@/lib/types/job";
 
 function StagePieChart({
   count,
@@ -76,7 +80,7 @@ function ChevronPipeline({
   activeStage,
   onStageClick,
 }: {
-  jobs: MockJob[];
+  jobs: Job[];
   activeStage: string | null;
   onStageClick: (stage: string | null) => void;
 }) {
@@ -225,7 +229,159 @@ function StarRating({
   );
 }
 
-type SortKey = keyof MockJob;
+type SortKey = keyof Job;
+
+type TrackerFilters = {
+  statuses: JobStatus[];
+  location: string;
+  minExcitement: number;
+};
+
+const EMPTY_FILTERS: TrackerFilters = {
+  statuses: [],
+  location: "",
+  minExcitement: 0,
+};
+
+function compareJobs(
+  a: Job,
+  b: Job,
+  sortBy: SortKey,
+  sortDir: "asc" | "desc",
+): number {
+  let cmp = 0;
+
+  if (sortBy === "status") {
+    const orderA = STATUS_SORT_ORDER[a.status] ?? 99;
+    const orderB = STATUS_SORT_ORDER[b.status] ?? 99;
+    cmp = orderA - orderB;
+  } else if (sortBy === "excitement") {
+    cmp = a.excitement - b.excitement;
+  } else if (sortBy === "matchScore") {
+    cmp = (a.matchScore ?? -1) - (b.matchScore ?? -1);
+  } else {
+    const va = String(a[sortBy] ?? "").toLowerCase();
+    const vb = String(b[sortBy] ?? "").toLowerCase();
+    if (va < vb) cmp = -1;
+    else if (va > vb) cmp = 1;
+  }
+
+  return sortDir === "asc" ? cmp : -cmp;
+}
+
+function TrackerFilterPanel({
+  filters,
+  onChange,
+  onClear,
+  onClose,
+}: {
+  filters: TrackerFilters;
+  onChange: (filters: TrackerFilters) => void;
+  onClear: () => void;
+  onClose: () => void;
+}) {
+  const toggleStatus = (status: JobStatus) => {
+    const next = filters.statuses.includes(status)
+      ? filters.statuses.filter((s) => s !== status)
+      : [...filters.statuses, status];
+    onChange({ ...filters, statuses: next });
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 z-[100]" onClick={onClose} aria-hidden />
+      <div className="absolute top-full right-0 z-[101] mt-2 w-[300px] rounded-2xl bg-white p-4 neo-border">
+        <div className="mb-3 flex items-center justify-between">
+          <span className="font-heading text-sm font-extrabold">Filters</span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="cursor-pointer border-none bg-transparent p-1 text-[#888] hover:text-[var(--foreground)]"
+            aria-label="Close filters"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="mb-4">
+          <div className="mb-2 text-[11px] font-bold tracking-wide text-[#888]">
+            STATUS
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {ALL_JOB_STATUSES.map((status) => {
+              const active = filters.statuses.includes(status);
+              return (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => toggleStatus(status)}
+                  className="cursor-pointer rounded-full px-2.5 py-1 text-[11px] font-bold neo-border-sm transition-[background] duration-150"
+                  style={{
+                    background: active
+                      ? (STATUS_COLORS[status] ?? "#ffffff")
+                      : "#ffffff",
+                  }}
+                >
+                  {status}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <label className="mb-2 block text-[11px] font-bold tracking-wide text-[#888]">
+            LOCATION
+          </label>
+          <input
+            value={filters.location}
+            onChange={(e) =>
+              onChange({ ...filters, location: e.target.value })
+            }
+            placeholder="e.g. Remote, NYC"
+            className="w-full rounded-full border-2 border-[var(--foreground)] bg-white px-3 py-2 font-sans text-[13px] outline-none"
+          />
+        </div>
+
+        <div className="mb-4">
+          <label className="mb-2 block text-[11px] font-bold tracking-wide text-[#888]">
+            MIN. EXCITEMENT
+          </label>
+          <div className="flex gap-1">
+            {[0, 1, 2, 3, 4, 5].map((level) => (
+              <button
+                key={level}
+                type="button"
+                onClick={() =>
+                  onChange({ ...filters, minExcitement: level })
+                }
+                className="flex-1 cursor-pointer rounded-lg border-2 py-1.5 text-xs font-bold transition-[background] duration-150"
+                style={{
+                  borderColor: "var(--foreground)",
+                  background:
+                    filters.minExcitement === level
+                      ? "var(--mint)"
+                      : "#ffffff",
+                }}
+              >
+                {level === 0 ? "Any" : `${level}+`}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <NeoButton variant="secondary" size="sm" onClick={onClear}>
+            Clear
+          </NeoButton>
+          <NeoButton variant="primary" size="sm" onClick={onClose}>
+            Done
+          </NeoButton>
+        </div>
+      </div>
+    </>
+  );
+}
 
 function ColHeader({
   label,
@@ -265,6 +421,8 @@ function ColHeader({
 
 export function JobBoardView() {
   const toast = useToast();
+  const { confirm, dialog } = useConfirm();
+  const { jobs, loading, updateJob, updateJobStatus, deleteJobs } = useJobs();
   const [showAddJob, setShowAddJob] = useState(false);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -272,7 +430,49 @@ export function JobBoardView() {
   const [activeStage, setActiveStage] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>("dateAdded");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [jobs, setJobs] = useState<MockJob[]>(MOCK_JOBS);
+  const [filters, setFilters] = useState<TrackerFilters>(EMPTY_FILTERS);
+  const [showFilters, setShowFilters] = useState(false);
+
+  const handleStatusChange = async (id: string, status: JobStatus) => {
+    try {
+      await updateJobStatus(id, status);
+    } catch {
+      toast("Failed to update status.", "error");
+    }
+  };
+
+  const handleExcitementChange = async (id: string, excitement: number) => {
+    try {
+      await updateJob(id, { excitement });
+    } catch {
+      toast("Failed to update excitement.", "error");
+    }
+  };
+
+  const handleRemoveSelected = async () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+
+    const confirmed = await confirm({
+      title: ids.length === 1 ? "Remove job?" : `Remove ${ids.length} jobs?`,
+      message:
+        ids.length === 1
+          ? "Remove this job from your tracker? This can't be undone."
+          : `Remove ${ids.length} jobs from your tracker? This can't be undone.`,
+      confirmLabel: "Remove",
+    });
+    if (!confirmed) return;
+
+    try {
+      await deleteJobs(ids);
+      setSelected(new Set());
+      toast(
+        ids.length === 1 ? "Job removed." : `Removed ${ids.length} jobs.`,
+      );
+    } catch {
+      toast("Failed to remove jobs.", "error");
+    }
+  };
 
   const handleSort = (key: SortKey) => {
     if (sortBy === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -282,21 +482,40 @@ export function JobBoardView() {
     }
   };
 
+  const hasActiveFilters =
+    filters.statuses.length > 0 ||
+    filters.location.trim() !== "" ||
+    filters.minExcitement > 0;
+
+  const activeFilterCount =
+    filters.statuses.length +
+    (filters.location.trim() ? 1 : 0) +
+    (filters.minExcitement > 0 ? 1 : 0);
+
   let filtered = jobs.filter((j) => {
     const matchSearch =
       j.title.toLowerCase().includes(search.toLowerCase()) ||
       j.company.toLowerCase().includes(search.toLowerCase());
     const matchStage = !activeStage || j.status === activeStage;
-    return matchSearch && matchStage;
+    const matchStatusFilter =
+      filters.statuses.length === 0 || filters.statuses.includes(j.status);
+    const matchLocation =
+      !filters.location.trim() ||
+      j.location.toLowerCase().includes(filters.location.toLowerCase());
+    const matchExcitement =
+      filters.minExcitement === 0 || j.excitement >= filters.minExcitement;
+    return (
+      matchSearch &&
+      matchStage &&
+      matchStatusFilter &&
+      matchLocation &&
+      matchExcitement
+    );
   });
 
-  filtered = [...filtered].sort((a, b) => {
-    const va = String(a[sortBy] ?? "").toLowerCase();
-    const vb = String(b[sortBy] ?? "").toLowerCase();
-    if (va < vb) return sortDir === "asc" ? -1 : 1;
-    if (va > vb) return sortDir === "asc" ? 1 : -1;
-    return 0;
-  });
+  filtered = [...filtered].sort((a, b) =>
+    compareJobs(a, b, sortBy, sortDir),
+  );
 
   const filteredIds = filtered.map((j) => j.id);
   const selectedInView = filteredIds.filter((id) => selected.has(id)).length;
@@ -327,13 +546,19 @@ export function JobBoardView() {
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-[var(--background)]">
+      {dialog}
       <AddJobForm
         open={showAddJob}
         onClose={() => setShowAddJob(false)}
-        onAdd={(job) => setJobs((prev) => [job, ...prev])}
       />
 
       <div className="flex-1 overflow-y-auto px-8 py-7">
+        {loading && jobs.length === 0 ? (
+          <div className="py-16 text-center text-sm font-semibold text-[#888]">
+            Loading jobs…
+          </div>
+        ) : (
+          <>
         <ChevronPipeline
           jobs={jobs}
           activeStage={activeStage}
@@ -373,6 +598,16 @@ export function JobBoardView() {
             <span className="text-[13px] font-bold text-[#666]">
               {selected.size} selected
             </span>
+            {selected.size > 0 && (
+              <NeoButton
+                variant="danger"
+                size="sm"
+                className="ml-1 px-2.5 py-1 text-[11px]"
+                onClick={() => void handleRemoveSelected()}
+              >
+                Remove
+              </NeoButton>
+            )}
           </div>
 
           <div className="flex-1" />
@@ -397,24 +632,45 @@ export function JobBoardView() {
             ))}
           </div>
 
-          <button
-            type="button"
-            className="flex cursor-pointer items-center gap-1.5 rounded-[10px] bg-white px-3 py-2 text-[13px] font-bold neo-border transition-neo hover:bg-[var(--mint-l)]"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowFilters((open) => !open)}
+              className={cn(
+                "flex cursor-pointer items-center gap-1.5 rounded-[10px] px-3 py-2 text-[13px] font-bold neo-border transition-neo",
+                hasActiveFilters
+                  ? "bg-[var(--mint)]"
+                  : "bg-white hover:bg-[var(--mint-l)]",
+              )}
             >
-              <line x1="4" y1="6" x2="20" y2="6" />
-              <line x1="8" y1="12" x2="16" y2="12" />
-              <line x1="11" y1="18" x2="13" y2="18" />
-            </svg>
-            Filter
-          </button>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+              >
+                <line x1="4" y1="6" x2="20" y2="6" />
+                <line x1="8" y1="12" x2="16" y2="12" />
+                <line x1="11" y1="18" x2="13" y2="18" />
+              </svg>
+              Filter
+              {hasActiveFilters && (
+                <span className="rounded-full bg-[var(--foreground)] px-1.5 py-0.5 text-[10px] font-extrabold text-white">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+            {showFilters && (
+              <TrackerFilterPanel
+                filters={filters}
+                onChange={setFilters}
+                onClear={() => setFilters(EMPTY_FILTERS)}
+                onClose={() => setShowFilters(false)}
+              />
+            )}
+          </div>
 
           <NeoButton
             variant="mint"
@@ -594,15 +850,9 @@ export function JobBoardView() {
                             <select
                               value={job.status}
                               onChange={(e) =>
-                                setJobs((prev) =>
-                                  prev.map((j) =>
-                                    j.id === job.id
-                                      ? {
-                                          ...j,
-                                          status: e.target.value as JobStatus,
-                                        }
-                                      : j,
-                                  ),
+                                void handleStatusChange(
+                                  job.id,
+                                  e.target.value as JobStatus,
                                 )
                               }
                               className="cursor-pointer rounded-full px-2.5 py-1 font-sans text-xs font-bold text-[var(--foreground)] outline-none neo-border-sm transition-[background] duration-150"
@@ -648,13 +898,7 @@ export function JobBoardView() {
                             <StarRating
                               value={job.excitement}
                               onChange={(val) =>
-                                setJobs((prev) =>
-                                  prev.map((j) =>
-                                    j.id === job.id
-                                      ? { ...j, excitement: val }
-                                      : j,
-                                  ),
-                                )
+                                void handleExcitementChange(job.id, val)
                               }
                             />
                           </td>
@@ -701,6 +945,8 @@ export function JobBoardView() {
               </Link>
             ))}
           </div>
+        )}
+          </>
         )}
       </div>
     </div>

@@ -9,6 +9,7 @@ import { NeoCard } from "@/components/ui/neo-card";
 import { NeoInput } from "@/components/ui/neo-input";
 import { NeoTabs } from "@/components/ui/neo-tabs";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 import {
   MatchScore,
@@ -21,11 +22,13 @@ import {
   STATUS_STAGES,
   type JobStatus,
 } from "@/lib/constants";
-import { MOCK_JOBS, MOCK_RESUME, type MockJob } from "@/lib/mock-data";
+import { useJobs } from "@/components/providers/jobs-provider";
+import { MOCK_RESUME } from "@/lib/mock-data";
+import type { Job } from "@/lib/types/job";
 
 const RESUME_SAMPLE = MOCK_RESUME;
 
-function ResumeTab({ job }: { job: MockJob }) {
+function ResumeTab({ job }: { job: Job }) {
   const toast = useToast();
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState(job.resumeGenerated);
@@ -193,7 +196,7 @@ function ResumeTab({ job }: { job: MockJob }) {
   );
 }
 
-function CoverLetterTab({ job }: { job: MockJob }) {
+function CoverLetterTab({ job }: { job: Job }) {
   const toast = useToast();
   const [generated, setGenerated] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -263,7 +266,7 @@ Alex Johnson`;
   );
 }
 
-function InterviewPrepTab({ job }: { job: MockJob }) {
+function InterviewPrepTab({ job }: { job: Job }) {
   const [generated, setGenerated] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [activeCategory, setActiveCategory] = useState("behavioral");
@@ -397,9 +400,11 @@ function InterviewPrepTab({ job }: { job: MockJob }) {
 function JobDetailPanel({
   job,
   onStatusChange,
+  onDelete,
 }: {
-  job: MockJob | undefined;
+  job: Job | undefined;
   onStatusChange: (id: string, status: JobStatus) => void;
+  onDelete: (id: string) => void;
 }) {
   const [activeTab, setActiveTab] = useState("info");
 
@@ -427,35 +432,45 @@ function JobDetailPanel({
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-[var(--background)]">
       <div className="shrink-0 border-b-[2.5px] border-[var(--foreground)] bg-white px-7 pt-5">
-        <div className="mb-3">
-          <h1 className="mb-1 font-heading text-[28px] font-extrabold tracking-tight">
-            {job.title}
-          </h1>
-          <div className="flex flex-wrap items-center gap-2.5 text-sm font-medium text-[#555]">
-            <strong className="text-[var(--foreground)]">{job.company}</strong>
-            <span>—</span>
-            <span>{job.location}</span>
-            <span className="text-[#bbb]">·</span>
-            <span>Added {job.dateAdded}</span>
-            {job.source && (
-              <NeoBadge color="#ffffff" className="text-[11px]">
-                via {job.source}
-              </NeoBadge>
-            )}
-            {job.url && (
-              <a
-                href={job.url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs font-bold text-[var(--foreground)] underline-offset-2 hover:underline"
-              >
-                ↗ View posting
-              </a>
-            )}
-            {job.matchScore !== null && job.matchScore !== undefined && (
-              <MatchScore score={job.matchScore} size="sm" />
-            )}
+        <div className="mb-3 flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="mb-1 font-heading text-[28px] font-extrabold tracking-tight">
+              {job.title}
+            </h1>
+            <div className="flex flex-wrap items-center gap-2.5 text-sm font-medium text-[#555]">
+              <strong className="text-[var(--foreground)]">{job.company}</strong>
+              <span>—</span>
+              <span>{job.location}</span>
+              <span className="text-[#bbb]">·</span>
+              <span>Added {job.dateAdded}</span>
+              {job.source && (
+                <NeoBadge color="#ffffff" className="text-[11px]">
+                  via {job.source}
+                </NeoBadge>
+              )}
+              {job.url && (
+                <a
+                  href={job.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs font-bold text-[var(--foreground)] underline-offset-2 hover:underline"
+                >
+                  ↗ View posting
+                </a>
+              )}
+              {job.matchScore !== null && job.matchScore !== undefined && (
+                <MatchScore score={job.matchScore} size="sm" />
+              )}
+            </div>
           </div>
+          <NeoButton
+            variant="danger"
+            size="sm"
+            className="shrink-0 px-3 py-1.5 text-xs"
+            onClick={() => onDelete(job.id)}
+          >
+            Remove
+          </NeoButton>
         </div>
         <div className="mb-4">
           <StatusPipeline
@@ -466,11 +481,11 @@ function JobDetailPanel({
         <NeoTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
       <div
-        key={activeTab}
+        key={`${job.id}-${activeTab}`}
         className="animate-tab-panel flex flex-1 flex-col overflow-hidden bg-[var(--background)]"
       >
         {activeTab === "info" && (
-          <div className="flex flex-1 gap-6 overflow-y-auto p-7">
+          <div key={job.id} className="flex flex-1 gap-6 overflow-y-auto p-7">
             <div className="flex-1">
               <SectionHeader label="Job Description" color="var(--mint)" />
               <div className="rounded-xl bg-white p-5 text-sm leading-[1.75] font-medium whitespace-pre-line neo-border">
@@ -513,9 +528,9 @@ function JobDetailPanel({
             </div>
           </div>
         )}
-        {activeTab === "resume" && <ResumeTab job={job} />}
-        {activeTab === "cover" && <CoverLetterTab job={job} />}
-        {activeTab === "interview" && <InterviewPrepTab job={job} />}
+        {activeTab === "resume" && <ResumeTab key={job.id} job={job} />}
+        {activeTab === "cover" && <CoverLetterTab key={job.id} job={job} />}
+        {activeTab === "interview" && <InterviewPrepTab key={job.id} job={job} />}
       </div>
     </div>
   );
@@ -525,7 +540,7 @@ function KanbanView({
   jobs,
   onJobClick,
 }: {
-  jobs: MockJob[];
+  jobs: Job[];
   onJobClick: (id: string) => void;
 }) {
   const columns = [...STATUS_STAGES, "Rejected" as const];
@@ -573,8 +588,10 @@ function KanbanView({
 }
 
 export function JobTrackerView() {
-  const [jobs, setJobs] = useState<MockJob[]>(MOCK_JOBS);
-  const [selectedId, setSelectedId] = useState("1");
+  const toast = useToast();
+  const { confirm, dialog } = useConfirm();
+  const { jobs, loading, updateJobStatus, deleteJob } = useJobs();
+  const [selectedId, setSelectedId] = useState("");
   const [search, setSearch] = useState("");
   const [showAddJob, setShowAddJob] = useState(false);
   const [viewMode, setViewMode] = useState<"detail" | "kanban">("detail");
@@ -585,10 +602,49 @@ export function JobTrackerView() {
       j.company.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const selectedJob = jobs.find((j) => j.id === selectedId);
+  const selectedJob = jobs.find((j) => j.id === selectedId) ?? filtered[0];
+  const activeJobId = selectedId || filtered[0]?.id;
+
+  const handleStatusChange = async (id: string, status: JobStatus) => {
+    try {
+      await updateJobStatus(id, status);
+    } catch {
+      toast("Failed to update status.", "error");
+    }
+  };
+
+  const handleDeleteJob = async (id: string) => {
+    const job = jobs.find((j) => j.id === id);
+    const confirmed = await confirm({
+      title: "Remove job?",
+      message: `Remove "${job?.title ?? "this job"}" at ${job?.company ?? "this company"}? This can't be undone.`,
+      confirmLabel: "Remove",
+    });
+    if (!confirmed) return;
+
+    try {
+      await deleteJob(id);
+      if (selectedId === id) {
+        const remaining = filtered.filter((j) => j.id !== id);
+        setSelectedId(remaining[0]?.id ?? "");
+      }
+      toast("Job removed.");
+    } catch {
+      toast("Failed to remove job.", "error");
+    }
+  };
+
+  if (loading && jobs.length === 0) {
+    return (
+      <div className="flex flex-1 items-center justify-center text-sm font-semibold text-[#888]">
+        Loading jobs…
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-1 overflow-hidden">
+      {dialog}
       <div className="flex w-[280px] shrink-0 flex-col border-r-[2.5px] border-[var(--foreground)] bg-white">
         <div className="border-b-[2.5px] border-[var(--foreground)] px-4 pt-4 pb-3">
           <div className="mb-2 flex items-center justify-between">
@@ -647,7 +703,7 @@ export function JobTrackerView() {
             />
           ) : (
             filtered.map((job) => {
-              const isSelected = job.id === selectedId;
+              const isSelected = job.id === activeJobId;
               const scoreStyle =
                 job.matchScore !== null
                   ? matchScorePillStyle(job.matchScore)
@@ -679,8 +735,21 @@ export function JobTrackerView() {
                       : "4px solid transparent",
                   }}
                 >
-                  <div className="mb-0.5 text-sm font-bold text-[var(--foreground)]">
-                    {job.title}
+                  <div className="mb-0.5 flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1 text-sm font-bold text-[var(--foreground)]">
+                      {job.title}
+                    </div>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${job.title}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleDeleteJob(job.id);
+                      }}
+                      className="shrink-0 cursor-pointer rounded-md border-2 border-transparent bg-transparent px-1.5 py-0.5 text-xs font-bold text-[#888] transition-[background,color,border-color] duration-150 hover:border-[var(--foreground)] hover:bg-[var(--peach)] hover:text-[var(--foreground)]"
+                    >
+                      ✕
+                    </button>
                   </div>
                   <div className="mb-2 text-xs font-medium text-[#666]">
                     {job.company}
@@ -711,11 +780,8 @@ export function JobTrackerView() {
       {viewMode === "detail" ? (
         <JobDetailPanel
           job={selectedJob}
-          onStatusChange={(id, status) =>
-            setJobs((prev) =>
-              prev.map((j) => (j.id === id ? { ...j, status } : j)),
-            )
-          }
+          onStatusChange={(id, status) => void handleStatusChange(id, status)}
+          onDelete={(id) => void handleDeleteJob(id)}
         />
       ) : (
         <KanbanView
@@ -730,10 +796,7 @@ export function JobTrackerView() {
       <AddJobForm
         open={showAddJob}
         onClose={() => setShowAddJob(false)}
-        onAdd={(job) => {
-          setJobs((prev) => [job, ...prev]);
-          setSelectedId(job.id);
-        }}
+        onCreated={(job) => setSelectedId(job.id)}
       />
     </div>
   );
