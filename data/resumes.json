@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1,
+    "title": "Stripe Application",
+    "matchJob": "Frontend Engineer @ Stripe",
+    "edited": "05/23/2026",
+    "color": "var(--mint)"
+  },
+  {
+    "id": 2,
+    "title": "Figma — Product Designer",
+    "matchJob": "Product Designer @ Figma",
+    "edited": "05/15/2026",
+    "color": "var(--lav)"
+  },
+  {
+    "id": 3,
+    "title": "Linear Resume",
+    "matchJob": "Frontend Engineer II @ Linear",
+    "edited": "05/10/2026",
+    "color": "var(--peach)"
+  },
+  {
+    "id": 4,
+    "title": "General Resume v2",
+    "matchJob": null,
+    "edited": "05/01/2026",
+    "color": "var(--yellow)"
+  }
+]

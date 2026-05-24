@@ -1,0 +1,56 @@
+import { cn } from "@/lib/utils";
+import type { ReactNode, CSSProperties } from "react";
+
+type NeoButtonProps = {
+  children: ReactNode;
+  variant?: "primary" | "mint" | "peach" | "secondary" | "yellow" | "danger";
+  size?: "sm" | "md" | "lg";
+  className?: string;
+  disabled?: boolean;
+  type?: "button" | "submit";
+  onClick?: () => void;
+};
+
+const fills: Record<string, string> = {
+  primary: "var(--lav)",
+  mint: "var(--mint)",
+  peach: "var(--peach)",
+  secondary: "#ffffff",
+  yellow: "var(--yellow)",
+  danger: "var(--red)",
+};
+
+export function NeoButton({
+  children,
+  variant = "primary",
+  size = "md",
+  className,
+  disabled,
+  type = "button",
+  onClick,
+}: NeoButtonProps) {
+  const pad =
+    size === "sm" ? "7px 16px" : size === "lg" ? "13px 28px" : "10px 22px";
+  const fs = size === "sm" ? 13 : size === "lg" ? 15 : 14;
+
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full font-sans font-bold text-[var(--foreground)] neo-border transition-transform outline-none hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50",
+        className,
+      )}
+      style={
+        {
+          background: fills[variant] ?? fills.primary,
+          padding: pad,
+          fontSize: fs,
+        } as CSSProperties
+      }
+    >
+      {children}
+    </button>
+  );
+}
