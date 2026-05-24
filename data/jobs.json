@@ -1,30 +1,10 @@
 [
   {
-    "id": "85d73712-6e9d-4fc0-b11e-c257ff61f480",
-    "title": "dwad",
-    "company": "dwad",
-    "location": "Remote",
-    "status": "Interview",
-    "matchScore": null,
-    "source": "Other",
-    "dateAdded": "just now",
-    "url": "dwadaw",
-    "jd": "dwadw",
-    "matchedKeywords": [],
-    "missingKeywords": [],
-    "resumeGenerated": false,
-    "salary": "$0",
-    "deadline": null,
-    "dateApplied": null,
-    "followUp": null,
-    "excitement": 0
-  },
-  {
     "id": "1",
     "title": "Frontend Engineer",
     "company": "Stripe",
     "location": "San Francisco, CA",
-    "status": "Applied",
+    "status": "Applying",
     "matchScore": 87,
     "source": "LinkedIn",
     "dateAdded": "2 hours ago",
@@ -48,34 +28,6 @@
     "dateApplied": "05/10/2026",
     "followUp": null,
     "excitement": 3
-  },
-  {
-    "id": "2",
-    "title": "Product Designer",
-    "company": "Figma",
-    "location": "New York, NY",
-    "status": "Interview",
-    "matchScore": 92,
-    "source": "Indeed",
-    "dateAdded": "1 day ago",
-    "url": "https://figma.com/careers",
-    "jd": "Join Figma as a Product Designer and help us build tools that empower designers worldwide.\n\nYou'll work on core product experiences, defining and shipping features used by millions.\n\nRequirements:\n• 4+ years of product design experience\n• Strong Figma proficiency\n• Experience with design systems\n• UX research skills\n• Prototyping and interaction design",
-    "matchedKeywords": [
-      "Figma",
-      "UX Research",
-      "Prototyping",
-      "Design Systems",
-      "Interaction Design"
-    ],
-    "missingKeywords": [
-      "Motion Design"
-    ],
-    "resumeGenerated": true,
-    "salary": "$0",
-    "deadline": null,
-    "dateApplied": "05/08/2026",
-    "followUp": null,
-    "excitement": 4
   },
   {
     "id": "3",
@@ -107,7 +59,7 @@
     "title": "Frontend Engineer II",
     "company": "Linear",
     "location": "Remote",
-    "status": "Applying",
+    "status": "Rejected",
     "matchScore": 79,
     "source": "LinkedIn",
     "dateAdded": "5 days ago",
@@ -127,42 +79,14 @@
     "deadline": null,
     "dateApplied": null,
     "followUp": null,
-    "excitement": 2
+    "excitement": 5
   },
   {
     "id": "5",
     "title": "Software Engineer",
     "company": "Notion",
     "location": "San Francisco, CA",
-    "status": "Rejected",
-    "matchScore": 65,
-    "source": "Company Site",
-    "dateAdded": "2 weeks ago",
-    "url": "https://notion.so/careers",
-    "jd": "Build the connected workspace at Notion.\n\nWe're looking for engineers who care deeply about craft and can work across the stack.\n\nRequirements:\n• React and TypeScript\n• Node.js backend experience\n• PostgreSQL\n• AWS infrastructure\n• Real-time collaboration systems",
-    "matchedKeywords": [
-      "React",
-      "Node.js",
-      "TypeScript"
-    ],
-    "missingKeywords": [
-      "PostgreSQL",
-      "AWS",
-      "CRDTs"
-    ],
-    "resumeGenerated": true,
-    "salary": "$0",
-    "deadline": null,
-    "dateApplied": "04/20/2026",
-    "followUp": null,
-    "excitement": 1
-  },
-  {
-    "id": "6",
-    "title": "Software Engineer",
-    "company": "Notion",
-    "location": "San Francisco, CA",
-    "status": "Rejected",
+    "status": "Accepted",
     "matchScore": 65,
     "source": "Company Site",
     "dateAdded": "2 weeks ago",

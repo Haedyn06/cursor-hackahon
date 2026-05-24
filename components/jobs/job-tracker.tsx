@@ -9,6 +9,7 @@ import { NeoCard } from "@/components/ui/neo-card";
 import { NeoInput } from "@/components/ui/neo-input";
 import { NeoTabs } from "@/components/ui/neo-tabs";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 import {
   MatchScore,
@@ -480,11 +481,11 @@ function JobDetailPanel({
         <NeoTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
       <div
-        key={activeTab}
+        key={`${job.id}-${activeTab}`}
         className="animate-tab-panel flex flex-1 flex-col overflow-hidden bg-[var(--background)]"
       >
         {activeTab === "info" && (
-          <div className="flex flex-1 gap-6 overflow-y-auto p-7">
+          <div key={job.id} className="flex flex-1 gap-6 overflow-y-auto p-7">
             <div className="flex-1">
               <SectionHeader label="Job Description" color="var(--mint)" />
               <div className="rounded-xl bg-white p-5 text-sm leading-[1.75] font-medium whitespace-pre-line neo-border">
@@ -527,9 +528,9 @@ function JobDetailPanel({
             </div>
           </div>
         )}
-        {activeTab === "resume" && <ResumeTab job={job} />}
-        {activeTab === "cover" && <CoverLetterTab job={job} />}
-        {activeTab === "interview" && <InterviewPrepTab job={job} />}
+        {activeTab === "resume" && <ResumeTab key={job.id} job={job} />}
+        {activeTab === "cover" && <CoverLetterTab key={job.id} job={job} />}
+        {activeTab === "interview" && <InterviewPrepTab key={job.id} job={job} />}
       </div>
     </div>
   );
@@ -588,6 +589,7 @@ function KanbanView({
 
 export function JobTrackerView() {
   const toast = useToast();
+  const { confirm, dialog } = useConfirm();
   const { jobs, loading, updateJobStatus, deleteJob } = useJobs();
   const [selectedId, setSelectedId] = useState("");
   const [search, setSearch] = useState("");
@@ -612,6 +614,14 @@ export function JobTrackerView() {
   };
 
   const handleDeleteJob = async (id: string) => {
+    const job = jobs.find((j) => j.id === id);
+    const confirmed = await confirm({
+      title: "Remove job?",
+      message: `Remove "${job?.title ?? "this job"}" at ${job?.company ?? "this company"}? This can't be undone.`,
+      confirmLabel: "Remove",
+    });
+    if (!confirmed) return;
+
     try {
       await deleteJob(id);
       if (selectedId === id) {
@@ -634,6 +644,7 @@ export function JobTrackerView() {
 
   return (
     <div className="flex flex-1 overflow-hidden">
+      {dialog}
       <div className="flex w-[280px] shrink-0 flex-col border-r-[2.5px] border-[var(--foreground)] bg-white">
         <div className="border-b-[2.5px] border-[var(--foreground)] px-4 pt-4 pb-3">
           <div className="mb-2 flex items-center justify-between">

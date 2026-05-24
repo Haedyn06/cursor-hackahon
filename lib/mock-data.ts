@@ -2,18 +2,25 @@ import jobs from "@/data/jobs.json";
 import profile from "@/data/profile.json";
 import resume from "@/data/resume.json";
 import resumes from "@/data/resumes.json";
+import coverLetters from "@/data/cover-letters.json";
+import interviewPrep from "@/data/interview-prep.json";
 import onboardingResumes from "@/data/onboarding-resumes.json";
 import type { Job } from "@/lib/types/job";
 
 export type { Job, CreateJobInput, UpdateJobInput } from "@/lib/types/job";
 
-export type MockResume = {
+export type MockDocument = {
   id: number;
   title: string;
   matchJob: string | null;
   edited: string;
   color: string;
+  questionCount?: number;
 };
+
+export type MockResume = MockDocument;
+export type MockCoverLetter = MockDocument;
+export type MockInterviewPrep = MockDocument;
 
 export type MockProfile = typeof profile;
 
@@ -29,6 +36,8 @@ export type MockJob = Job;
 
 export const MOCK_JOBS = jobs as Job[];
 export const MOCK_RESUMES = resumes as MockResume[];
+export const MOCK_COVER_LETTERS = coverLetters as MockCoverLetter[];
+export const MOCK_INTERVIEW_PREP = interviewPrep as MockInterviewPrep[];
 export const MOCK_PROFILE = profile as MockProfile;
 export const MOCK_RESUME = resume.content;
 export const MOCK_ONBOARDING_RESUMES = onboardingResumes as OnboardingResume[];

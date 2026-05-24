@@ -9,6 +9,7 @@ import { NeoCard } from "@/components/ui/neo-card";
 import { NeoInput } from "@/components/ui/neo-input";
 import { NeoTabs } from "@/components/ui/neo-tabs";
 import { ProgressSteps } from "@/components/ui/progress-steps";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { SectionHeader } from "@/components/ui/match-score";
 import {
   API_PROVIDERS,
@@ -193,9 +194,8 @@ const defaultProfile = {
   name: "",
   location: "",
   email: "",
-  linkedin: "",
-  github: "",
-  portfolio: "",
+  phone: "",
+  links: [{ id: 1, name: "", url: "" }],
   targetRole: "",
   experience: "",
   about: "",
@@ -214,6 +214,7 @@ function AIAutoFillZone({
 }: {
   onFill: (data: Partial<ProfileState>) => void;
 }) {
+  const { confirm, dialog } = useConfirm();
   const [dragOver, setDragOver] = useState(false);
   const [files, setFiles] = useState<
     { name: string; type: string; size: number }[]
@@ -262,9 +263,12 @@ function AIAutoFillZone({
         name: "Alex Johnson",
         location: "San Francisco, CA",
         email: "alex@example.com",
-        linkedin: "linkedin.com/in/alexj",
-        github: "github.com/alexj",
-        portfolio: "alexj.dev",
+        phone: "(415) 555-0123",
+        links: [
+          { id: 1, name: "LinkedIn", url: "linkedin.com/in/alexj" },
+          { id: 2, name: "GitHub", url: "github.com/alexj" },
+          { id: 3, name: "Portfolio", url: "alexj.dev" },
+        ],
         targetRole: "Frontend Engineer",
         experience: "Mid Level (2-5 yrs)",
         about:
@@ -295,7 +299,9 @@ function AIAutoFillZone({
   };
 
   return (
-    <NeoCard
+    <>
+      {dialog}
+      <NeoCard
       className="mb-1 transition-colors duration-200"
       style={{
         background: done ? "var(--mint-l)" : "#ffffff",
@@ -367,7 +373,15 @@ function AIAutoFillZone({
                   {fileIcon(f.type)} {f.name}
                   <button
                     type="button"
-                    onClick={() => removeFile(i)}
+                    onClick={async () => {
+                      const confirmed = await confirm({
+                        title: "Remove file?",
+                        message: `Remove "${f.name}" from the upload list?`,
+                        confirmLabel: "Remove",
+                      });
+                      if (!confirmed) return;
+                      removeFile(i);
+                    }}
                     className="ml-1 cursor-pointer border-none bg-transparent p-0 text-[#888]"
                   >
                     ✕
@@ -407,11 +421,12 @@ function AIAutoFillZone({
 
       {done && (
         <p className="text-[13px] font-medium text-[#555]">
-          ✓ Filled: name, location, email, LinkedIn, GitHub, target role,
+          ✓ Filled: name, location, email, phone, links, target role,
           experience level, about, 7 skills, languages, and certifications.
         </p>
       )}
     </NeoCard>
+    </>
   );
 }
 
@@ -526,6 +541,7 @@ function MultiResumeImport() {
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { confirm, dialog } = useConfirm();
   const [step, setStep] = useState(1);
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
   const [providerType, setProviderType] = useState<"apikey" | "oauth">("apikey");
@@ -539,7 +555,7 @@ export default function OnboardingPage() {
     (
       field: keyof Omit<
         ProfileState,
-        "skills" | "experience_entries" | "languages" | "certifications"
+        "skills" | "experience_entries" | "languages" | "certifications" | "links"
       >,
     ) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -645,6 +661,36 @@ export default function OnboardingPage() {
     });
   };
 
+  const updateLinkEntry = (
+    id: number,
+    field: keyof ProfileState["links"][number],
+    value: string,
+  ) => {
+    setProfile((p) => ({
+      ...p,
+      links: p.links.map((entry) =>
+        entry.id === id ? { ...entry, [field]: value } : entry,
+      ),
+    }));
+  };
+
+  const addLinkEntry = () => {
+    setProfile((p) => ({
+      ...p,
+      links: [...p.links, { id: Date.now(), name: "", url: "" }],
+    }));
+  };
+
+  const removeLinkEntry = (id: number) => {
+    setProfile((p) => {
+      if (p.links.length <= 1) return p;
+      return {
+        ...p,
+        links: p.links.filter((entry) => entry.id !== id),
+      };
+    });
+  };
+
   const handleAIFill = (data: Partial<ProfileState>) => {
     setProfile((p) => ({ ...p, ...data }));
   };
@@ -672,6 +718,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--background)]">
+      {dialog}
       <div className="flex h-16 items-center justify-between border-b-[2.5px] border-[var(--foreground)] bg-white px-10">
         <Logo />
         <ProgressSteps
@@ -829,24 +876,70 @@ export default function OnboardingPage() {
                     onChange={setProfileField("email")}
                   />
                   <NeoInput
-                    label="LinkedIn"
-                    placeholder="linkedin.com/in/yourname"
-                    value={profile.linkedin}
-                    onChange={setProfileField("linkedin")}
-                  />
-                  <NeoInput
-                    label="GitHub"
-                    placeholder="github.com/yourname"
-                    value={profile.github}
-                    onChange={setProfileField("github")}
-                  />
-                  <NeoInput
-                    label="Portfolio"
-                    placeholder="yoursite.com"
-                    value={profile.portfolio}
-                    onChange={setProfileField("portfolio")}
+                    label="Phone"
+                    placeholder="(415) 555-0123"
+                    type="tel"
+                    value={profile.phone}
+                    onChange={setProfileField("phone")}
                   />
                 </div>
+              </NeoCard>
+
+              <NeoCard>
+                <SectionHeader label="Links" color="var(--lav)" />
+                {profile.links.map((entry, i) => (
+                  <div
+                    key={entry.id}
+                    className={i < profile.links.length - 1 ? "mb-5" : ""}
+                  >
+                    {i > 0 && (
+                      <div className="mb-5 h-0.5 bg-[#eeeeee]" aria-hidden />
+                    )}
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <NeoInput
+                        label="Name"
+                        placeholder="e.g. LinkedIn"
+                        value={entry.name}
+                        onChange={(e) =>
+                          updateLinkEntry(entry.id, "name", e.target.value)
+                        }
+                      />
+                      <NeoInput
+                        label="URL"
+                        placeholder="https://..."
+                        value={entry.url}
+                        onChange={(e) =>
+                          updateLinkEntry(entry.id, "url", e.target.value)
+                        }
+                      />
+                    </div>
+                    {profile.links.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const confirmed = await confirm({
+                            title: "Remove link?",
+                            message: `Remove "${entry.name || "this link"}"? This can't be undone.`,
+                            confirmLabel: "Remove",
+                          });
+                          if (!confirmed) return;
+                          removeLinkEntry(entry.id);
+                        }}
+                        className="mt-3 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
+                      >
+                        Remove link
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <NeoButton
+                  variant="secondary"
+                  size="sm"
+                  className="mt-4"
+                  onClick={addLinkEntry}
+                >
+                  + Add link
+                </NeoButton>
               </NeoCard>
 
               <NeoCard>
@@ -883,12 +976,18 @@ export default function OnboardingPage() {
                         key={s}
                         color="var(--mint)"
                         className="cursor-pointer"
-                        onClick={() =>
+                        onClick={async () => {
+                          const confirmed = await confirm({
+                            title: "Remove skill?",
+                            message: `Remove "${s}" from your skills?`,
+                            confirmLabel: "Remove",
+                          });
+                          if (!confirmed) return;
                           setProfile((p) => ({
                             ...p,
                             skills: p.skills.filter((x) => x !== s),
-                          }))
-                        }
+                          }));
+                        }}
                       >
                         {s} ✕
                       </NeoBadge>
@@ -975,7 +1074,15 @@ export default function OnboardingPage() {
                     {profile.experience_entries.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => removeExperienceEntry(entry.id)}
+                        onClick={async () => {
+                          const confirmed = await confirm({
+                            title: "Remove role?",
+                            message: `Remove "${entry.title || "this role"}"? This can't be undone.`,
+                            confirmLabel: "Remove",
+                          });
+                          if (!confirmed) return;
+                          removeExperienceEntry(entry.id);
+                        }}
                         className="mt-3 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
                       >
                         Remove role
@@ -1034,7 +1141,15 @@ export default function OnboardingPage() {
                     {profile.languages.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => removeLanguageEntry(entry.id)}
+                        onClick={async () => {
+                          const confirmed = await confirm({
+                            title: "Remove language?",
+                            message: `Remove "${entry.name || "this language"}"? This can't be undone.`,
+                            confirmLabel: "Remove",
+                          });
+                          if (!confirmed) return;
+                          removeLanguageEntry(entry.id);
+                        }}
                         className="mt-3 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
                       >
                         Remove language
@@ -1105,7 +1220,15 @@ export default function OnboardingPage() {
                     {profile.certifications.length > 1 && (
                       <button
                         type="button"
-                        onClick={() => removeCertificationEntry(entry.id)}
+                        onClick={async () => {
+                          const confirmed = await confirm({
+                            title: "Remove certification?",
+                            message: `Remove "${entry.name || "this certification"}"? This can't be undone.`,
+                            confirmLabel: "Remove",
+                          });
+                          if (!confirmed) return;
+                          removeCertificationEntry(entry.id);
+                        }}
                         className="mt-3 cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[#cc0000]"
                       >
                         Remove certification
