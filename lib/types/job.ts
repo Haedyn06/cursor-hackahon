@@ -1,4 +1,7 @@
 import type { JobStatus } from "@/lib/constants";
+import type { JobStoredCoverLetter } from "@/lib/types/job-cover-letter";
+import type { JobStoredInterviewPrep } from "@/lib/types/job-interview-prep";
+import type { JobStoredResume } from "@/lib/types/job-resume";
 
 export type Job = {
   id: string;
@@ -14,6 +17,11 @@ export type Job = {
   matchedKeywords: string[];
   missingKeywords: string[];
   resumeGenerated: boolean;
+  storedResume: JobStoredResume | null;
+  coverLetterGenerated: boolean;
+  storedCoverLetter: JobStoredCoverLetter | null;
+  interviewPrepGenerated: boolean;
+  storedInterviewPrep: JobStoredInterviewPrep | null;
   salary: string;
   deadline: string | null;
   dateApplied: string | null;

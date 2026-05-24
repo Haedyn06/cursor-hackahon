@@ -20,6 +20,9 @@ import {
   API_PROVIDERS,
   OAUTH_PROVIDERS,
 } from "@/lib/constants";
+import { verifyApiKey } from "@/lib/ai/client";
+import { getProviderConfig } from "@/lib/ai/providers";
+import { saveAiSession } from "@/lib/ai/session";
 import {
   mockAiResumeName,
   persistOnboardingCompletion,
@@ -43,15 +46,31 @@ function ApiKeyCard({
   verified: boolean;
   onVerify: () => void;
 }) {
+  const toast = useToast();
   const [verifying, setVerifying] = useState(false);
+  const keyUrl = getProviderConfig(prov.id).keyUrl;
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     if (!apiKey.trim()) return;
     setVerifying(true);
-    setTimeout(() => {
-      setVerifying(false);
+    try {
+      const result = await verifyApiKey(prov.id, apiKey.trim());
+      saveAiSession({
+        providerId: result.providerId,
+        apiKey: apiKey.trim(),
+        model: result.model,
+        verifiedAt: new Date().toISOString(),
+      });
+      toast(`${prov.name} connected!`);
       onVerify();
-    }, 1400);
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "Could not verify API key.",
+        "error",
+      );
+    } finally {
+      setVerifying(false);
+    }
   };
 
   return (
@@ -78,7 +97,9 @@ function ApiKeyCard({
       {expanded && (
         <div className="border-t-2 border-[var(--foreground)] px-[18px] pb-[18px]">
           <a
-            href="#"
+            href={keyUrl}
+            target="_blank"
+            rel="noopener noreferrer"
             className="my-2.5 flex items-center gap-1 text-xs font-bold text-[var(--foreground)]"
           >
             Get API Key ↗
@@ -914,9 +935,7 @@ export default function OnboardingPage() {
                       setVerified((k) => ({ ...k, [prov.id]: false }));
                     }}
                     verified={!!verified[prov.id]}
-                    onVerify={() =>
-                      setVerified((k) => ({ ...k, [prov.id]: true }))
-                    }
+                    onVerify={() => setVerified({ [prov.id]: true })}
                   />
                 ))}
               </div>

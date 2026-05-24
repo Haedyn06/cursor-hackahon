@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "setup:scraper": "python3 -m venv .venv-scraper && .venv-scraper/bin/pip install -r scripts/requirements-scraper.txt && .venv-scraper/bin/playwright install chromium"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.4.1",
