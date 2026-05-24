@@ -19,7 +19,7 @@ import {
   ProfileSectionStack,
 } from "@/components/ui/collapsible-section";
 import { useToast } from "@/components/providers";
-import { API_PROVIDERS, OAUTH_PROVIDERS } from "@/lib/constants";
+import { API_PROVIDERS } from "@/lib/constants";
 import { verifyApiKey, autofillProfileFromDocuments } from "@/lib/ai/client";
 import { getProviderConfig } from "@/lib/ai/providers";
 import { loadAiSession, saveAiSession } from "@/lib/ai/session";
@@ -173,85 +173,6 @@ function ApiKeyCard({
               </NeoButton>
             )}
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function OAuthCard({
-  prov,
-  expanded,
-  onExpand,
-  connected,
-  onConnect,
-}: {
-  prov: (typeof OAUTH_PROVIDERS)[number];
-  expanded: boolean;
-  onExpand: () => void;
-  connected: boolean;
-  onConnect: () => void;
-}) {
-  const [connecting, setConnecting] = useState(false);
-
-  const handleConnect = () => {
-    setConnecting(true);
-    setTimeout(() => {
-      setConnecting(false);
-      onConnect();
-    }, 1800);
-  };
-
-  return (
-    <div
-      className="overflow-hidden rounded-2xl transition-colors neo-border"
-      style={{ background: expanded ? prov.color : "#ffffff" }}
-    >
-      <div onClick={onExpand} className="cursor-pointer px-[18px] pt-[18px] pb-3.5">
-        <div className="mb-1.5 flex items-start gap-2">
-          <span className="shrink-0 font-mono text-lg font-extrabold leading-snug">
-            {prov.icon}
-          </span>
-          <div className="min-w-0">
-            <div className="mb-1 font-heading text-sm font-extrabold leading-tight">
-              {prov.name}
-            </div>
-            <NeoBadge
-              color={prov.badge.includes("New") ? "var(--peach)" : "#ffffff"}
-              className="text-[10px]"
-            >
-              {prov.badge}
-            </NeoBadge>
-          </div>
-        </div>
-        <div className="pl-[26px] text-xs font-medium text-[#555]">{prov.desc}</div>
-      </div>
-      {expanded && (
-        <div className="border-t-2 border-[var(--foreground)] px-[18px] pb-[18px]">
-          <p className="my-3 text-xs leading-relaxed font-medium text-[#666]">
-            No API key needed — connect via OAuth. We only request permission to use the AI model endpoint.
-          </p>
-          {connected ? (
-            <NeoBadge color="var(--mint)" className="px-3.5 py-1.5 text-xs">
-              ✓ Connected to {prov.name}!
-            </NeoBadge>
-          ) : (
-            <NeoButton
-              variant="secondary"
-              size="sm"
-              disabled={connecting}
-              onClick={handleConnect}
-            >
-              {connecting ? (
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block h-3 w-3 animate-spin-slow rounded-full border-2 border-[#aaa] border-t-[var(--foreground)]" />
-                  Connecting...
-                </span>
-              ) : (
-                `Connect with ${prov.name} →`
-              )}
-            </NeoButton>
-          )}
         </div>
       )}
     </div>
@@ -763,10 +684,8 @@ export default function OnboardingPage() {
   const { confirm, dialog } = useConfirm();
   const [step, setStep] = useState(1);
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
-  const [providerType, setProviderType] = useState<"apikey" | "oauth">("apikey");
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [verified, setVerified] = useState<Record<string, boolean>>({});
-  const [oauthConnected, setOauthConnected] = useState<Record<string, boolean>>({});
   const [newSkill, setNewSkill] = useState("");
   const [profile, setProfile] = useState<ProfileState>(defaultProfile);
   const [resumes, setResumes] = useState<ResumeItem[]>([]);
@@ -794,16 +713,12 @@ export default function OnboardingPage() {
     queueMicrotask(() => {
       if (onboardingState.providerConnections.length > 0) {
         const nextVerified: Record<string, boolean> = {};
-        const nextOauth: Record<string, boolean> = {};
         for (const connection of onboardingState.providerConnections) {
           if (connection.connectionType === "apikey") {
             nextVerified[connection.providerId] = connection.status === "connected";
-          } else {
-            nextOauth[connection.providerId] = connection.status === "connected";
           }
         }
         setVerified(nextVerified);
-        setOauthConnected(nextOauth);
       }
 
       if (onboardingState.profile) {
@@ -1091,8 +1006,8 @@ export default function OnboardingPage() {
   };
 
   const anyConnected = useMemo(
-    () => Object.values(verified).some(Boolean) || Object.values(oauthConnected).some(Boolean),
-    [oauthConnected, verified],
+    () => Object.values(verified).some(Boolean),
+    [verified],
   );
 
   const handleUploadFiles = async (files: File[]) => {
@@ -1181,12 +1096,6 @@ export default function OnboardingPage() {
       connectionType: "apikey" as const,
       status: "connected" as const,
       lastVerifiedAt: Date.now(),
-    })),
-    ...OAUTH_PROVIDERS.filter((provider) => oauthConnected[provider.id]).map((provider) => ({
-      providerId: provider.id,
-      providerName: provider.name,
-      connectionType: "oauth" as const,
-      status: "connected" as const,
     })),
   ];
 
@@ -1335,65 +1244,26 @@ export default function OnboardingPage() {
             <div className="mb-10 text-center">
               <NeoBadge color="var(--mint)" className="mb-4">Step 1 of 3</NeoBadge>
               <h1 className="mb-2.5 font-heading text-[40px] font-extrabold tracking-tight">Connect your AI</h1>
-              <p className="text-base font-medium text-[#555]">Choose how you want to power Rezume — paste an API key or connect via OAuth.</p>
+              <p className="text-base font-medium text-[#555]">Paste an API key from your preferred AI provider to power Rezume.</p>
             </div>
 
-            <div className="mx-auto mb-7 flex w-fit overflow-hidden rounded-full neo-border">
-              {([
-                ["apikey", "🔑  API Key"],
-                ["oauth", "🔗  OAuth / SSO"],
-              ] as const).map(([v, l]) => (
-                <button
-                  key={v}
-                  onClick={() => {
-                    setProviderType(v);
-                    setExpandedProvider(null);
+            <div className="mb-7 grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+              {API_PROVIDERS.map((prov) => (
+                <ApiKeyCard
+                  key={prov.id}
+                  prov={prov}
+                  expanded={expandedProvider === prov.id}
+                  onExpand={() => setExpandedProvider(expandedProvider === prov.id ? null : prov.id)}
+                  apiKey={apiKeys[prov.id] ?? ""}
+                  setApiKey={(v) => {
+                    setApiKeys((k) => ({ ...k, [prov.id]: v }));
+                    setVerified((k) => ({ ...k, [prov.id]: false }));
                   }}
-                  className="cursor-pointer border-none px-7 py-2.5 font-sans text-sm font-bold"
-                  style={{ background: providerType === v ? "var(--foreground)" : "#ffffff", color: providerType === v ? "#ffffff" : "var(--foreground)" }}
-                >
-                  {l}
-                </button>
+                  verified={!!verified[prov.id]}
+                  onVerify={() => handleVerifyProvider(prov.id)}
+                />
               ))}
             </div>
-
-            {providerType === "apikey" && (
-              <div className="mb-7 grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-                {API_PROVIDERS.map((prov) => (
-                  <ApiKeyCard
-                    key={prov.id}
-                    prov={prov}
-                    expanded={expandedProvider === prov.id}
-                    onExpand={() => setExpandedProvider(expandedProvider === prov.id ? null : prov.id)}
-                    apiKey={apiKeys[prov.id] ?? ""}
-                    setApiKey={(v) => {
-                      setApiKeys((k) => ({ ...k, [prov.id]: v }));
-                      setVerified((k) => ({ ...k, [prov.id]: false }));
-                    }}
-                    verified={!!verified[prov.id]}
-                    onVerify={() => handleVerifyProvider(prov.id)}
-                  />
-                ))}
-              </div>
-            )}
-
-            {providerType === "oauth" && (
-              <>
-                <div className="mb-4 rounded-xl bg-[var(--lav-l)] px-4 py-2.5 text-[13px] font-medium text-[#555] neo-border-sm">🔒 OAuth connection never shares your code or files.</div>
-                <div className="mb-7 grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-                  {OAUTH_PROVIDERS.map((prov) => (
-                    <OAuthCard
-                      key={prov.id}
-                      prov={prov}
-                      expanded={expandedProvider === prov.id}
-                      onExpand={() => setExpandedProvider(expandedProvider === prov.id ? null : prov.id)}
-                      connected={!!oauthConnected[prov.id]}
-                      onConnect={() => setOauthConnected((k) => ({ ...k, [prov.id]: true }))}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
 
             <div className="flex justify-end gap-3">
               <NeoButton variant="secondary" size="sm" onClick={() => void handleContinueFromProviders(2)}>

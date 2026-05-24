@@ -1,14 +1,12 @@
 "use client";
 
-import { createElement } from "react";
-import { createRoot } from "react-dom/client";
 import type { DownloadFormat } from "@/components/ui/download-format-dialog";
-import { AtsResumeTemplate } from "@/components/resume/ats-resume-template";
 import {
   type ResumeDocument,
   resumeDocumentToPlainText,
 } from "@/lib/resume-document";
 import { exportResumeToDocx } from "@/lib/docx-export";
+import { resumeDocumentToExportElement } from "@/lib/resume-html-export";
 
 function sanitizeFilename(name: string) {
   return name.replace(/[^\w\s-]/g, "").replace(/\s+/g, "-").slice(0, 80);
@@ -31,6 +29,65 @@ async function loadHtml2Pdf() {
   return module.default ?? module;
 }
 
+async function waitForPaint() {
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
+}
+
+function stripUnsupportedStyles(clonedDoc: Document) {
+  clonedDoc
+    .querySelectorAll("link[rel='stylesheet'], style")
+    .forEach((node) => node.remove());
+
+  clonedDoc.documentElement.style.background = "#ffffff";
+  clonedDoc.documentElement.style.color = "#111111";
+  clonedDoc.body.style.background = "#ffffff";
+  clonedDoc.body.style.color = "#111111";
+}
+
+function mountExportElement(element: HTMLElement): {
+  element: HTMLElement;
+  cleanup: () => void;
+} {
+  const host = document.createElement("div");
+  host.setAttribute("data-export-host", "true");
+  host.style.cssText =
+    "position:fixed;left:-10000px;top:0;z-index:-1;pointer-events:none;background:#ffffff;color:#111111;";
+  host.appendChild(element);
+  document.body.appendChild(host);
+
+  return {
+    element,
+    cleanup: () => {
+      host.remove();
+    },
+  };
+}
+
+function mountExportText(content: string): { element: HTMLElement; cleanup: () => void } {
+  const page = document.createElement("div");
+  applyExportPageStyles(page);
+  page.textContent = content;
+  return mountExportElement(page);
+}
+
+function applyExportPageStyles(page: HTMLElement) {
+  Object.assign(page.style, {
+    width: "8.5in",
+    minHeight: "11in",
+    padding: "1in",
+    background: "#ffffff",
+    color: "#111111",
+    fontFamily: "Georgia, 'Times New Roman', serif",
+    fontSize: "12pt",
+    lineHeight: "1.6",
+    whiteSpace: "pre-wrap",
+  });
+}
+
 export async function exportElementToPdf(
   element: HTMLElement,
   filename: string,
@@ -47,6 +104,10 @@ export async function exportElementToPdf(
         useCORS: true,
         logging: false,
         backgroundColor: "#ffffff",
+        foreignObjectRendering: false,
+        onclone: (clonedDoc: Document) => {
+          stripUnsupportedStyles(clonedDoc);
+        },
       },
       jsPDF: {
         unit: "in",
@@ -63,34 +124,20 @@ export function exportPlainText(content: string, filename: string) {
   downloadBlob(blob, filename, "txt");
 }
 
-async function renderTextOffscreen(content: string): Promise<HTMLElement> {
-  const host = document.createElement("div");
-  host.style.position = "fixed";
-  host.style.left = "-10000px";
-  host.style.top = "0";
-  host.style.pointerEvents = "none";
-  document.body.appendChild(host);
+async function renderTextOffscreen(
+  content: string,
+): Promise<{ element: HTMLElement; cleanup: () => void }> {
+  const mounted = mountExportText(content);
+  await waitForPaint();
+  return mounted;
+}
 
-  const page = document.createElement("div");
-  page.style.width = "8.5in";
-  page.style.minHeight = "11in";
-  page.style.padding = "1in";
-  page.style.background = "#ffffff";
-  page.style.color = "#111111";
-  page.style.fontFamily = "Georgia, 'Times New Roman', serif";
-  page.style.fontSize = "12pt";
-  page.style.lineHeight = "1.6";
-  page.style.whiteSpace = "pre-wrap";
-  page.textContent = content;
-  host.appendChild(page);
-
-  await new Promise<void>((resolve) => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => resolve());
-    });
-  });
-
-  return page;
+async function renderResumeOffscreen(
+  resume: ResumeDocument,
+): Promise<{ element: HTMLElement; cleanup: () => void }> {
+  const mounted = mountExportElement(resumeDocumentToExportElement(resume));
+  await waitForPaint();
+  return mounted;
 }
 
 export async function exportTextDocument(
@@ -120,11 +167,11 @@ export async function exportTextDocument(
     return;
   }
 
-  const target = await renderTextOffscreen(content);
+  const { element, cleanup } = await renderTextOffscreen(content);
   try {
-    await exportElementToPdf(target, filename);
+    await exportElementToPdf(element, filename);
   } finally {
-    target.remove();
+    cleanup();
   }
 }
 
@@ -138,41 +185,6 @@ export async function exportResumeToDocxFile(
     filename,
     "docx",
   );
-}
-
-async function renderResumeOffscreen(
-  resume: ResumeDocument,
-): Promise<{ element: HTMLElement; cleanup: () => void }> {
-  const host = document.createElement("div");
-  host.style.position = "fixed";
-  host.style.left = "-10000px";
-  host.style.top = "0";
-  host.style.pointerEvents = "none";
-  document.body.appendChild(host);
-
-  const root = createRoot(host);
-  root.render(createElement(AtsResumeTemplate, { document: resume, variant: "print" }));
-
-  await new Promise<void>((resolve) => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => resolve());
-    });
-  });
-
-  const target = host.firstElementChild;
-  if (!(target instanceof HTMLElement)) {
-    root.unmount();
-    host.remove();
-    throw new Error("Failed to render resume for export.");
-  }
-
-  return {
-    element: target,
-    cleanup: () => {
-      root.unmount();
-      host.remove();
-    },
-  };
 }
 
 export async function exportResumeDocumentStandalone(
@@ -199,7 +211,7 @@ export async function exportResumeDocumentStandalone(
 }
 
 export async function exportResume(
-  element: HTMLElement | null,
+  _element: HTMLElement | null,
   resume: ResumeDocument,
   filename: string,
   format: DownloadFormat,
@@ -214,10 +226,5 @@ export async function exportResume(
     return;
   }
 
-  if (element) {
-    await exportElementToPdf(element, filename);
-    return;
-  }
-
-  await exportResumeDocumentStandalone(resume, filename, format);
+  await exportResumeDocumentStandalone(resume, filename, "pdf");
 }

@@ -26,7 +26,6 @@ import type { ApiProviderId } from "@/lib/ai/types";
 import { clearLocalAppData } from "@/lib/settings/client-data";
 
 const PROVIDERS = API_PROVIDERS;
-const OAUTH = OAUTH_PROVIDERS;
 
 const NOTIFICATION_ITEMS = [
   {
@@ -81,7 +80,6 @@ export function SettingsView() {
   const deleteAccountMutation = useMutation(api.settings.deleteAccount);
   const [showProviderUI, setShowProviderUI] = useState(false);
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
-  const [providerType, setProviderType] = useState<"apikey" | "oauth">("apikey");
   const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
   const [verified, setVerified] = useState<Record<string, boolean>>({});
   const [verifyingProvider, setVerifyingProvider] = useState<string | null>(null);
@@ -139,22 +137,11 @@ export function SettingsView() {
     });
   }, [aiSession, onboardingState, saveProviderConnections]);
 
-  const oauthConnected = useMemo(() => {
-    const nextOauth: Record<string, boolean> = {};
-    for (const connection of onboardingState?.providerConnections ?? []) {
-      if (connection.connectionType === "oauth" && connection.status === "connected") {
-        nextOauth[connection.providerId] = true;
-      }
-    }
-    return nextOauth;
-  }, [onboardingState]);
-
-
   const connectedProviders = useMemo(() => {
     return (onboardingState?.providerConnections ?? [])
       .filter((connection) => connection.status === "connected")
       .map((connection) => {
-        const providerMeta = [...PROVIDERS, ...OAUTH].find(
+        const providerMeta = [...PROVIDERS, ...OAUTH_PROVIDERS].find(
           (provider) => provider.id === connection.providerId,
         );
 
@@ -434,34 +421,8 @@ export function SettingsView() {
 
           {(showProviderUI || connectedProviders.length === 0) && (
             <div className="mt-4">
-              <div className="mb-4 flex w-fit overflow-hidden rounded-full neo-border">
-                {(
-                  [
-                    ["apikey", "🔑  API Key"],
-                    ["oauth", "🔗  OAuth / SSO"],
-                  ] as const
-                ).map(([v, l]) => (
-                  <button
-                    key={v}
-                    onClick={() => {
-                      setProviderType(v);
-                      setExpandedProvider(null);
-                    }}
-                    className="cursor-pointer border-none px-5 py-2 font-sans text-[13px] font-bold"
-                    style={{
-                      background:
-                        providerType === v ? "var(--foreground)" : "#ffffff",
-                      color: providerType === v ? "#ffffff" : "var(--foreground)",
-                    }}
-                  >
-                    {l}
-                  </button>
-                ))}
-              </div>
-
-              {providerType === "apikey" && (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  {PROVIDERS.map((prov) => {
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {PROVIDERS.map((prov) => {
                     const isConnected = onboardingState?.providerConnections.some(
                       (connection) =>
                         connection.providerId === prov.id &&
@@ -549,69 +510,7 @@ export function SettingsView() {
                       </div>
                     );
                   })}
-                </div>
-              )}
-
-              {providerType === "oauth" && (
-                <>
-                  <div className="mb-3 rounded-[10px] bg-[var(--lav-l)] px-3.5 py-2 text-xs font-medium text-[#555] neo-border-sm">
-                    🔒 We never read your code or files — only the AI inference endpoint.
-                  </div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    {OAUTH.map((prov) => {
-                      const connected = !!oauthConnected[prov.id];
-                      const isExpanded = expandedProvider === prov.id;
-                      return (
-                        <div
-                          key={prov.id}
-                          className="overflow-hidden rounded-[14px] neo-border"
-                          style={{
-                            background: connected || isExpanded ? prov.color : "#ffffff",
-                          }}
-                        >
-                          <div
-                            onClick={() =>
-                              !connected &&
-                              setExpandedProvider(isExpanded ? null : prov.id)
-                            }
-                            className="cursor-pointer px-4 pt-4 pb-3"
-                          >
-                            <div className="mb-1 flex items-start justify-between">
-                              <span className="font-heading text-[15px] font-extrabold">
-                                {prov.name}
-                              </span>
-                              {connected ? (
-                                <NeoBadge color="var(--mint)" className="text-[10px]">
-                                  ✓ Connected
-                                </NeoBadge>
-                              ) : (
-                                <NeoBadge color="#ffffff" className="text-[10px]">
-                                  {prov.badge}
-                                </NeoBadge>
-                              )}
-                            </div>
-                            <div className="text-xs text-[#555]">{prov.desc}</div>
-                          </div>
-                          {isExpanded && !connected && (
-                            <div className="border-t-2 border-[var(--foreground)] px-4 pb-4">
-                              <NeoButton
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => {
-                                  toast(`Connected to ${prov.name}!`);
-                                  setShowProviderUI(false);
-                                }}
-                              >
-                                Connect with {prov.name} →
-                              </NeoButton>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
+              </div>
             </div>
           )}
         </SettingsSection>
