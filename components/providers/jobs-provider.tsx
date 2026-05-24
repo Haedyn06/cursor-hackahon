@@ -19,6 +19,12 @@ type JobsContextValue = {
   error: string | null;
   refresh: () => Promise<void>;
   createJob: (input: CreateJobInput) => Promise<Job>;
+  importJobFromUrl: (params: {
+    url: string;
+    providerId?: import("@/lib/ai/types").ApiProviderId;
+    apiKey?: string;
+    model?: string;
+  }) => Promise<Job>;
   updateJob: (id: string, input: UpdateJobInput) => Promise<Job>;
   updateJobStatus: (id: string, status: JobStatus) => Promise<Job>;
   deleteJob: (id: string) => Promise<void>;
@@ -57,6 +63,26 @@ export function JobsProvider({ children }: { children: ReactNode }) {
     return job;
   }, []);
 
+  const importJobFromUrl = useCallback(
+    async (params: {
+      url: string;
+      providerId?: import("@/lib/ai/types").ApiProviderId;
+      apiKey?: string;
+      model?: string;
+    }) => {
+      const result = await jobsClient.importJobFromUrl({
+        ...params,
+        create: true,
+      });
+      if (!result.job) {
+        throw new Error("Job was not created.");
+      }
+      setJobs((prev) => [result.job!, ...prev]);
+      return result.job;
+    },
+    [],
+  );
+
   const updateJob = useCallback(async (id: string, input: UpdateJobInput) => {
     const job = await jobsClient.updateJob(id, input);
     setJobs((prev) => prev.map((item) => (item.id === id ? job : item)));
@@ -92,6 +118,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       error,
       refresh,
       createJob,
+      importJobFromUrl,
       updateJob,
       updateJobStatus,
       deleteJob,
@@ -103,6 +130,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       error,
       refresh,
       createJob,
+      importJobFromUrl,
       updateJob,
       updateJobStatus,
       deleteJob,

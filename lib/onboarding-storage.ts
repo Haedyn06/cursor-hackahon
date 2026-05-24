@@ -247,6 +247,11 @@ export function loadStoredProfile(): StoredProfile | null {
   }
 }
 
+export function saveStoredProfile(profile: StoredProfile): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+}
+
 export function persistOnboardingCompletion(
   profileState: OnboardingProfileState,
   importedResumes: OnboardingResume[],

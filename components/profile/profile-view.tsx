@@ -260,8 +260,48 @@ export function ProfileView() {
     setEditDraft((prev) => (prev ? { ...prev, ...patch } : prev));
   };
 
-  const handleExportProfile = () => {
-    toast(`Export as ${exportFormat.toUpperCase()} — coming soon!`);
+  const handleExportProfile = async () => {
+    setExporting(true);
+    try {
+      const session = loadAiSession();
+      let document = buildProfileExportDocument(profile);
+      let usedAi = false;
+
+      if (session) {
+        try {
+          const result = await formatProfileExport({
+            providerId: session.providerId,
+            apiKey: session.apiKey,
+            model: session.model,
+            profile,
+          });
+          document = result.document;
+          usedAi = true;
+        } catch (error) {
+          toast(
+            error instanceof Error
+              ? `${error.message} Using local formatting instead.`
+              : "AI formatting failed. Using local formatting instead.",
+            "error",
+          );
+        }
+      }
+
+      const filename = `${profile.name || "profile"}-export`;
+      await exportProfileDocument(document, filename, exportFormat);
+      toast(
+        usedAi
+          ? `Profile exported as ${exportFormat.toUpperCase()} with AI formatting.`
+          : `Profile exported as ${exportFormat.toUpperCase()}.`,
+      );
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "Profile export failed.",
+        "error",
+      );
+    } finally {
+      setExporting(false);
+    }
   };
 
   const setSectionOpen = (id: string, open: boolean) => {
@@ -361,7 +401,8 @@ export function ProfileView() {
               <NeoButton
                 variant="secondary"
                 size="sm"
-                onClick={handleExportProfile}
+                onClick={() => void handleExportProfile()}
+                disabled={exporting}
                 className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
               >
                 <svg
@@ -381,6 +422,11 @@ export function ProfileView() {
                 </svg>
                 Export as document
               </NeoButton>
+              {!hasAiSession ? (
+                <p className="text-right text-[11px] font-medium text-[#888]">
+                  Connect an AI provider in Settings for polished formatting.
+                </p>
+              ) : null}
             </div>
           </NeoCard>
 

@@ -1,5 +1,7 @@
 import type { CreateJobInput, Job, UpdateJobInput } from "@/lib/types/job";
 import type { JobStatus } from "@/lib/constants";
+import type { ApiProviderId } from "@/lib/ai/types";
+import type { ExtractedJobFields, ScrapedPage } from "@/lib/scrape/types";
 
 async function parseResponse<T>(res: Response): Promise<T> {
   const body = (await res.json().catch(() => ({}))) as {
@@ -73,4 +75,57 @@ export async function deleteJobs(ids: string[]): Promise<void> {
     const body = (await res.json().catch(() => ({}))) as { error?: string };
     throw new Error(body.error ?? "Failed to delete jobs.");
   }
+}
+
+export type ImportJobFromUrlResult = {
+  scraped: ScrapedPage;
+  extracted: ExtractedJobFields;
+  job?: Job;
+};
+
+export async function scrapeJobPage(url: string): Promise<ScrapedPage> {
+  const res = await fetch("/api/jobs/scrape", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+
+  const body = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    scraped?: ScrapedPage;
+  };
+
+  if (!res.ok) {
+    throw new Error(body.error ?? "Failed to scrape job page.");
+  }
+
+  if (!body.scraped) {
+    throw new Error("Scrape response was empty.");
+  }
+
+  return body.scraped;
+}
+
+export async function importJobFromUrl(params: {
+  url: string;
+  providerId?: ApiProviderId;
+  apiKey?: string;
+  model?: string;
+  create?: boolean;
+}): Promise<ImportJobFromUrlResult> {
+  const res = await fetch("/api/jobs/import-url", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+
+  const body = (await res.json().catch(() => ({}))) as ImportJobFromUrlResult & {
+    error?: string;
+  };
+
+  if (!res.ok) {
+    throw new Error(body.error ?? "Failed to import job.");
+  }
+
+  return body;
 }

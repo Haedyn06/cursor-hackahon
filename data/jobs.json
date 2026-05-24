@@ -24,7 +24,12 @@
     "deadline": null,
     "dateApplied": null,
     "followUp": null,
-    "excitement": 5
+    "excitement": 5,
+    "storedResume": null,
+    "coverLetterGenerated": false,
+    "storedCoverLetter": null,
+    "interviewPrepGenerated": false,
+    "storedInterviewPrep": null
   },
   {
     "id": "5",
@@ -52,6 +57,11 @@
     "deadline": null,
     "dateApplied": "04/20/2026",
     "followUp": null,
-    "excitement": 1
+    "excitement": 1,
+    "storedResume": null,
+    "coverLetterGenerated": false,
+    "storedCoverLetter": null,
+    "interviewPrepGenerated": false,
+    "storedInterviewPrep": null
   }
 ]

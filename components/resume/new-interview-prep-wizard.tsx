@@ -8,12 +8,13 @@ import { ProgressSteps } from "@/components/ui/progress-steps";
 import { SlideOver } from "@/components/ui/slide-over";
 import { useToast } from "@/components/providers";
 import { useJobs } from "@/components/providers/jobs-provider";
+import { generateInterviewPrepGuide } from "@/lib/ai/client";
+import { loadAiSession } from "@/lib/ai/session";
+import { buildStoredInterviewPrepUpdate } from "@/lib/jobs/persist-generated-content";
+import { getInitialProfile } from "@/lib/onboarding-storage";
 import { cn } from "@/lib/utils";
 import type { Job } from "@/lib/types/job";
-import {
-  buildMockInterviewPrep,
-  type GeneratedInterviewPrep,
-} from "@/components/resume/interview-prep-preview-panel";
+import type { GeneratedInterviewPrep } from "@/components/resume/interview-prep-preview-panel";
 
 const WIZARD_STEPS = ["Select job", "Generate"];
 
@@ -74,6 +75,8 @@ export function NewInterviewPrepWizard({
     jd: "",
   });
   const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const aiSession = open ? loadAiSession() : null;
 
   useEffect(() => {
     if (!open) {
@@ -84,18 +87,27 @@ export function NewInterviewPrepWizard({
         setNewJobMode("manual");
         setManualForm({ title: "", company: "", jd: "" });
         setGenerating(false);
+        setGenerateError(null);
       });
     }
   }, [open]);
 
   const selectedJob = jobs.find((j) => j.id === selectedJobId) ?? null;
 
-  const resolvedJob = (): { title: string; company: string; matchJob: string } | null => {
+  const resolvedJob = (): {
+    title: string;
+    company: string;
+    matchJob: string;
+    description: string;
+  } | null => {
     if (jobSource === "saved" && selectedJob) {
       return {
         title: selectedJob.title,
         company: selectedJob.company,
         matchJob: `${selectedJob.title} @ ${selectedJob.company}`,
+        description:
+          selectedJob.jd.trim() ||
+          `${selectedJob.title} at ${selectedJob.company}`,
       };
     }
     if (jobSource === "new") {
@@ -104,6 +116,9 @@ export function NewInterviewPrepWizard({
           title: manualForm.title,
           company: manualForm.company,
           matchJob: `${manualForm.title} @ ${manualForm.company}`,
+          description:
+            manualForm.jd.trim() ||
+            `${manualForm.title} at ${manualForm.company}`,
         };
       }
     }
@@ -121,21 +136,67 @@ export function NewInterviewPrepWizard({
         manualForm.company;
 
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!jobContext) return;
+
+    const session = loadAiSession();
+    if (!session) {
+      const message = "No AI provider connected. Go to Settings and verify your API key.";
+      setGenerateError(message);
+      toast(message, "error");
+      return;
+    }
+
+    setGenerateError(null);
     setStep(2);
     setGenerating(true);
-    setTimeout(() => {
-      setGenerating(false);
-      const mock = buildMockInterviewPrep(jobContext.title, jobContext.company);
+
+    try {
+      const result = await generateInterviewPrepGuide({
+        providerId: session.providerId,
+        apiKey: session.apiKey,
+        model: session.model,
+        job: {
+          title: jobContext.title,
+          company: jobContext.company,
+          description: jobContext.description,
+        },
+        profile: getInitialProfile(),
+        resume: selectedJob?.storedResume?.document ?? null,
+      });
+
       onComplete({
         id: Date.now(),
         title: `${jobContext.company} — Interview Prep`,
         matchJob: jobContext.matchJob,
-        ...mock,
+        company: jobContext.company,
+        categories: result.categories,
+        questions: result.questions,
       });
+
+      if (jobSource === "saved" && selectedJobId) {
+        await updateJob(
+          selectedJobId,
+          buildStoredInterviewPrepUpdate({
+            categories: result.categories,
+            questions: result.questions,
+          }),
+        );
+        toast("Interview prep generated and saved to job!");
+      } else {
+        toast("Interview prep generated!");
+      }
+
       onClose();
-    }, 2200);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to generate interview prep.";
+      setGenerateError(message);
+      setStep(1);
+      toast(message, "error");
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const renderSavedJobs = () => (
@@ -207,6 +268,18 @@ export function NewInterviewPrepWizard({
 
       {step === 1 && (
         <div className="animate-tab-panel flex flex-col gap-5">
+          {!aiSession && (
+            <div className="rounded-xl bg-[var(--peach)] px-4 py-3 text-xs font-bold neo-border-sm">
+              No AI provider connected. Open Settings, paste your API key, and click Verify.
+            </div>
+          )}
+
+          {generateError && (
+            <div className="rounded-xl bg-[var(--red-l)] px-4 py-3 text-xs font-bold text-[#800] neo-border-sm">
+              {generateError}
+            </div>
+          )}
+
           <p className="text-[13px] font-medium text-[#666]">
             Which job are you preparing for?
           </p>
@@ -240,8 +313,8 @@ export function NewInterviewPrepWizard({
             <NeoButton
               variant="primary"
               size="sm"
-              disabled={!canGenerate}
-              onClick={handleGenerate}
+              disabled={!canGenerate || !aiSession || generating}
+              onClick={() => void handleGenerate()}
             >
               ✦ Generate Interview Prep
             </NeoButton>

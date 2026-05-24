@@ -48,3 +48,6 @@ next-env.d.ts
 .claude/
 CLAUDE.md
 docs/
+
+# python scraper venv
+.venv-scraper/
