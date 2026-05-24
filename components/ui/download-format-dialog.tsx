@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { NeoButton } from "@/components/ui/neo-button";
 
 export type DownloadFormat = "pdf" | "docx" | "txt";
@@ -11,34 +11,60 @@ const FORMATS: { id: DownloadFormat; label: string }[] = [
   { id: "txt", label: "TXT" },
 ];
 
-type PickState = {
+type DownloadRequest = {
   title: string;
   itemName: string;
-  resolve: (format: DownloadFormat | null) => void;
+  run: (format: DownloadFormat) => Promise<void>;
 };
 
 export function useDownloadFormat() {
-  const [state, setState] = useState<PickState | null>(null);
-  const pendingRef = useRef<((format: DownloadFormat | null) => void) | null>(null);
+  const [state, setState] = useState<DownloadRequest | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const pickFormat = useCallback((itemName: string, title = "Choose download format") => {
-    return new Promise<DownloadFormat | null>((resolve) => {
-      pendingRef.current = resolve;
-      setState({ title, itemName, resolve });
-    });
-  }, []);
+  const requestDownload = useCallback(
+    (
+      itemName: string,
+      run: (format: DownloadFormat) => Promise<void>,
+      title = "Choose download format",
+    ) => {
+      setError(null);
+      setState({ title, itemName, run });
+    },
+    [],
+  );
 
-  const close = useCallback((format: DownloadFormat | null) => {
-    pendingRef.current?.(format);
-    pendingRef.current = null;
+  const close = useCallback(() => {
+    if (busy) return;
     setState(null);
-  }, []);
+    setError(null);
+  }, [busy]);
+
+  const handleSelect = useCallback(
+    async (format: DownloadFormat) => {
+      if (!state || busy) return;
+
+      setBusy(true);
+      setError(null);
+      try {
+        await state.run(format);
+        setState(null);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Download failed. Try again.",
+        );
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy, state],
+  );
 
   const dialog: ReactNode = state ? (
     <>
       <div
         className="fixed inset-0 z-[300] bg-black/25"
-        onClick={() => close(null)}
+        onClick={close}
         aria-hidden
       />
       <div
@@ -56,20 +82,26 @@ export function useDownloadFormat() {
         <p className="mb-5 text-sm font-medium text-[#666]">
           Select a format for <strong>{state.itemName}</strong>.
         </p>
+        {error ? (
+          <div className="mb-4 rounded-xl bg-[var(--red-l)] px-3 py-2 text-xs font-bold text-[#800] neo-border-sm">
+            {error}
+          </div>
+        ) : null}
         <div className="mb-5 flex gap-2">
           {FORMATS.map((format) => (
             <button
               key={format.id}
               type="button"
-              onClick={() => close(format.id)}
-              className="flex-1 cursor-pointer rounded-xl bg-[var(--background)] px-3 py-3 text-sm font-bold neo-border transition-colors duration-150 hover:bg-[var(--mint-l)]"
+              disabled={busy}
+              onClick={() => void handleSelect(format.id)}
+              className="flex-1 cursor-pointer rounded-xl bg-[var(--background)] px-3 py-3 text-sm font-bold neo-border transition-colors duration-150 hover:bg-[var(--mint-l)] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {format.label}
+              {busy ? "…" : format.label}
             </button>
           ))}
         </div>
         <div className="flex justify-end">
-          <NeoButton variant="secondary" size="sm" onClick={() => close(null)}>
+          <NeoButton variant="secondary" size="sm" disabled={busy} onClick={close}>
             Cancel
           </NeoButton>
         </div>
@@ -77,7 +109,7 @@ export function useDownloadFormat() {
     </>
   ) : null;
 
-  return { pickFormat, dialog };
+  return { requestDownload, dialog };
 }
 
 export function DownloadIcon({ className }: { className?: string }) {
