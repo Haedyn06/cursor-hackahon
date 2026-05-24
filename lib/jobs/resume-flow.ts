@@ -55,10 +55,21 @@ export function getResumeTabEmptyState(params: {
 }
 
 export function matchExistingResumeToJob(resume: ResumeDocument, job: Job) {
-  const keywords = extractKeywordsForJob({
+  return computeResumeMatchForDescription(resume, {
     title: job.title,
     company: job.company,
     description: job.jd.trim() || `${job.title} at ${job.company}`,
+  });
+}
+
+export function computeResumeMatchForDescription(
+  resume: ResumeDocument,
+  job: { title: string; company: string; description: string },
+) {
+  const keywords = extractKeywordsForJob({
+    title: job.title,
+    company: job.company,
+    description: job.description.trim() || `${job.title} at ${job.company}`,
   });
 
   return computeKeywordCoverage(resumeDocumentToPlainText(resume), keywords);

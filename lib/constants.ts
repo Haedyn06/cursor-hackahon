@@ -85,7 +85,7 @@ export const API_PROVIDERS = [
   {
     id: "gemini",
     name: "Gemini",
-    desc: "Gemini 1.5 / 2.0 Flash",
+    desc: "Gemini 2.5 Flash",
     badge: "Free tier",
     color: COLORS.yellow,
     icon: "◆",

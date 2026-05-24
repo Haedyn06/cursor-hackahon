@@ -7,6 +7,9 @@ import type { MockProfile } from "@/lib/mock-data";
 import type { ResumeDocument } from "@/lib/resume-document";
 import type { InterviewPrepContent } from "@/lib/types/job-interview-prep";
 
+export const maxDuration = 120;
+export const runtime = "nodejs";
+
 function isJobContext(value: unknown): value is JobContext {
   if (!value || typeof value !== "object") return false;
   const job = value as JobContext;

@@ -4,6 +4,9 @@ import { refineResumeWithAi } from "@/lib/ai/refine-resume-server";
 import { isApiProviderId } from "@/lib/ai/types";
 import type { ResumeDocument } from "@/lib/resume-document";
 
+export const maxDuration = 120;
+export const runtime = "nodejs";
+
 function isResumeDocument(value: unknown): value is ResumeDocument {
   if (!value || typeof value !== "object") return false;
   const doc = value as ResumeDocument;

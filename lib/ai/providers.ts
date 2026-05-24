@@ -33,8 +33,8 @@ export const AI_PROVIDER_CONFIGS: Record<ApiProviderId, AiProviderConfig> = {
   gemini: {
     id: "gemini",
     name: "Gemini",
-    defaultModel: "gemini-2.0-flash",
-    verifyModel: "gemini-2.0-flash",
+    defaultModel: "gemini-2.5-flash",
+    verifyModel: "gemini-2.5-flash-lite",
     keyUrl: "https://aistudio.google.com/apikey",
   },
   mistral: {
@@ -55,4 +55,21 @@ export const AI_PROVIDER_CONFIGS: Record<ApiProviderId, AiProviderConfig> = {
 
 export function getProviderConfig(providerId: ApiProviderId): AiProviderConfig {
   return AI_PROVIDER_CONFIGS[providerId];
+}
+
+const DEPRECATED_GEMINI_MODELS: Record<string, string> = {
+  "gemini-2.0-flash": "gemini-2.5-flash",
+  "gemini-2.0-flash-001": "gemini-2.5-flash",
+  "gemini-2.0-flash-lite": "gemini-2.5-flash-lite",
+  "gemini-2.0-flash-lite-001": "gemini-2.5-flash-lite",
+};
+
+export function resolveGeminiModel(model: string): string {
+  const normalized = model.trim().replace(/^models\//, "");
+  return DEPRECATED_GEMINI_MODELS[normalized] ?? normalized;
+}
+
+export function isDeprecatedGeminiModel(model: string): boolean {
+  const normalized = model.trim().replace(/^models\//, "");
+  return normalized in DEPRECATED_GEMINI_MODELS;
 }

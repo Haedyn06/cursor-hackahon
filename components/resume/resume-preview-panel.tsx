@@ -5,6 +5,10 @@ import { NeoBadge } from "@/components/ui/neo-badge";
 import { NeoButton } from "@/components/ui/neo-button";
 import { MatchScore } from "@/components/ui/match-score";
 import { AtsResumeTemplate } from "@/components/resume/ats-resume-template";
+import {
+  ResumeRefineChat,
+  type ResumeRefineJobContext,
+} from "@/components/resume/resume-refine-chat";
 import { MOCK_RESUME } from "@/lib/mock-data";
 import {
   buildResumeDocument,
@@ -54,6 +58,7 @@ export type GeneratedResume = {
   matchScore: number;
   matchedKeywords: string[];
   missingKeywords: string[];
+  jobContext?: ResumeRefineJobContext;
 };
 
 export type ResumeDownloadContext = {
@@ -76,20 +81,45 @@ export function ResumePreviewPanel({
 }: ResumePreviewPanelProps) {
   const exportRef = useRef<HTMLDivElement>(null);
   const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(resume);
   const [content, setContent] = useState(resume.content);
 
   const resumeDocument = useMemo(
-    () => (editing ? parseResumeText(content) : resume.document ?? parseResumeText(content)),
-    [content, editing, resume.document],
+    () =>
+      editing
+        ? parseResumeText(content)
+        : draft.document ?? parseResumeText(draft.content),
+    [content, draft.content, draft.document, editing],
   );
+
+  const refineJob = draft.jobContext;
 
   const persistContent = () => {
     const parsed = parseResumeText(content);
     return {
-      ...resume,
+      ...draft,
       content,
       document: parsed,
     };
+  };
+
+  const handleRefineUpdate = (payload: {
+    resume: ResumeDocument;
+    matchScore: number;
+    matchedKeywords: string[];
+    missingKeywords: string[];
+  }) => {
+    const nextContent = resumeDocumentToPlainText(payload.resume);
+    setDraft((current) => ({
+      ...current,
+      document: payload.resume,
+      content: nextContent,
+      matchScore: payload.matchScore,
+      matchedKeywords: payload.matchedKeywords,
+      missingKeywords: payload.missingKeywords,
+    }));
+    setContent(nextContent);
+    setEditing(false);
   };
 
   return (
@@ -103,9 +133,9 @@ export function ResumePreviewPanel({
           >
             ← Back to library
           </button>
-          <h1 className="font-heading text-[22px] font-extrabold">{resume.title}</h1>
+          <h1 className="font-heading text-[22px] font-extrabold">{draft.title}</h1>
           <p className="text-sm font-medium text-[#666]">
-            {resume.matchJob} · {resume.templateName} template
+            {draft.matchJob} · {draft.templateName} template
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -115,7 +145,7 @@ export function ResumePreviewPanel({
                 variant="secondary"
                 size="sm"
                 onClick={() => {
-                  setContent(resume.content);
+                  setContent(draft.content);
                   setEditing(false);
                 }}
               >
@@ -125,7 +155,9 @@ export function ResumePreviewPanel({
                 variant="mint"
                 size="sm"
                 onClick={() => {
-                  onSave(persistContent());
+                  const next = persistContent();
+                  setDraft(next);
+                  onSave(next);
                   setEditing(false);
                 }}
               >
@@ -152,7 +184,11 @@ export function ResumePreviewPanel({
               <NeoButton
                 variant="mint"
                 size="sm"
-                onClick={() => onSave(persistContent())}
+                onClick={() => {
+                  const next = persistContent();
+                  setDraft(next);
+                  onSave(next);
+                }}
               >
                 Save to Library
               </NeoButton>
@@ -165,20 +201,20 @@ export function ResumePreviewPanel({
         <div className="flex-1 overflow-y-auto p-8">
           <div className="mx-auto max-w-[900px]">
             <div className="mb-6 flex items-start gap-4 rounded-2xl bg-white p-5 neo-border">
-              <MatchScore score={resume.matchScore} size="lg" />
+              <MatchScore score={draft.matchScore} size="lg" />
               <div className="flex-1">
                 <div className="mb-2 font-heading text-base font-extrabold">
                   Keyword Match
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {resume.matchedKeywords.map((k) => (
-                    <NeoBadge key={k} color="var(--mint)" className="text-[11px]">
-                      ✓ {k}
+                  {draft.matchedKeywords.map((keyword) => (
+                    <NeoBadge key={keyword} color="var(--mint)" className="text-[11px]">
+                      ✓ {keyword}
                     </NeoBadge>
                   ))}
-                  {resume.missingKeywords.map((k) => (
-                    <NeoBadge key={k} color="var(--peach)" className="text-[11px]">
-                      ✕ {k}
+                  {draft.missingKeywords.map((keyword) => (
+                    <NeoBadge key={keyword} color="var(--peach)" className="text-[11px]">
+                      ✕ {keyword}
                     </NeoBadge>
                   ))}
                 </div>
@@ -188,7 +224,7 @@ export function ResumePreviewPanel({
             {editing ? (
               <textarea
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
+                onChange={(event) => setContent(event.target.value)}
                 className="min-h-[520px] w-full resize-y rounded-xl bg-white p-8 font-sans text-[13px] leading-relaxed outline-none neo-border"
               />
             ) : (
@@ -202,6 +238,14 @@ export function ResumePreviewPanel({
             )}
           </div>
         </div>
+
+        {refineJob ? (
+          <ResumeRefineChat
+            resume={resumeDocument}
+            job={refineJob}
+            onResumeUpdated={handleRefineUpdate}
+          />
+        ) : null}
       </div>
     </div>
   );

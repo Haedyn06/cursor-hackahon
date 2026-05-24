@@ -1,3 +1,4 @@
+import { extractJsonPayload } from "@/lib/ai/json-response";
 import type { MockProfile } from "@/lib/mock-data";
 import {
   profileToSnapshot,
@@ -20,23 +21,6 @@ const DEFAULT_CATEGORIES: InterviewPrepCategory[] = [
   { id: "competitors", label: "Competitors" },
   { id: "products", label: "Products" },
 ];
-
-function extractJsonPayload(text: string): unknown {
-  const trimmed = text.trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const candidate = fenced ? fenced[1].trim() : trimmed;
-
-  try {
-    return JSON.parse(candidate);
-  } catch {
-    const start = candidate.indexOf("{");
-    const end = candidate.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      return JSON.parse(candidate.slice(start, end + 1));
-    }
-    throw new Error("AI response was not valid JSON.");
-  }
-}
 
 function asString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value.trim() : fallback;

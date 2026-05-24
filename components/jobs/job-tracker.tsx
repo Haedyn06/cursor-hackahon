@@ -30,9 +30,13 @@ import { useJobs } from "@/components/providers/jobs-provider";
 import { AtsResumeTemplate } from "@/components/resume/ats-resume-template";
 import { generateTailoredResume, refineTailoredResume, generateTailoredCoverLetter, refineTailoredCoverLetter, generateInterviewPrepGuide, refineInterviewPrepGuide } from "@/lib/ai/client";
 import { loadAiSession } from "@/lib/ai/session";
-import { getInitialProfile } from "@/lib/onboarding-storage";
+import { useAppProfile } from "@/lib/hooks/use-app-profile";
 import { prepareSourceMaterialInputs } from "@/lib/profile/source-material-input";
-import { matchExistingResumeToJob, getResumeTabEmptyState } from "@/lib/jobs/resume-flow";
+import {
+  computeResumeMatchForDescription,
+  getResumeTabEmptyState,
+  matchExistingResumeToJob,
+} from "@/lib/jobs/resume-flow";
 import type { JobStoredCoverLetter } from "@/lib/types/job-cover-letter";
 import { hasStoredCoverLetter } from "@/lib/types/job-cover-letter";
 import type { JobStoredInterviewPrep } from "@/lib/types/job-interview-prep";
@@ -44,7 +48,7 @@ import {
 import type { JobStoredResume } from "@/lib/types/job-resume";
 import { hasStoredResume } from "@/lib/types/job-resume";
 import type { ResumeDocument } from "@/lib/resume-document";
-import { exportPlainText, exportResume } from "@/lib/pdf-export";
+import { exportPlainText, exportResume, exportTextDocument } from "@/lib/pdf-export";
 import type { Job } from "@/lib/types/job";
 
 function ResumeTab({ job }: { job: Job }) {
@@ -52,6 +56,7 @@ function ResumeTab({ job }: { job: Job }) {
   const { confirm, dialog: confirmDialog } = useConfirm();
   const { updateJob } = useJobs();
   const { pickFormat, dialog: downloadDialog } = useDownloadFormat();
+  const { profile: appProfile, loading: profileLoading } = useAppProfile();
   const onboardingState = useQuery(api.onboarding.getOnboardingState);
   const getProfileSourceDownloadUrl = useMutation(
     api.onboarding.getProfileSourceDownloadUrl,
@@ -204,6 +209,14 @@ function ResumeTab({ job }: { job: Job }) {
 
     setGenerating(true);
     try {
+      if (!appProfile) {
+        toast(
+          profileLoading ? "Loading your profile…" : "Complete your profile first.",
+          "error",
+        );
+        return;
+      }
+
       const sourceMaterials = await prepareSourceMaterialInputs(
         onboardingState?.profileSourceMaterials ?? [],
         (sourceMaterialId) => getProfileSourceDownloadUrl({ sourceMaterialId }),
@@ -217,7 +230,7 @@ function ResumeTab({ job }: { job: Job }) {
           company: job.company,
           description: job.jd.trim() || `${job.title} at ${job.company}`,
         },
-        profile: getInitialProfile(),
+        profile: appProfile,
         sourceMaterials,
       });
 
@@ -313,11 +326,21 @@ function ResumeTab({ job }: { job: Job }) {
       setResumeDocument(result.resume);
       setMessages((m) => [...m, { role: "ai", text: result.reply }]);
 
+      const match = computeResumeMatchForDescription(result.resume, {
+        title: job.title,
+        company: job.company,
+        description: job.jd.trim() || `${job.title} at ${job.company}`,
+      });
+
+      setResumeMatchScore(match.matchScore);
+      setResumeMatchedKeywords(match.matchedKeywords);
+      setResumeMissingKeywords(match.missingKeywords);
+
       await persistResume({
         document: result.resume,
-        matchScore: activeMatchScore,
-        matchedKeywords: activeMatchedKeywords,
-        missingKeywords: activeMissingKeywords,
+        matchScore: match.matchScore,
+        matchedKeywords: match.matchedKeywords,
+        missingKeywords: match.missingKeywords,
       });
     } catch (error) {
       setMessages((m) => [
@@ -597,6 +620,8 @@ function CoverLetterTab({ job }: { job: Job }) {
   const toast = useToast();
   const { confirm, dialog: confirmDialog } = useConfirm();
   const { updateJob } = useJobs();
+  const { pickFormat, dialog: downloadDialog } = useDownloadFormat();
+  const { profile: appProfile, loading: profileLoading } = useAppProfile();
   const onboardingState = useQuery(api.onboarding.getOnboardingState);
   const getProfileSourceDownloadUrl = useMutation(
     api.onboarding.getProfileSourceDownloadUrl,
@@ -649,6 +674,14 @@ function CoverLetterTab({ job }: { job: Job }) {
 
     setGenerating(true);
     try {
+      if (!appProfile) {
+        toast(
+          profileLoading ? "Loading your profile…" : "Complete your profile first.",
+          "error",
+        );
+        return;
+      }
+
       const sourceMaterials = await prepareSourceMaterialInputs(
         onboardingState?.profileSourceMaterials ?? [],
         (sourceMaterialId) => getProfileSourceDownloadUrl({ sourceMaterialId }),
@@ -662,7 +695,7 @@ function CoverLetterTab({ job }: { job: Job }) {
           company: job.company,
           description: job.jd.trim() || `${job.title} at ${job.company}`,
         },
-        profile: getInitialProfile(),
+        profile: appProfile,
         resume: job.storedResume?.document ?? null,
         sourceMaterials,
       });
@@ -776,10 +809,24 @@ function CoverLetterTab({ job }: { job: Job }) {
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!content.trim()) return;
-    exportPlainText(content, `${job.company}-${job.title}-cover-letter`);
-    toast("Downloaded as TXT");
+    const format = await pickFormat(`${job.company} — cover letter`);
+    if (!format) return;
+
+    try {
+      await exportTextDocument(
+        content,
+        `${job.company}-${job.title}-cover-letter`,
+        format,
+      );
+      toast(`Downloaded cover letter as ${format.toUpperCase()}`);
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "Download failed.",
+        "error",
+      );
+    }
   };
 
   const handleBlur = () => {
@@ -845,6 +892,7 @@ function CoverLetterTab({ job }: { job: Job }) {
   return (
     <>
       {confirmDialog}
+      {downloadDialog}
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 overflow-y-auto border-r-2 border-[var(--foreground)] p-6">
           <textarea
@@ -925,6 +973,7 @@ function InterviewPrepTab({ job }: { job: Job }) {
   const toast = useToast();
   const { confirm, dialog: confirmDialog } = useConfirm();
   const { updateJob } = useJobs();
+  const { profile: appProfile, loading: profileLoading } = useAppProfile();
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState(hasStoredInterviewPrep(job.storedInterviewPrep));
   const [categories, setCategories] = useState(
@@ -993,6 +1042,14 @@ function InterviewPrepTab({ job }: { job: Job }) {
 
     setGenerating(true);
     try {
+      if (!appProfile) {
+        toast(
+          profileLoading ? "Loading your profile…" : "Complete your profile first.",
+          "error",
+        );
+        return;
+      }
+
       const result = await generateInterviewPrepGuide({
         providerId: session.providerId,
         apiKey: session.apiKey,
@@ -1002,7 +1059,7 @@ function InterviewPrepTab({ job }: { job: Job }) {
           company: job.company,
           description: job.jd.trim() || `${job.title} at ${job.company}`,
         },
-        profile: getInitialProfile(),
+        profile: appProfile,
         resume: job.storedResume?.document ?? null,
       });
 
@@ -1388,11 +1445,13 @@ function JobDetailPanel({
         </div>
         <NeoTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
-      <div
-        key={`${job.id}-${activeTab}`}
-        className="animate-tab-panel flex flex-1 flex-col overflow-hidden bg-[var(--background)]"
-      >
-        {activeTab === "info" && (
+      <div className="flex flex-1 flex-col overflow-hidden bg-[var(--background)]">
+        <div
+          className={cn(
+            "animate-tab-panel flex flex-1 flex-col overflow-hidden",
+            activeTab !== "info" && "hidden",
+          )}
+        >
           <div key={job.id} className="flex flex-1 gap-6 overflow-y-auto p-7">
             <div className="flex-1">
               <SectionHeader label="Job Description" color="var(--mint)" />
@@ -1444,10 +1503,31 @@ function JobDetailPanel({
               </NeoCard>
             </div>
           </div>
-        )}
-        {activeTab === "resume" && <ResumeTab key={job.id} job={job} />}
-        {activeTab === "cover" && <CoverLetterTab key={job.id} job={job} />}
-        {activeTab === "interview" && <InterviewPrepTab key={job.id} job={job} />}
+        </div>
+        <div
+          className={cn(
+            "animate-tab-panel flex flex-1 flex-col overflow-hidden",
+            activeTab !== "resume" && "hidden",
+          )}
+        >
+          <ResumeTab key={job.id} job={job} />
+        </div>
+        <div
+          className={cn(
+            "animate-tab-panel flex flex-1 flex-col overflow-hidden",
+            activeTab !== "cover" && "hidden",
+          )}
+        >
+          <CoverLetterTab key={job.id} job={job} />
+        </div>
+        <div
+          className={cn(
+            "animate-tab-panel flex flex-1 flex-col overflow-hidden",
+            activeTab !== "interview" && "hidden",
+          )}
+        >
+          <InterviewPrepTab key={job.id} job={job} />
+        </div>
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+import { extractJsonPayload } from "@/lib/ai/json-response";
 import type { MockProfile } from "@/lib/mock-data";
 import {
   buildSkillCurationHints,
@@ -88,6 +89,7 @@ export function profileToSnapshot(profile: MockProfile): ProfileSnapshot {
 export function buildResumeGenerationMessages(
   job: JobContext,
   profile: ProfileSnapshot,
+  sourceMaterialContext?: string,
 ): { system: string; user: string } {
   const jobKeywords = extractKeywordsForJob(job);
   const skillHints = buildSkillCurationHints(profile.skills, jobKeywords);
@@ -183,27 +185,10 @@ ${profile.skills.length > 0 ? profile.skills.join(", ") : "No skills listed in p
 
 CANDIDATE PROFILE (JSON)
 ${JSON.stringify(profile, null, 2)}
-
+${sourceMaterialContext?.trim() ? `\nADDITIONAL SOURCE MATERIALS\n${sourceMaterialContext.trim()}\n` : ""}
 Produce a detailed, keyword-optimized resume JSON. Handpick skills, weave in buzzwords, maximize ATS match, and expand bullets with rich detail — without inventing facts.`;
 
   return { system, user };
-}
-
-function extractJsonPayload(text: string): unknown {
-  const trimmed = text.trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const candidate = fenced ? fenced[1].trim() : trimmed;
-
-  try {
-    return JSON.parse(candidate);
-  } catch {
-    const start = candidate.indexOf("{");
-    const end = candidate.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      return JSON.parse(candidate.slice(start, end + 1));
-    }
-    throw new Error("AI response was not valid JSON.");
-  }
 }
 
 function asString(value: unknown, fallback = ""): string {

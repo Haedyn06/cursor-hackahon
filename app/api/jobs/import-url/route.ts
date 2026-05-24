@@ -3,6 +3,7 @@ import { AiProviderError } from "@/lib/ai/errors";
 import { isApiProviderId } from "@/lib/ai/types";
 import { importJobFromUrl } from "@/lib/jobs/import-from-url";
 import { isIndeedJobUrl } from "@/lib/scrape/indeed";
+import { getJobsServiceOptions } from "@/lib/services/jobs-auth";
 import { JobsServiceError } from "@/lib/services/jobs.service";
 
 export async function POST(request: Request) {
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
       apiKey: body.apiKey,
       model: body.model,
       create: body.create !== false,
+      auth: await getJobsServiceOptions(),
     });
 
     return NextResponse.json(result, { status: result.job ? 201 : 200 });

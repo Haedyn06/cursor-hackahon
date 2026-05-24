@@ -4,6 +4,9 @@ import { refineInterviewPrepWithAi } from "@/lib/ai/refine-interview-prep-server
 import { isApiProviderId } from "@/lib/ai/types";
 import type { InterviewPrepContent } from "@/lib/types/job-interview-prep";
 
+export const maxDuration = 120;
+export const runtime = "nodejs";
+
 function isInterviewPrepContent(value: unknown): value is InterviewPrepContent {
   if (!value || typeof value !== "object") return false;
   const prep = value as InterviewPrepContent;

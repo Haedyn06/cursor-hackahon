@@ -3,6 +3,9 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
 import type { JobStatus } from "@/lib/constants";
 import type { CreateJobInput, Job, UpdateJobInput } from "@/lib/types/job";
+import type { JobStoredCoverLetter } from "@/lib/types/job-cover-letter";
+import type { JobStoredInterviewPrep } from "@/lib/types/job-interview-prep";
+import type { JobStoredResume } from "@/lib/types/job-resume";
 import { applyStatusMetadata, formatJobDate } from "@/lib/services/job-status";
 
 const CLERK_CONVEX_TEMPLATE = "convex";
@@ -26,6 +29,11 @@ type ConvexJob = {
   dateApplied: string | null;
   followUp: string | null;
   excitement: number;
+  coverLetterGenerated?: boolean;
+  interviewPrepGenerated?: boolean;
+  storedResume?: JobStoredResume | null;
+  storedCoverLetter?: JobStoredCoverLetter | null;
+  storedInterviewPrep?: JobStoredInterviewPrep | null;
 };
 
 export type JobsServiceOptions = {
@@ -45,7 +53,10 @@ export class JobsServiceError extends Error {
 function requireToken(options?: JobsServiceOptions) {
   const token = options?.token;
   if (!token) {
-    throw new JobsServiceError("Unauthorized", 401);
+    throw new JobsServiceError(
+      "Sign in to save jobs to your account.",
+      401,
+    );
   }
   return token;
 }
@@ -65,6 +76,13 @@ function toJob(job: ConvexJob): Job {
     matchedKeywords: job.matchedKeywords,
     missingKeywords: job.missingKeywords,
     resumeGenerated: job.resumeGenerated,
+    storedResume: (job.storedResume as JobStoredResume | undefined) ?? null,
+    coverLetterGenerated: job.coverLetterGenerated ?? false,
+    storedCoverLetter:
+      (job.storedCoverLetter as JobStoredCoverLetter | undefined) ?? null,
+    interviewPrepGenerated: job.interviewPrepGenerated ?? false,
+    storedInterviewPrep:
+      (job.storedInterviewPrep as JobStoredInterviewPrep | undefined) ?? null,
     salary: job.salary,
     deadline: job.deadline,
     dateApplied: job.dateApplied,
@@ -162,6 +180,8 @@ export async function createJob(
       matchedKeywords: jobToCreate.matchedKeywords,
       missingKeywords: jobToCreate.missingKeywords,
       resumeGenerated: jobToCreate.resumeGenerated,
+      coverLetterGenerated: false,
+      interviewPrepGenerated: false,
       salary: jobToCreate.salary,
       deadline: jobToCreate.deadline,
       dateApplied: jobToCreate.dateApplied,

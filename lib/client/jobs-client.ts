@@ -129,3 +129,28 @@ export async function importJobFromUrl(params: {
 
   return body;
 }
+
+export async function importJobFromPaste(params: {
+  url?: string;
+  pageText: string;
+  providerId?: ApiProviderId;
+  apiKey?: string;
+  model?: string;
+  create?: boolean;
+}): Promise<ImportJobFromUrlResult> {
+  const res = await fetch("/api/jobs/import-paste", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+
+  const body = (await res.json().catch(() => ({}))) as ImportJobFromUrlResult & {
+    error?: string;
+  };
+
+  if (!res.ok) {
+    throw new Error(body.error ?? "Failed to import pasted job.");
+  }
+
+  return body;
+}

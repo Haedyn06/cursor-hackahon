@@ -29,7 +29,17 @@ const EMPTY_FORM = {
   source: "LinkedIn",
 };
 
-type AddMode = "ai" | "paste" | "manual";
+type AddMode = "ai" | "paste" | "file" | "manual";
+
+async function fileToBase64(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
+}
 
 type AddJobFormProps = {
   open: boolean;
@@ -101,6 +111,26 @@ function ModeToggle({
           <rect x="8" y="2" width="8" height="4" rx="1" />
           <path d="M8 11h8" />
           <path d="M8 15h6" />
+        </svg>
+      ),
+    },
+    {
+      id: "file",
+      label: "Upload",
+      icon: (
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="17 8 12 3 7 8" />
+          <line x1="12" y1="3" x2="12" y2="15" />
         </svg>
       ),
     },
@@ -343,6 +373,69 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
         error instanceof Error
           ? error.message
           : "Failed to import pasted job posting.";
+      setAnalyzeError(message);
+      toast(message, "error");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const handleAnalyzeFile = async (file: File) => {
+    setAnalyzeError(null);
+    setAnalyzing(true);
+
+    try {
+      const response = await fetch("/api/jobs/extract-posting", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uploads: [
+            {
+              name: file.name,
+              type: file.type || "application/octet-stream",
+              data: await fileToBase64(file),
+            },
+          ],
+        }),
+      });
+
+      const body = (await response.json().catch(() => ({}))) as {
+        text?: string;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(body.error ?? "Failed to read file.");
+      }
+
+      const text = body.text?.trim() ?? "";
+      if (text.length < 80) {
+        throw new Error("Could not extract enough text from that file.");
+      }
+
+      const session = loadAiSession();
+      if (!session) {
+        setForm((current) => ({ ...current, jd: text }));
+        setMode("manual");
+        toast("Text extracted — fill in title and company, then save.");
+        return;
+      }
+
+      const job = await importJobFromPaste({
+        pageText: text,
+        providerId: session.providerId,
+        apiKey: session.apiKey,
+        model: session.model,
+      });
+
+      onCreated?.(job);
+      toast(`${job.title} @ ${job.company} imported!`);
+      onClose();
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to import job posting from file.";
       setAnalyzeError(message);
       toast(message, "error");
     } finally {
@@ -617,6 +710,77 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
                 "✦ Extract & import job →"
               )}
             </NeoButton>
+          </div>
+        </div>
+      )}
+
+      {mode === "file" && (
+        <div key="file" className="animate-tab-panel flex flex-col gap-4">
+          {!aiSession && (
+            <div className="rounded-xl bg-[var(--peach)] px-4 py-3 text-xs font-bold neo-border-sm">
+              Connect an AI provider in Settings to auto-extract title and company.
+              Without AI, we&apos;ll load the description and you can fill the rest manually.
+            </div>
+          )}
+
+          {analyzeError && (
+            <div className="rounded-xl bg-[var(--red-l)] px-4 py-3 text-xs font-bold text-[#800] neo-border-sm">
+              {analyzeError}
+            </div>
+          )}
+
+          <div className="rounded-2xl bg-[var(--mint-l)] p-4 neo-border">
+            <div className="mb-3 flex items-center gap-2.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--mint)] text-lg neo-border-sm">
+                📄
+              </div>
+              <div>
+                <div className="font-heading text-[15px] font-extrabold">
+                  Upload job posting
+                </div>
+                <div className="text-xs font-medium text-[#666]">
+                  PDF, DOCX, or TXT — AI extracts title, company, and description.
+                </div>
+              </div>
+            </div>
+
+            <label
+              className={cn(
+                "flex cursor-pointer flex-col items-center gap-2 rounded-xl border-[2.5px] border-dashed px-4 py-8 text-center transition-[border-color,background] duration-200",
+                analyzing
+                  ? "border-[var(--foreground)] bg-white"
+                  : "border-[#cccccc] bg-[var(--background)] hover:border-[var(--foreground)]",
+              )}
+            >
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.txt,text/plain,application/pdf"
+                disabled={analyzing}
+                className="sr-only"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) {
+                    void handleAnalyzeFile(file);
+                  }
+                  event.target.value = "";
+                }}
+              />
+              <div className="text-2xl">{analyzing ? "⏳" : "⬆️"}</div>
+              <div className="text-sm font-bold">
+                {analyzing ? "Reading file…" : "Choose a file or drop it here"}
+              </div>
+              <div className="text-xs text-[#888]">PDF · DOCX · TXT</div>
+            </label>
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => handleModeChange("manual")}
+              className="cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-[#888] underline transition-colors duration-150 hover:text-[var(--foreground)]"
+            >
+              Enter manually instead
+            </button>
           </div>
         </div>
       )}

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { completeChat } from "@/lib/ai/server";
+import { completeStructuredJson } from "@/lib/ai/structured-generation";
 import type { ApiProviderId } from "@/lib/ai/types";
 import {
   buildResumeGenerationMessages,
@@ -11,16 +11,7 @@ import {
 } from "@/lib/ai/resume-generation";
 import type { MockProfile } from "@/lib/mock-data";
 
-const RESUME_GENERATION_MAX_TOKENS = 7000;
-
-function supportsJsonMode(providerId: ApiProviderId): boolean {
-  return (
-    providerId === "openai" ||
-    providerId === "groq" ||
-    providerId === "mistral" ||
-    providerId === "together"
-  );
-}
+const RESUME_GENERATION_MAX_TOKENS = 8192;
 
 export async function generateTailoredResume(params: {
   providerId: ApiProviderId;
@@ -28,49 +19,24 @@ export async function generateTailoredResume(params: {
   model?: string;
   job: JobContext;
   profile: MockProfile;
+  sourceMaterialContext?: string;
 }): Promise<GeneratedResumeAnalysis> {
   const snapshot = profileToSnapshot(params.profile);
-  const { system, user } = buildResumeGenerationMessages(params.job, snapshot);
-  const jsonMode = supportsJsonMode(params.providerId);
-  const messages = [
-    { role: "system" as const, content: system },
-    { role: "user" as const, content: user },
-  ];
+  const { system, user } = buildResumeGenerationMessages(
+    params.job,
+    snapshot,
+    params.sourceMaterialContext,
+  );
 
-  const result = await completeChat({
+  return completeStructuredJson({
     providerId: params.providerId,
     apiKey: params.apiKey,
     model: params.model,
     maxTokens: RESUME_GENERATION_MAX_TOKENS,
-    jsonMode,
-    messages,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+    parse: (text) => parseResumeGenerationResponse(text, snapshot, params.job),
   });
-
-  try {
-    return parseResumeGenerationResponse(result.text, snapshot, params.job);
-  } catch (firstError) {
-    const retry = await completeChat({
-      providerId: params.providerId,
-      apiKey: params.apiKey,
-      model: params.model,
-      maxTokens: RESUME_GENERATION_MAX_TOKENS,
-      jsonMode,
-      messages: [
-        ...messages,
-        {
-          role: "user" as const,
-          content:
-            "Your previous response could not be parsed. Reply with ONLY a valid JSON object matching the schema. No markdown.",
-        },
-      ],
-    });
-
-    try {
-      return parseResumeGenerationResponse(retry.text, snapshot, params.job);
-    } catch {
-      throw firstError instanceof Error
-        ? firstError
-        : new Error("AI returned an unreadable resume format.");
-    }
-  }
 }

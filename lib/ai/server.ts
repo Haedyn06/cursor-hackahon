@@ -1,7 +1,7 @@
 import "server-only";
 
 import { AiProviderError, readProviderError } from "@/lib/ai/errors";
-import { getProviderConfig } from "@/lib/ai/providers";
+import { getProviderConfig, resolveGeminiModel } from "@/lib/ai/providers";
 import type {
   ApiProviderId,
   ChatMessage,
@@ -22,11 +22,6 @@ function assertNonEmptyKey(apiKey: string): string {
     throw new AiProviderError("API key is required.", 400);
   }
   return trimmed;
-}
-
-function pickUserMessage(messages: ChatMessage[]): string {
-  const lastUser = [...messages].reverse().find((message) => message.role === "user");
-  return lastUser?.content.trim() || VERIFY_PROMPT;
 }
 
 async function callOpenAiCompatible(params: {
@@ -136,16 +131,40 @@ async function callGemini(params: {
   model: string;
   messages: ChatMessage[];
   maxTokens: number;
+  jsonMode?: boolean;
 }): Promise<string> {
-  const prompt = pickUserMessage(params.messages);
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(params.model)}:generateContent?key=${encodeURIComponent(params.apiKey)}`;
+  const model = resolveGeminiModel(params.model);
+  const systemInstruction = params.messages
+    .filter((message) => message.role === "system")
+    .map((message) => message.content)
+    .join("\n\n")
+    .trim();
+
+  const contents = params.messages
+    .filter((message) => message.role !== "system")
+    .map((message) => ({
+      role: message.role === "assistant" ? "model" : "user",
+      parts: [{ text: message.content }],
+    }));
+
+  if (contents.length === 0) {
+    contents.push({ role: "user", parts: [{ text: VERIFY_PROMPT }] });
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(params.apiKey)}`;
 
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { maxOutputTokens: params.maxTokens },
+      ...(systemInstruction
+        ? { systemInstruction: { parts: [{ text: systemInstruction }] } }
+        : {}),
+      contents,
+      generationConfig: {
+        maxOutputTokens: params.maxTokens,
+        ...(params.jsonMode ? { responseMimeType: "application/json" } : {}),
+      },
     }),
   });
 
@@ -157,15 +176,26 @@ async function callGemini(params: {
   const data = (await response.json()) as {
     candidates?: Array<{
       content?: { parts?: Array<{ text?: string }> };
+      finishReason?: string;
     }>;
   };
 
-  const text = data.candidates?.[0]?.content?.parts
+  const candidate = data.candidates?.[0];
+  const finishReason = candidate?.finishReason;
+
+  const text = candidate?.content?.parts
     ?.map((part) => part.text ?? "")
     .join("")
     .trim();
 
   if (!text) {
+    if (finishReason === "MAX_TOKENS") {
+      throw new AiProviderError(
+        "Gemini response was truncated before completion.",
+        422,
+        "gemini",
+      );
+    }
     throw new AiProviderError("Provider returned an empty response.", 502, "gemini");
   }
 
@@ -234,6 +264,7 @@ async function invokeProvider(params: {
         model: params.model,
         messages: params.messages,
         maxTokens: params.maxTokens,
+        jsonMode: params.jsonMode,
       });
     default:
       throw new AiProviderError("Unsupported provider.", 400, params.providerId);
@@ -273,7 +304,9 @@ export async function completeChat(params: {
 }): Promise<CompleteResult> {
   const trimmedKey = assertNonEmptyKey(params.apiKey);
   const config = getProviderConfig(params.providerId);
-  const model = params.model?.trim() || config.defaultModel;
+  const rawModel = params.model?.trim() || config.defaultModel;
+  const model =
+    params.providerId === "gemini" ? resolveGeminiModel(rawModel) : rawModel;
   const messages =
     params.messages.length > 0
       ? params.messages

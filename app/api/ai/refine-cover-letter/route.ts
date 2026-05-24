@@ -3,6 +3,9 @@ import { AiProviderError } from "@/lib/ai/errors";
 import { refineCoverLetterWithAi } from "@/lib/ai/refine-cover-letter-server";
 import { isApiProviderId } from "@/lib/ai/types";
 
+export const maxDuration = 120;
+export const runtime = "nodejs";
+
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as {

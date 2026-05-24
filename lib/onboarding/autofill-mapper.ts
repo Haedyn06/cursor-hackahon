@@ -7,6 +7,12 @@ export function mapAutofillToOnboardingProfile(
   let nextId = Date.now();
   const id = () => nextId++;
 
+  const links = payload.links ?? [];
+  const languages = payload.languages ?? [];
+  const certifications = payload.certifications ?? [];
+  const experienceEntries = payload.experience_entries ?? [];
+  const education = payload.education ?? [];
+
   return {
     name: payload.name,
     location: payload.location,
@@ -15,26 +21,26 @@ export function mapAutofillToOnboardingProfile(
     targetRole: payload.targetRole,
     experience: payload.experience,
     about: payload.about,
-    skills: payload.skills,
+    skills: payload.skills ?? [],
     links:
-      payload.links.length > 0
-        ? payload.links.map((link) => ({
+      links.length > 0
+        ? links.map((link) => ({
             id: id(),
             name: link.name,
             url: link.url,
           }))
         : [{ id: id(), name: "", url: "" }],
     languages:
-      payload.languages.length > 0
-        ? payload.languages.map((language) => ({
+      languages.length > 0
+        ? languages.map((language) => ({
             id: id(),
             name: language.name,
             level: language.level,
           }))
         : [{ id: id(), name: "", level: "Conversational" }],
     certifications:
-      payload.certifications.length > 0
-        ? payload.certifications.map((cert) => ({
+      certifications.length > 0
+        ? certifications.map((cert) => ({
             id: id(),
             name: cert.name,
             issuer: cert.issuer,
@@ -42,8 +48,8 @@ export function mapAutofillToOnboardingProfile(
           }))
         : [{ id: id(), name: "", issuer: "", date: "" }],
     experience_entries:
-      payload.experience_entries.length > 0
-        ? payload.experience_entries.map((entry) => ({
+      experienceEntries.length > 0
+        ? experienceEntries.map((entry) => ({
             id: id(),
             title: entry.title,
             company: entry.company,
@@ -51,5 +57,16 @@ export function mapAutofillToOnboardingProfile(
             bullets: entry.bullets,
           }))
         : [{ id: id(), title: "", company: "", dates: "", bullets: "" }],
+    projects: [],
+    education:
+      education.length > 0
+        ? education.map((entry) => ({
+            id: id(),
+            degree: entry.degree,
+            school: entry.school,
+            dates: entry.dates,
+            gpa: entry.gpa,
+          }))
+        : [],
   };
 }

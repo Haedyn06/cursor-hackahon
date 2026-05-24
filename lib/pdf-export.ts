@@ -55,6 +55,71 @@ export function exportPlainText(content: string, filename: string) {
   downloadBlob(blob, filename, "txt");
 }
 
+async function renderTextOffscreen(content: string): Promise<HTMLElement> {
+  const host = document.createElement("div");
+  host.style.position = "fixed";
+  host.style.left = "-10000px";
+  host.style.top = "0";
+  host.style.pointerEvents = "none";
+  document.body.appendChild(host);
+
+  const page = document.createElement("div");
+  page.style.width = "8.5in";
+  page.style.minHeight = "11in";
+  page.style.padding = "1in";
+  page.style.background = "#ffffff";
+  page.style.color = "#111111";
+  page.style.fontFamily = "Georgia, 'Times New Roman', serif";
+  page.style.fontSize = "12pt";
+  page.style.lineHeight = "1.6";
+  page.style.whiteSpace = "pre-wrap";
+  page.textContent = content;
+  host.appendChild(page);
+
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
+
+  return page;
+}
+
+export async function exportTextDocument(
+  content: string,
+  filename: string,
+  format: DownloadFormat,
+) {
+  if (format === "txt") {
+    exportPlainText(content, filename);
+    return;
+  }
+
+  if (format === "docx") {
+    const { Document, Packer, Paragraph, TextRun } = await import("docx");
+    const paragraphs = content.split(/\n{2,}/).map((block) =>
+      new Paragraph({
+        children: block.split("\n").flatMap((line, index, lines) => {
+          const runs = [new TextRun({ text: line, font: "Georgia", size: 24 })];
+          return index < lines.length - 1 ? [...runs, new TextRun({ break: 1 })] : runs;
+        }),
+        spacing: { after: 200 },
+      }),
+    );
+    const doc = new Document({ sections: [{ children: paragraphs }] });
+    const blob = await Packer.toBlob(doc);
+    downloadBlob(blob, filename, "docx");
+    return;
+  }
+
+  const target = await renderTextOffscreen(content);
+  try {
+    await exportElementToPdf(target, filename);
+  } finally {
+    cleanupOffscreenHost(target);
+  }
+}
+
 export async function exportResumeToDocxFile(
   resume: ResumeDocument,
   filename: string,

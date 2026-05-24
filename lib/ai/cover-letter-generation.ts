@@ -1,3 +1,4 @@
+import { extractJsonPayload } from "@/lib/ai/json-response";
 import type { MockProfile } from "@/lib/mock-data";
 import type { ResumeDocument } from "@/lib/resume-document";
 import {
@@ -10,23 +11,6 @@ export type GeneratedCoverLetter = {
   content: string;
 };
 
-function extractJsonPayload(text: string): unknown {
-  const trimmed = text.trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const candidate = fenced ? fenced[1].trim() : trimmed;
-
-  try {
-    return JSON.parse(candidate);
-  } catch {
-    const start = candidate.indexOf("{");
-    const end = candidate.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      return JSON.parse(candidate.slice(start, end + 1));
-    }
-    throw new Error("AI response was not valid JSON.");
-  }
-}
-
 function asString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value.trim() : fallback;
 }
@@ -35,6 +19,7 @@ export function buildCoverLetterGenerationMessages(params: {
   job: JobContext;
   profile: ProfileSnapshot;
   resume?: ResumeDocument | null;
+  sourceMaterialContext?: string;
 }): { system: string; user: string } {
   const system = `You are an expert cover letter writer.
 
@@ -69,7 +54,7 @@ ${params.job.description.trim() || "No detailed description provided. Tailor usi
 
 CANDIDATE PROFILE
 ${JSON.stringify(params.profile, null, 2)}
-${resumeBlock}
+${resumeBlock}${params.sourceMaterialContext?.trim() ? `\nADDITIONAL SOURCE MATERIALS\n${params.sourceMaterialContext.trim()}\n` : ""}
 Write the cover letter JSON now.`;
 
   return { system, user };

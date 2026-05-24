@@ -14,6 +14,7 @@ import type { InterviewPrepContent } from "@/lib/types/job-interview-prep";
 import type { ResumeDocument } from "@/lib/resume-document";
 import type { MockProfile } from "@/lib/mock-data";
 import type { ProfileExportDocument } from "@/lib/profile-export-document";
+import type { SourceMaterialRequestItem } from "@/lib/ai/source-material-request";
 import type { OnboardingProfileState } from "@/lib/onboarding-storage";
 
 type ApiErrorBody = {
@@ -75,6 +76,7 @@ export async function generateTailoredResume(params: {
   model?: string;
   job: JobContext;
   profile: MockProfile;
+  sourceMaterials?: SourceMaterialRequestItem[];
 }): Promise<GeneratedResumeAnalysis> {
   return postJson<GeneratedResumeAnalysis>("/api/ai/generate-resume", params);
 }
@@ -97,6 +99,7 @@ export async function generateTailoredCoverLetter(params: {
   job: JobContext;
   profile: MockProfile;
   resume?: ResumeDocument | null;
+  sourceMaterials?: SourceMaterialRequestItem[];
 }): Promise<GeneratedCoverLetter> {
   return postJson<GeneratedCoverLetter>("/api/ai/generate-cover-letter", params);
 }

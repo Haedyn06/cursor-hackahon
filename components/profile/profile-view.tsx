@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "convex/react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { useToast } from "@/components/providers";
 import { NeoBadge } from "@/components/ui/neo-badge";
@@ -331,6 +331,22 @@ export function ProfileView() {
     });
   };
 
+  const updateProfile = useCallback(
+    (
+      updater: (current: NonNullable<typeof profile>) => NonNullable<typeof profile>,
+    ) => {
+      setProfile((current) => {
+        if (!current) return current;
+        const next = updater(current);
+        void persistProfile(next).catch(() => {
+          toast("Failed to save changes.", "error");
+        });
+        return next;
+      });
+    },
+    [toast],
+  );
+
   const isEditing = (key: string) => editingKey === key;
 
   const startEdit = (key: string, draft: Record<string, unknown>) => {
@@ -431,7 +447,7 @@ export function ProfileView() {
         uploads,
       });
 
-      setProfile((current) =>
+      updateProfile((current) =>
         current ? { ...current, ...mergeProfileFromOnboarding(result.profile, current) } : current,
       );
       toast("Profile refilled from source materials.");
@@ -775,7 +791,7 @@ export function ProfileView() {
                 size="sm"
                 onClick={() => {
                   const newLink = { id: Date.now(), name: "", url: "" };
-                  setProfile((p) =>
+                  updateProfile((p) =>
                     p
                       ? {
                           ...p,
@@ -860,7 +876,7 @@ export function ProfileView() {
                             });
                             if (!confirmed) return;
                             if (isEditing(linkKey)) cancelEdit();
-                            setProfile((p) =>
+                            updateProfile((p) =>
                               p
                                 ? {
                                     ...p,
@@ -901,7 +917,7 @@ export function ProfileView() {
                     dates: "",
                     bullets: [],
                   };
-                  setProfile((p) =>
+                  updateProfile((p) =>
                     p
                       ? {
                           ...p,
@@ -1061,7 +1077,7 @@ export function ProfileView() {
                               });
                               if (!confirmed) return;
                               if (isEditing(entryKey)) cancelEdit();
-                              setProfile((p) =>
+                              updateProfile((p) =>
                                 p
                                   ? {
                                       ...p,
@@ -1124,7 +1140,7 @@ export function ProfileView() {
                     desc: "",
                     active: true,
                   };
-                  setProfile((p) =>
+                  updateProfile((p) =>
                     p
                       ? {
                           ...p,
@@ -1236,7 +1252,7 @@ export function ProfileView() {
                           });
                           if (!confirmed) return;
                           if (isEditing(projKey)) cancelEdit();
-                          setProfile((p) =>
+                          updateProfile((p) =>
                             p
                               ? {
                                   ...p,
@@ -1278,7 +1294,7 @@ export function ProfileView() {
                         confirmLabel: "Remove",
                       });
                       if (!confirmed) return;
-                      setProfile((p) =>
+                      updateProfile((p) =>
                         p
                           ? {
                               ...p,
@@ -1301,7 +1317,7 @@ export function ProfileView() {
                       newSkill.trim()
                     ) {
                       e.preventDefault();
-                      setProfile((p) =>
+                      updateProfile((p) =>
                         p
                           ? {
                               ...p,
@@ -1334,7 +1350,7 @@ export function ProfileView() {
                     name: "",
                     level: "Conversational",
                   };
-                  setProfile((p) =>
+                  updateProfile((p) =>
                     p
                       ? {
                           ...p,
@@ -1425,7 +1441,7 @@ export function ProfileView() {
                             });
                             if (!confirmed) return;
                             if (isEditing(langKey)) cancelEdit();
-                            setProfile((p) =>
+                            updateProfile((p) =>
                               p
                                 ? {
                                     ...p,
@@ -1465,7 +1481,7 @@ export function ProfileView() {
                     issuer: "",
                     date: "",
                   };
-                  setProfile((p) =>
+                  updateProfile((p) =>
                     p
                       ? {
                           ...p,
@@ -1559,7 +1575,7 @@ export function ProfileView() {
                             });
                             if (!confirmed) return;
                             if (isEditing(certKey)) cancelEdit();
-                            setProfile((p) =>
+                            updateProfile((p) =>
                               p
                                 ? {
                                     ...p,
@@ -1602,7 +1618,7 @@ export function ProfileView() {
                     dates: "",
                     gpa: "",
                   };
-                  setProfile((p) =>
+                  updateProfile((p) =>
                     p
                       ? {
                           ...p,
@@ -1705,7 +1721,7 @@ export function ProfileView() {
                             });
                             if (!confirmed) return;
                             if (isEditing(eduKey)) cancelEdit();
-                            setProfile((p) =>
+                            updateProfile((p) =>
                               p
                                 ? {
                                     ...p,

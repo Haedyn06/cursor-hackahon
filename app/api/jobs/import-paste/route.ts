@@ -1,20 +1,9 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { AiProviderError } from "@/lib/ai/errors";
 import { extractJobFromPage } from "@/lib/ai/extract-job-from-page";
 import { isApiProviderId } from "@/lib/ai/types";
-import {
-  CLERK_CONVEX_TEMPLATE,
-  JobsServiceError,
-  createJob,
-} from "@/lib/services/jobs.service";
-
-async function getJobsServiceOptions() {
-  const { getToken } = await auth();
-  return {
-    token: await getToken({ template: CLERK_CONVEX_TEMPLATE }),
-  };
-}
+import { getJobsServiceOptions } from "@/lib/services/jobs-auth";
+import { JobsServiceError, createJob } from "@/lib/services/jobs.service";
 
 export async function POST(request: Request) {
   try {

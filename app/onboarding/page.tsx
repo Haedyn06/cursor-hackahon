@@ -290,7 +290,7 @@ type ProfileState = typeof defaultProfile;
 
 function onboardingProfileToProfileState(payload: OnboardingProfileState): ProfileState {
   const links =
-    payload.links.length > 0
+    (payload.links?.length ?? 0) > 0
       ? payload.links.map((link) => ({
           id: link.id,
           name: link.name,
@@ -313,9 +313,9 @@ function onboardingProfileToProfileState(payload: OnboardingProfileState): Profi
     targetRole: payload.targetRole,
     experience: payload.experience,
     about: payload.about,
-    skills: payload.skills,
+    skills: payload.skills ?? [],
     languages:
-      payload.languages.length > 0
+      (payload.languages?.length ?? 0) > 0
         ? payload.languages.map((language) => ({
             id: language.id,
             name: language.name,
@@ -323,7 +323,7 @@ function onboardingProfileToProfileState(payload: OnboardingProfileState): Profi
           }))
         : defaultProfile.languages,
     certifications:
-      payload.certifications.length > 0
+      (payload.certifications?.length ?? 0) > 0
         ? payload.certifications.map((certification) => ({
             id: certification.id,
             name: certification.name,
@@ -332,7 +332,7 @@ function onboardingProfileToProfileState(payload: OnboardingProfileState): Profi
           }))
         : defaultProfile.certifications,
     experience_entries:
-      payload.experience_entries.length > 0
+      (payload.experience_entries?.length ?? 0) > 0
         ? payload.experience_entries.map((entry) => ({
             id: entry.id,
             title: entry.title,
@@ -341,8 +341,9 @@ function onboardingProfileToProfileState(payload: OnboardingProfileState): Profi
             bullets: entry.bullets,
           }))
         : defaultProfile.experience_entries,
+    projects: payload.projects ?? defaultProfile.projects,
     education:
-      payload.education.length > 0
+      (payload.education?.length ?? 0) > 0
         ? payload.education.map((entry) => ({
             id: entry.id,
             degree: entry.degree,

@@ -6,7 +6,7 @@ import { isIndeedJobUrl } from "@/lib/scrape/indeed";
 import { scrapeIndeedJobPage } from "@/lib/scrape/indeed-scraper";
 import { scrapeJobPage } from "@/lib/scrape/scrape-page";
 import type { ExtractedJobFields, ScrapedPage } from "@/lib/scrape/types";
-import { createJob } from "@/lib/services/jobs.service";
+import { createJob, type JobsServiceOptions } from "@/lib/services/jobs.service";
 import type { Job } from "@/lib/types/job";
 
 export type ImportJobFromUrlResult = {
@@ -21,6 +21,7 @@ export async function importJobFromUrl(params: {
   apiKey?: string;
   model?: string;
   create?: boolean;
+  auth?: JobsServiceOptions;
 }): Promise<ImportJobFromUrlResult> {
   let scraped: ScrapedPage;
   let extracted: ExtractedJobFields;
@@ -51,16 +52,19 @@ export async function importJobFromUrl(params: {
     return { scraped, extracted };
   }
 
-  const job = await createJob({
-    title: extracted.title,
-    company: extracted.company,
-    location: extracted.location,
-    url: scraped.finalUrl || scraped.url,
-    jd: extracted.jd,
-    source: extracted.source,
-    salary: extracted.salary,
-    status: "Saved",
-  });
+  const job = await createJob(
+    {
+      title: extracted.title,
+      company: extracted.company,
+      location: extracted.location,
+      url: scraped.finalUrl || scraped.url,
+      jd: extracted.jd,
+      source: extracted.source,
+      salary: extracted.salary,
+      status: "Saved",
+    },
+    params.auth,
+  );
 
   return { scraped, extracted, job };
 }

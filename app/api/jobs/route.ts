@@ -1,19 +1,11 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import type { CreateJobInput } from "@/lib/types/job";
+import { getJobsServiceOptions } from "@/lib/services/jobs-auth";
 import {
-  CLERK_CONVEX_TEMPLATE,
   JobsServiceError,
   createJob,
   listJobs,
 } from "@/lib/services/jobs.service";
-
-async function getJobsServiceOptions() {
-  const { getToken } = await auth();
-  return {
-    token: await getToken({ template: CLERK_CONVEX_TEMPLATE }),
-  };
-}
 
 export async function GET() {
   try {

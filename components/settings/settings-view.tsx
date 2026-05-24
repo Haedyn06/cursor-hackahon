@@ -2,7 +2,7 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { api } from "@/convex/_generated/api";
 import { API_PROVIDERS, OAUTH_PROVIDERS } from "@/lib/constants";
 import { useToast } from "@/components/providers";
@@ -45,6 +45,7 @@ export function SettingsView() {
   const toast = useToast();
   const { user } = useUser();
   const onboardingState = useQuery(api.onboarding.getOnboardingState);
+  const saveProviderConnections = useMutation(api.onboarding.saveProviderConnections);
   const disconnectProviderConnection = useMutation(api.onboarding.disconnectProviderConnection);
   const [showProviderUI, setShowProviderUI] = useState(false);
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
@@ -55,6 +56,55 @@ export function SettingsView() {
   const [aiSession, setAiSession] = useState<AiSession | null>(() => loadAiSession());
   const [openProviderMenu, setOpenProviderMenu] = useState<string | null>(null);
   const [showDangerConfirm, setShowDangerConfirm] = useState<string | null>(null);
+  const syncedSessionRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!onboardingState || !aiSession) return;
+
+    const syncKey = `${aiSession.providerId}:${aiSession.verifiedAt}`;
+    if (syncedSessionRef.current === syncKey) return;
+
+    const hasMatchingConnection = onboardingState.providerConnections.some(
+      (connection) =>
+        connection.providerId === aiSession.providerId &&
+        connection.connectionType === "apikey" &&
+        connection.status === "connected",
+    );
+
+    if (hasMatchingConnection) {
+      syncedSessionRef.current = syncKey;
+      return;
+    }
+
+    const oauthConnections = onboardingState.providerConnections
+      .filter(
+        (connection) =>
+          connection.connectionType === "oauth" && connection.status === "connected",
+      )
+      .map((connection) => ({
+        providerId: connection.providerId,
+        providerName: connection.providerName,
+        connectionType: "oauth" as const,
+        status: "connected" as const,
+        lastVerifiedAt: connection.lastVerifiedAt,
+      }));
+
+    syncedSessionRef.current = syncKey;
+    void saveProviderConnections({
+      connections: [
+        ...oauthConnections,
+        {
+          providerId: aiSession.providerId,
+          providerName: AI_PROVIDER_CONFIGS[aiSession.providerId].name,
+          connectionType: "apikey",
+          status: "connected",
+          lastVerifiedAt: Date.now(),
+        },
+      ],
+    }).catch(() => {
+      syncedSessionRef.current = null;
+    });
+  }, [aiSession, onboardingState, saveProviderConnections]);
 
   const oauthConnected = useMemo(() => {
     const nextOauth: Record<string, boolean> = {};
@@ -79,15 +129,22 @@ export function SettingsView() {
           id: connection.providerId,
           name: connection.providerName,
           model:
-            connection.connectionType === "apikey" ? "API key connected" : "OAuth connected",
-          maskedKey:
             connection.connectionType === "apikey"
-              ? "Stored client-side"
-              : "No API key required",
+              ? aiSession?.providerId === connection.providerId
+                ? aiSession.model
+                : "API key connected"
+              : "OAuth connected",
+          maskedKey:
+            connection.connectionType === "apikey" &&
+            aiSession?.providerId === connection.providerId
+              ? maskApiKey(aiSession.apiKey)
+              : connection.connectionType === "apikey"
+                ? "Stored client-side"
+                : "No API key required",
           color: providerMeta?.color ?? "var(--lav)",
         };
       });
-  }, [onboardingState]);
+  }, [onboardingState, aiSession]);
 
   const accountName = user?.fullName ?? onboardingState?.user?.name ?? "—";
   const accountEmail =
@@ -109,6 +166,33 @@ export function SettingsView() {
       saveAiSession(session);
       setAiSession(session);
       setVerified({ [providerId]: true });
+
+      const oauthConnections = (onboardingState?.providerConnections ?? [])
+        .filter(
+          (connection) =>
+            connection.connectionType === "oauth" && connection.status === "connected",
+        )
+        .map((connection) => ({
+          providerId: connection.providerId,
+          providerName: connection.providerName,
+          connectionType: "oauth" as const,
+          status: "connected" as const,
+          lastVerifiedAt: connection.lastVerifiedAt,
+        }));
+
+      await saveProviderConnections({
+        connections: [
+          ...oauthConnections,
+          {
+            providerId,
+            providerName: AI_PROVIDER_CONFIGS[providerId].name,
+            connectionType: "apikey",
+            status: "connected",
+            lastVerifiedAt: Date.now(),
+          },
+        ],
+      });
+
       setShowProviderUI(false);
       toast(`${AI_PROVIDER_CONFIGS[providerId].name} connected!`);
     } catch (error) {
@@ -122,15 +206,22 @@ export function SettingsView() {
   };
 
   const handleDisconnect = async (providerId: string) => {
-    await disconnectProviderConnection({ providerId });
-    if (aiSession?.providerId === providerId) {
-      clearAiSession();
-      setAiSession(null);
+    try {
+      await disconnectProviderConnection({ providerId });
+      if (aiSession?.providerId === providerId) {
+        clearAiSession();
+        setAiSession(null);
+      }
+      setApiKeys((current) => ({ ...current, [providerId]: "" }));
+      setVerified((current) => ({ ...current, [providerId]: false }));
+      setOpenProviderMenu(null);
+      toast("Provider disconnected", "warn");
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "Failed to disconnect provider.",
+        "error",
+      );
     }
-    setApiKeys((current) => ({ ...current, [providerId]: "" }));
-    setVerified((current) => ({ ...current, [providerId]: false }));
-    setOpenProviderMenu(null);
-    toast("Provider disconnected", "warn");
   };
 
   return (

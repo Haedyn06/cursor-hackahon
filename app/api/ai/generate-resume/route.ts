@@ -9,6 +9,9 @@ import {
 import { isApiProviderId } from "@/lib/ai/types";
 import type { MockProfile } from "@/lib/mock-data";
 
+export const maxDuration = 120;
+export const runtime = "nodejs";
+
 function isJobContext(value: unknown): value is JobContext {
   if (!value || typeof value !== "object") return false;
   const job = value as JobContext;
