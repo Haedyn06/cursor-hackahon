@@ -1,7 +1,9 @@
 import type { MockProfile } from "@/lib/mock-data";
 import {
+  buildSkillCurationHints,
   computeKeywordCoverage,
-  extractJobKeywords,
+  curateTailoredSkills,
+  extractKeywordsForJob,
   resumeDocumentToSearchText,
 } from "@/lib/ai/job-keywords";
 import type { ResumeDocument } from "@/lib/resume-document";
@@ -87,40 +89,58 @@ export function buildResumeGenerationMessages(
   job: JobContext,
   profile: ProfileSnapshot,
 ): { system: string; user: string } {
-  const jobKeywords = extractJobKeywords(job.description);
+  const jobKeywords = extractKeywordsForJob(job);
+  const skillHints = buildSkillCurationHints(profile.skills, jobKeywords);
   const keywordBlock =
     jobKeywords.length > 0
       ? jobKeywords.map((k, i) => `${i + 1}. ${k}`).join("\n")
-      : "No explicit keywords extracted — infer priority terms from the job description.";
+      : "No explicit keywords extracted — infer priority terms from the job title and description.";
+  const mustIncludeBlock =
+    skillHints.mustInclude.length > 0
+      ? skillHints.mustInclude.map((line, i) => `${i + 1}. ${line}`).join("\n")
+      : "No direct profile-to-JD skill matches detected — still handpick the most relevant profile skills for this role.";
+  const mirrorTermsBlock =
+    skillHints.jdTermsToMirror.length > 0
+      ? skillHints.jdTermsToMirror.join(", ")
+      : "Infer terminology from the job description.";
 
   const system = `You are an elite resume writer, ATS optimization specialist, and technical recruiter.
 
-Your task: produce a highly tailored, keyword-rich resume that maximizes alignment with the target job while staying truthful to the candidate profile.
+Your task: produce a highly detailed, keyword-rich, ATS-optimized resume that maximizes compatibility with the target job while staying 100% truthful to the candidate profile.
 
 TAILORING STRATEGY (follow in order):
-1. Study the job description and PRIORITY KEYWORDS list. Treat these as must-have ATS terms.
-2. Map each keyword to real evidence in the candidate profile (experience, projects, skills, certifications).
-3. Rewrite bullets to mirror JD phrasing where truthful — use the exact terminology from the posting (tools, frameworks, methodologies, soft skills).
-4. Front-load the most relevant keywords in the summary, recent role bullets, skills section, and project descriptions.
+1. Study the job title, description, and PRIORITY KEYWORDS. Treat these as must-have ATS terms.
+2. HANDPICK SKILLS from the candidate's profile pool — do NOT dump every profile skill. Select 18–28 skills that best match this job. Put JD-matching skills first.
+3. For each selected skill, mirror the EXACT phrasing from the job posting when possible (e.g. JD says "React.js" not "React").
+4. Map each priority keyword to real evidence in the profile (experience, projects, certifications, about section).
+5. Rewrite bullets to mirror JD phrasing where truthful — weave in tools, frameworks, methodologies, domain terms, and soft-skill buzzwords from the posting.
+6. Front-load the strongest keywords in the summary, most recent role bullets, project bullets, and skills section.
 
-CONTENT DEPTH RULES:
-- Summary: 3–5 sentences. Dense with role-specific keywords, years of experience, domain expertise, and value proposition for THIS company/role.
-- Experience bullets: 4–6 per role when source material exists. Each bullet should be a full achievement statement (not a fragment).
-- Bullet formula: [Strong action verb] + [what you did] + [technologies/methods used] + [measurable or concrete outcome when available from profile].
-- Use industry buzzwords and power verbs: architected, engineered, spearheaded, optimized, automated, scaled, delivered, collaborated, mentored, implemented, integrated, streamlined, etc.
-- Projects: include 2–4 bullets each when the profile supports it; tie project work to JD requirements.
-- Skills: 15–25 items. Order by relevance to the job — put JD-matching skills first, then complementary skills from the profile.
-- Do NOT leave the resume sparse. Expand and enrich profile bullets with relevant JD terminology while keeping all facts grounded in the profile.
+SKILLS CURATION (critical):
+- The skills array is a curated shortlist for THIS job — not a copy of the full profile skills list.
+- Include every MUST-INCLUDE SKILL listed in the user message (these are profile-backed JD matches).
+- Prefer exact JD terminology in the skills list when the candidate has supporting evidence.
+- Add complementary profile skills only if they strengthen the candidacy for this specific role.
+- Never list a skill the candidate cannot support anywhere in their profile.
 
-KEYWORD RULES:
-- Weave PRIORITY KEYWORDS naturally into summary, bullets, and skills — never keyword-stuff as a bare list in prose.
+CONTENT DEPTH RULES (do not produce a sparse resume):
+- Summary: 4–6 sentences. Dense with role-specific keywords, domain expertise, technical scope, soft skills from the JD, and a clear value proposition for THIS company/role.
+- Experience: include ALL relevant roles from the profile. 4–6 bullets per role when source material exists (minimum 3 if any bullets exist in profile).
+- Bullet formula: [Power verb] + [scope/ownership] + [what you built/delivered] + [technologies/methods from JD] + [concrete outcome, metric, or impact when available in profile].
+- Power verbs / buzzwords to use where truthful: architected, engineered, spearheaded, optimized, automated, scaled, delivered, collaborated, mentored, implemented, integrated, streamlined, drove, led, owned, partnered, accelerated, improved, reduced, increased, launched, deployed.
+- Projects: include all relevant active projects. 2–4 detailed bullets each tying work to JD requirements and keywords.
+- Education & certifications: keep from profile; add brief details field when GPA/honors exist.
+
+KEYWORD & ATS RULES:
+- Mirror JD terms in summary, bullets, project descriptions, and skills — natural prose, not naked keyword lists in paragraphs.
+- Repeat high-priority technical terms 2–3 times across different sections (summary, experience, skills) when truthful — ATS systems reward consistent terminology.
 - matchedKeywords: list JD keywords/phrases that appear in your final resume text.
 - missingKeywords: important JD keywords the candidate lacks evidence for (be honest).
-- matchScore: realistic 0–100 based on how many priority keywords you successfully incorporated.
+- matchScore: realistic 0–100 based on priority keyword incorporation.
 
 HONESTY RULES:
-- Use ONLY facts from the candidate profile. Do NOT invent employers, titles, dates, degrees, projects, or metrics.
-- You MAY rephrase, expand, reorder, and emphasize. You MAY infer reasonable technical context already implied by the profile (e.g. if profile says "built React apps", you can say "React.js" when JD uses that term).
+- Use ONLY facts from the candidate profile. Do NOT invent employers, titles, dates, degrees, projects, metrics, or tools.
+- You MAY rephrase, expand detail, reorder, and emphasize. You MAY use JD terminology for skills already implied by the profile.
 - Do NOT claim tools, certifications, or experience with zero support in the profile.
 
 Return ONLY valid JSON with no markdown fences or commentary.
@@ -149,13 +169,22 @@ Company: ${job.company}
 JOB DESCRIPTION
 ${job.description.trim() || "No detailed description provided. Tailor using the title and company context only."}
 
-PRIORITY KEYWORDS (incorporate every term you can truthfully support — mirror exact spelling/casing where possible)
+PRIORITY KEYWORDS (incorporate every term you can truthfully support — mirror exact spelling/casing from the JD)
 ${keywordBlock}
+
+JD TERMINOLOGY TO MIRROR IN SKILLS & BULLETS
+${mirrorTermsBlock}
+
+MUST-INCLUDE SKILLS (profile-backed matches — prioritize these in the skills section and reference in bullets)
+${mustIncludeBlock}
+
+FULL PROFILE SKILLS POOL (handpick from this list only — do not add skills outside this pool unless clearly implied by experience/project bullets)
+${profile.skills.length > 0 ? profile.skills.join(", ") : "No skills listed in profile."}
 
 CANDIDATE PROFILE (JSON)
 ${JSON.stringify(profile, null, 2)}
 
-Produce a detailed, keyword-optimized resume JSON. Maximize ATS match without inventing facts.`;
+Produce a detailed, keyword-optimized resume JSON. Handpick skills, weave in buzzwords, maximize ATS match, and expand bullets with rich detail — without inventing facts.`;
 
   return { system, user };
 }
@@ -308,6 +337,48 @@ function snapshotToFallbackDocument(
   };
 }
 
+function ensureResumeDepth(
+  resume: ResumeDocument,
+  profile: ProfileSnapshot,
+): ResumeDocument {
+  const experience = resume.experience.map((entry, index) => {
+    const profileEntry = profile.experience_entries[index];
+    const profileBullets = profileEntry?.bullets ?? [];
+    const minBullets = profileBullets.length > 0 ? Math.min(3, profileBullets.length) : 0;
+
+    if (entry.bullets.length >= minBullets) {
+      return entry;
+    }
+
+    const paddedBullets = [...entry.bullets];
+    for (const bullet of profileBullets) {
+      if (paddedBullets.length >= Math.max(minBullets, 3)) break;
+      if (!paddedBullets.some((existing) => existing.toLowerCase() === bullet.toLowerCase())) {
+        paddedBullets.push(bullet);
+      }
+    }
+
+    return { ...entry, bullets: paddedBullets };
+  });
+
+  const projects = (resume.projects ?? []).map((project, index) => {
+    const profileProject = profile.projects[index];
+    if (!profileProject) return project;
+
+    const bullets = [...(project.bullets ?? [])];
+    if (bullets.length >= 2) return project;
+
+    const seed = profileProject.description?.trim();
+    if (seed && !bullets.some((bullet) => bullet.toLowerCase() === seed.toLowerCase())) {
+      bullets.unshift(seed);
+    }
+
+    return { ...project, bullets };
+  });
+
+  return { ...resume, experience, projects };
+}
+
 export function normalizeGeneratedResume(
   payload: unknown,
   profile: ProfileSnapshot,
@@ -347,9 +418,19 @@ export function normalizeGeneratedResume(
     resume.summary = fallback.summary;
   }
 
-  const jobKeywords = extractJobKeywords(job.description);
+  const jobKeywords = extractKeywordsForJob(job);
+  resume.skills = curateTailoredSkills(
+    profile.skills,
+    resume.skills ?? [],
+    jobKeywords,
+  );
+  if (!resume.skills.length) {
+    resume.skills = fallback.skills;
+  }
+
+  const enriched = ensureResumeDepth(resume, profile);
   const coverage = computeKeywordCoverage(
-    resumeDocumentToSearchText(resume),
+    resumeDocumentToSearchText(enriched),
     jobKeywords,
   );
 
@@ -375,7 +456,7 @@ export function normalizeGeneratedResume(
     matchScore,
     matchedKeywords,
     missingKeywords,
-    resume,
+    resume: enriched,
   };
 }
 

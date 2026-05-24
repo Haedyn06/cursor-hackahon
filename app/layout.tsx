@@ -3,7 +3,6 @@ import { Bricolage_Grotesque, Plus_Jakarta_Sans } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
-import ConvexClientProvider from "@/components/ConvexClientProvider";
 
 const bricolage = Bricolage_Grotesque({
   variable: "--font-bricolage",
@@ -35,9 +34,7 @@ export default function RootLayout({
     >
       <body>
         <ClerkProvider>
-          <ConvexClientProvider>
-            <Providers>{children}</Providers>
-          </ConvexClientProvider>
+          <Providers>{children}</Providers>
         </ClerkProvider>
       </body>
     </html>

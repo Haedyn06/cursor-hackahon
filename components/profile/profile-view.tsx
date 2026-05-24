@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useToast } from "@/components/providers";
 import { NeoBadge } from "@/components/ui/neo-badge";
 import { NeoButton } from "@/components/ui/neo-button";
@@ -12,7 +12,17 @@ import {
   ProfileSectionStack,
 } from "@/components/ui/collapsible-section";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { getInitialProfile } from "@/lib/onboarding-storage";
+import { formatProfileExport } from "@/lib/ai/client";
+import { loadAiSession } from "@/lib/ai/session";
+import {
+  getInitialProfile,
+  saveStoredProfile,
+  type StoredProfile,
+} from "@/lib/onboarding-storage";
+import {
+  buildProfileExportDocument,
+  exportProfileDocument,
+} from "@/lib/profile-export";
 
 const NAV_ITEMS = [
   { id: "personal", label: "Personal Info" },
@@ -91,7 +101,19 @@ export function ProfileView() {
   const [activeSection, setActiveSection] = useState("personal");
   const [newSkill, setNewSkill] = useState("");
   const [exportFormat, setExportFormat] = useState<"pdf" | "docx" | "txt">("pdf");
-  const [profile, setProfile] = useState(() => getInitialProfile());
+  const [exporting, setExporting] = useState(false);
+  const hasAiSession = useMemo(() => !!loadAiSession(), []);
+  const [profile, setProfileState] = useState(() => getInitialProfile());
+
+  const setProfile = (
+    updater: StoredProfile | ((prev: StoredProfile) => StoredProfile),
+  ) => {
+    setProfileState((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      saveStoredProfile(next);
+      return next;
+    });
+  };
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(NAV_ITEMS.map((item) => [item.id, true])),
   );
@@ -123,8 +145,48 @@ export function ProfileView() {
     setEditDraft((prev) => (prev ? { ...prev, ...patch } : prev));
   };
 
-  const handleExportProfile = () => {
-    toast(`Export as ${exportFormat.toUpperCase()} — coming soon!`);
+  const handleExportProfile = async () => {
+    setExporting(true);
+    try {
+      const session = loadAiSession();
+      let document = buildProfileExportDocument(profile);
+      let usedAi = false;
+
+      if (session) {
+        try {
+          const result = await formatProfileExport({
+            providerId: session.providerId,
+            apiKey: session.apiKey,
+            model: session.model,
+            profile,
+          });
+          document = result.document;
+          usedAi = true;
+        } catch (error) {
+          toast(
+            error instanceof Error
+              ? `${error.message} Using local formatting instead.`
+              : "AI formatting failed. Using local formatting instead.",
+            "error",
+          );
+        }
+      }
+
+      const filename = `${profile.name || "profile"}-export`;
+      await exportProfileDocument(document, filename, exportFormat);
+      toast(
+        usedAi
+          ? `Profile exported as ${exportFormat.toUpperCase()} with AI formatting.`
+          : `Profile exported as ${exportFormat.toUpperCase()}.`,
+      );
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "Profile export failed.",
+        "error",
+      );
+    } finally {
+      setExporting(false);
+    }
   };
 
   const setSectionOpen = (id: string, open: boolean) => {
@@ -220,7 +282,8 @@ export function ProfileView() {
               <NeoButton
                 variant="secondary"
                 size="sm"
-                onClick={handleExportProfile}
+                onClick={() => void handleExportProfile()}
+                disabled={exporting}
                 className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
               >
                 <svg
@@ -240,6 +303,11 @@ export function ProfileView() {
                 </svg>
                 Export as document
               </NeoButton>
+              {!hasAiSession ? (
+                <p className="text-right text-[11px] font-medium text-[#888]">
+                  Connect an AI provider in Settings for polished formatting.
+                </p>
+              ) : null}
             </div>
           </NeoCard>
 

@@ -3,15 +3,12 @@ import "server-only";
 import { completeChat } from "@/lib/ai/server";
 import type { ApiProviderId } from "@/lib/ai/types";
 import {
-  buildResumeGenerationMessages,
-  parseResumeGenerationResponse,
-  profileToSnapshot,
-  type GeneratedResumeAnalysis,
-  type JobContext,
-} from "@/lib/ai/resume-generation";
-import type { MockProfile } from "@/lib/mock-data";
+  buildProfileAutofillMessages,
+  parseProfileAutofillResponse,
+  type AutofillProfilePayload,
+} from "@/lib/ai/profile-autofill-generation";
 
-const RESUME_GENERATION_MAX_TOKENS = 7000;
+const PROFILE_AUTOFILL_MAX_TOKENS = 5000;
 
 function supportsJsonMode(providerId: ApiProviderId): boolean {
   return (
@@ -22,15 +19,18 @@ function supportsJsonMode(providerId: ApiProviderId): boolean {
   );
 }
 
-export async function generateTailoredResume(params: {
+export async function autofillProfileFromSourceText(params: {
   providerId: ApiProviderId;
   apiKey: string;
   model?: string;
-  job: JobContext;
-  profile: MockProfile;
-}): Promise<GeneratedResumeAnalysis> {
-  const snapshot = profileToSnapshot(params.profile);
-  const { system, user } = buildResumeGenerationMessages(params.job, snapshot);
+  sourceText: string;
+}): Promise<AutofillProfilePayload> {
+  const sourceText = params.sourceText.trim();
+  if (sourceText.length < 40) {
+    throw new Error("Not enough text to extract a profile. Add a resume or paste more content.");
+  }
+
+  const { system, user } = buildProfileAutofillMessages(sourceText);
   const jsonMode = supportsJsonMode(params.providerId);
   const messages = [
     { role: "system" as const, content: system },
@@ -41,19 +41,19 @@ export async function generateTailoredResume(params: {
     providerId: params.providerId,
     apiKey: params.apiKey,
     model: params.model,
-    maxTokens: RESUME_GENERATION_MAX_TOKENS,
+    maxTokens: PROFILE_AUTOFILL_MAX_TOKENS,
     jsonMode,
     messages,
   });
 
   try {
-    return parseResumeGenerationResponse(result.text, snapshot, params.job);
+    return parseProfileAutofillResponse(result.text);
   } catch (firstError) {
     const retry = await completeChat({
       providerId: params.providerId,
       apiKey: params.apiKey,
       model: params.model,
-      maxTokens: RESUME_GENERATION_MAX_TOKENS,
+      maxTokens: PROFILE_AUTOFILL_MAX_TOKENS,
       jsonMode,
       messages: [
         ...messages,
@@ -66,11 +66,11 @@ export async function generateTailoredResume(params: {
     });
 
     try {
-      return parseResumeGenerationResponse(retry.text, snapshot, params.job);
+      return parseProfileAutofillResponse(retry.text);
     } catch {
       throw firstError instanceof Error
         ? firstError
-        : new Error("AI returned an unreadable resume format.");
+        : new Error("AI returned an unreadable profile format.");
     }
   }
 }

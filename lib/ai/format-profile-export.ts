@@ -3,15 +3,14 @@ import "server-only";
 import { completeChat } from "@/lib/ai/server";
 import type { ApiProviderId } from "@/lib/ai/types";
 import {
-  buildResumeGenerationMessages,
-  parseResumeGenerationResponse,
-  profileToSnapshot,
-  type GeneratedResumeAnalysis,
-  type JobContext,
-} from "@/lib/ai/resume-generation";
+  buildProfileExportMessages,
+  parseProfileExportResponse,
+  profileToExportSnapshot,
+} from "@/lib/ai/profile-export-generation";
+import type { ProfileExportDocument } from "@/lib/profile-export";
 import type { MockProfile } from "@/lib/mock-data";
 
-const RESUME_GENERATION_MAX_TOKENS = 7000;
+const PROFILE_EXPORT_MAX_TOKENS = 4000;
 
 function supportsJsonMode(providerId: ApiProviderId): boolean {
   return (
@@ -22,15 +21,14 @@ function supportsJsonMode(providerId: ApiProviderId): boolean {
   );
 }
 
-export async function generateTailoredResume(params: {
+export async function formatProfileForExport(params: {
   providerId: ApiProviderId;
   apiKey: string;
   model?: string;
-  job: JobContext;
   profile: MockProfile;
-}): Promise<GeneratedResumeAnalysis> {
-  const snapshot = profileToSnapshot(params.profile);
-  const { system, user } = buildResumeGenerationMessages(params.job, snapshot);
+}): Promise<ProfileExportDocument> {
+  const snapshot = profileToExportSnapshot(params.profile);
+  const { system, user } = buildProfileExportMessages(snapshot);
   const jsonMode = supportsJsonMode(params.providerId);
   const messages = [
     { role: "system" as const, content: system },
@@ -41,19 +39,19 @@ export async function generateTailoredResume(params: {
     providerId: params.providerId,
     apiKey: params.apiKey,
     model: params.model,
-    maxTokens: RESUME_GENERATION_MAX_TOKENS,
+    maxTokens: PROFILE_EXPORT_MAX_TOKENS,
     jsonMode,
     messages,
   });
 
   try {
-    return parseResumeGenerationResponse(result.text, snapshot, params.job);
+    return parseProfileExportResponse(result.text, params.profile);
   } catch (firstError) {
     const retry = await completeChat({
       providerId: params.providerId,
       apiKey: params.apiKey,
       model: params.model,
-      maxTokens: RESUME_GENERATION_MAX_TOKENS,
+      maxTokens: PROFILE_EXPORT_MAX_TOKENS,
       jsonMode,
       messages: [
         ...messages,
@@ -66,11 +64,11 @@ export async function generateTailoredResume(params: {
     });
 
     try {
-      return parseResumeGenerationResponse(retry.text, snapshot, params.job);
+      return parseProfileExportResponse(retry.text, params.profile);
     } catch {
       throw firstError instanceof Error
         ? firstError
-        : new Error("AI returned an unreadable resume format.");
+        : new Error("AI returned an unreadable profile export format.");
     }
   }
 }

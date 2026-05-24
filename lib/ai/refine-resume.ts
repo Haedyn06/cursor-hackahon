@@ -1,5 +1,5 @@
 import type { JobContext } from "@/lib/ai/resume-generation";
-import { extractJobKeywords } from "@/lib/ai/job-keywords";
+import { curateTailoredSkills, extractKeywordsForJob } from "@/lib/ai/job-keywords";
 import type { ResumeDocument } from "@/lib/resume-document";
 
 export type RefineResumeResult = {
@@ -108,6 +108,7 @@ function normalizeCertifications(value: unknown): ResumeDocument["certifications
 export function normalizeRefinedResume(
   payload: unknown,
   current: ResumeDocument,
+  job?: JobContext,
 ): RefineResumeResult {
   if (!payload || typeof payload !== "object") {
     throw new Error("AI response missing refine payload.");
@@ -144,6 +145,15 @@ export function normalizeRefinedResume(
     resume.certifications = current.certifications;
   }
 
+  if (job) {
+    const jobKeywords = extractKeywordsForJob(job);
+    resume.skills = curateTailoredSkills(
+      current.skills ?? [],
+      resume.skills ?? [],
+      jobKeywords,
+    );
+  }
+
   const reply =
     asString(record.reply) ||
     "I've updated the resume based on your request.";
@@ -162,8 +172,9 @@ Rules:
 - Apply the user's requested edits to the resume JSON.
 - Do NOT invent new employers, degrees, dates, or credentials.
 - You MAY rephrase bullets, expand detail, reorder sections, adjust tone, and aggressively tune keywords to the job.
-- When a job description is provided, mirror its terminology and weave in relevant keywords naturally.
-- Prefer fuller, keyword-rich achievement bullets over short generic ones.
+- When a job description is provided, handpick 18–28 skills from the current resume/profile skills — JD-matching skills first. Mirror exact JD terminology where truthful.
+- Weave priority keywords and industry buzzwords into summary and bullets naturally.
+- Prefer fuller, keyword-rich achievement bullets (4–6 per role) over short generic ones.
 - Keep the resume ATS-friendly but detailed — do not over-shorten.
 - Return ONLY valid JSON with no markdown fences.
 
@@ -184,7 +195,7 @@ JSON schema:
 
   const jobBlock = params.job
     ? (() => {
-        const keywords = extractJobKeywords(params.job.description);
+        const keywords = extractKeywordsForJob(params.job);
         const keywordList =
           keywords.length > 0
             ? `\nPRIORITY KEYWORDS\n${keywords.map((k, i) => `${i + 1}. ${k}`).join("\n")}\n`
@@ -214,7 +225,8 @@ Return the updated resume JSON and a short reply.`;
 export function parseResumeRefineResponse(
   text: string,
   current: ResumeDocument,
+  job?: JobContext,
 ): RefineResumeResult {
   const payload = extractJsonPayload(text);
-  return normalizeRefinedResume(payload, current);
+  return normalizeRefinedResume(payload, current, job);
 }

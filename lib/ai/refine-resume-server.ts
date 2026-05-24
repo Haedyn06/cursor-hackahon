@@ -46,7 +46,7 @@ export async function refineResumeWithAi(params: {
   });
 
   try {
-    return parseResumeRefineResponse(result.text, params.resume);
+    return parseResumeRefineResponse(result.text, params.resume, params.job);
   } catch (firstError) {
     const retry = await completeChat({
       providerId: params.providerId,
@@ -65,7 +65,7 @@ export async function refineResumeWithAi(params: {
     });
 
     try {
-      return parseResumeRefineResponse(retry.text, params.resume);
+      return parseResumeRefineResponse(retry.text, params.resume, params.job);
     } catch {
       throw firstError instanceof Error
         ? firstError

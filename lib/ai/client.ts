@@ -13,6 +13,8 @@ import type {
 import type { InterviewPrepContent } from "@/lib/types/job-interview-prep";
 import type { ResumeDocument } from "@/lib/resume-document";
 import type { MockProfile } from "@/lib/mock-data";
+import type { ProfileExportDocument } from "@/lib/profile-export-document";
+import type { OnboardingProfileState } from "@/lib/onboarding-storage";
 
 type ApiErrorBody = {
   error?: string;
@@ -130,4 +132,26 @@ export async function refineInterviewPrepGuide(params: {
   job?: JobContext;
 }): Promise<RefineInterviewPrepResult> {
   return postJson<RefineInterviewPrepResult>("/api/ai/refine-interview-prep", params);
+}
+
+export async function formatProfileExport(params: {
+  providerId: ApiProviderId;
+  apiKey: string;
+  model?: string;
+  profile: MockProfile;
+}): Promise<{ document: ProfileExportDocument }> {
+  return postJson<{ document: ProfileExportDocument }>("/api/ai/export-profile", params);
+}
+
+export async function autofillProfileFromDocuments(params: {
+  providerId: ApiProviderId;
+  apiKey: string;
+  model?: string;
+  pastedText?: string;
+  uploads: Array<{ name: string; type: string; data: string }>;
+}): Promise<{ profile: OnboardingProfileState; summary: string }> {
+  return postJson<{ profile: OnboardingProfileState; summary: string }>(
+    "/api/ai/autofill-profile",
+    params,
+  );
 }

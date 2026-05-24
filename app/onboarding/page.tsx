@@ -20,9 +20,9 @@ import {
   API_PROVIDERS,
   OAUTH_PROVIDERS,
 } from "@/lib/constants";
-import { verifyApiKey } from "@/lib/ai/client";
+import { verifyApiKey, autofillProfileFromDocuments } from "@/lib/ai/client";
 import { getProviderConfig } from "@/lib/ai/providers";
-import { saveAiSession } from "@/lib/ai/session";
+import { loadAiSession, saveAiSession } from "@/lib/ai/session";
 import {
   mockAiResumeName,
   persistOnboardingCompletion,
@@ -239,36 +239,47 @@ const defaultProfile = {
 
 type ProfileState = typeof defaultProfile;
 
+async function fileToBase64(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]!);
+  }
+  return btoa(binary);
+}
+
 function AIAutoFillZone({
   onFill,
 }: {
-  onFill: (data: Partial<ProfileState>) => void;
+  onFill: (data: ProfileState) => void;
 }) {
+  const toast = useToast();
   const { confirm, dialog } = useConfirm();
   const [dragOver, setDragOver] = useState(false);
-  const [files, setFiles] = useState<
-    { name: string; type: string; size: number }[]
-  >([]);
+  const [files, setFiles] = useState<File[]>([]);
   const [pastedText, setPastedText] = useState("");
   const [extracting, setExtracting] = useState(false);
   const [done, setDone] = useState(false);
+  const [fillSummary, setFillSummary] = useState("");
+
+  const addFiles = (fileList: FileList | File[]) => {
+    const picked = Array.from(fileList);
+    if (picked.length === 0) return;
+    setFiles((prev) => [...prev, ...picked]);
+  };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    const dropped = Array.from(e.dataTransfer.files);
-    setFiles((prev) => [
-      ...prev,
-      ...dropped.map((f) => ({ name: f.name, type: f.type, size: f.size })),
-    ]);
+    addFiles(e.dataTransfer.files);
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const picked = Array.from(e.target.files ?? []);
-    setFiles((prev) => [
-      ...prev,
-      ...picked.map((f) => ({ name: f.name, type: f.type, size: f.size })),
-    ]);
+    if (e.target.files?.length) {
+      addFiles(e.target.files);
+      e.target.value = "";
+    }
   };
 
   const removeFile = (index: number) => {
@@ -284,48 +295,50 @@ function AIAutoFillZone({
     return "📎";
   };
 
-  const handleExtract = () => {
+  const handleExtract = async () => {
+    const session = loadAiSession();
+    if (!session) {
+      toast("Connect an AI provider in Step 1 before using auto-fill.", "error");
+      return;
+    }
+
     setExtracting(true);
-    setTimeout(() => {
-      setExtracting(false);
-      setDone(true);
-      onFill({
-        name: "Alex Johnson",
-        location: "San Francisco, CA",
-        email: "alex@example.com",
-        phone: "(415) 555-0123",
-        links: [
-          { id: 1, name: "LinkedIn", url: "linkedin.com/in/alexj" },
-          { id: 2, name: "GitHub", url: "github.com/alexj" },
-          { id: 3, name: "Portfolio", url: "alexj.dev" },
-        ],
-        targetRole: "Frontend Engineer",
-        experience: "Mid Level (2-5 yrs)",
-        about:
-          "Frontend engineer with 4 years building React + TypeScript apps. Passionate about accessibility and developer experience. Looking for a senior IC role at a product-led company.",
-        skills: [
-          "React",
-          "TypeScript",
-          "GraphQL",
-          "CSS",
-          "Next.js",
-          "Jest",
-          "Node.js",
-        ],
-        languages: [
-          { id: 1, name: "English", level: "Native" },
-          { id: 2, name: "Spanish", level: "Conversational" },
-        ],
-        certifications: [
-          {
-            id: 1,
-            name: "Meta Front-End Developer",
-            issuer: "Meta",
-            date: "2023",
-          },
-        ],
+    try {
+      const uploads = await Promise.all(
+        files.map(async (file) => ({
+          name: file.name,
+          type: file.type || "application/octet-stream",
+          data: await fileToBase64(file),
+        })),
+      );
+
+      const result = await autofillProfileFromDocuments({
+        providerId: session.providerId,
+        apiKey: session.apiKey,
+        model: session.model,
+        pastedText: pastedText.trim() || undefined,
+        uploads,
       });
-    }, 2400);
+
+      onFill(result.profile as ProfileState);
+      setFillSummary(result.summary);
+      setDone(true);
+      toast("Profile fields filled from your documents.");
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "Could not extract profile info.",
+        "error",
+      );
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  const handleReset = () => {
+    setDone(false);
+    setFillSummary("");
+    setFiles([]);
+    setPastedText("");
   };
 
   return (
@@ -434,7 +447,7 @@ function AIAutoFillZone({
             <NeoButton
               variant="primary"
               disabled={!canExtract || extracting}
-              onClick={handleExtract}
+              onClick={() => void handleExtract()}
             >
               {extracting ? (
                 <span className="flex items-center gap-2">
@@ -450,10 +463,15 @@ function AIAutoFillZone({
       )}
 
       {done && (
-        <p className="text-[13px] font-medium text-[#555]">
-          ✓ Filled: name, location, email, phone, links, target role,
-          experience level, about, 7 skills, languages, and certifications.
-        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[13px] font-medium text-[#555]">
+            ✓ Filled: {fillSummary || "profile fields from your documents"}.
+            Review and edit anything below.
+          </p>
+          <NeoButton variant="secondary" size="sm" onClick={handleReset}>
+            Upload again
+          </NeoButton>
+        </div>
       )}
     </NeoCard>
     </>
@@ -836,8 +854,8 @@ export default function OnboardingPage() {
     });
   };
 
-  const handleAIFill = (data: Partial<ProfileState>) => {
-    setProfile((p) => ({ ...p, ...data }));
+  const handleAIFill = (data: ProfileState) => {
+    setProfile(data);
   };
 
   const addSkill = (e: React.KeyboardEvent<HTMLInputElement>) => {
