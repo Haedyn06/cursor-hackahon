@@ -1,26 +1,170 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #faf9f7;
+  --foreground: #1a1a1a;
+  --mint: #b5ead7;
+  --mint-l: #d9f5ec;
+  --lav: #c7b8ea;
+  --lav-l: #e4ddf7;
+  --peach: #ffd6b3;
+  --peach-l: #ffe9d5;
+  --yellow: #fff3b0;
+  --yellow-l: #fffae0;
+  --red: #ffb3b3;
+  --red-l: #ffe0e0;
+  --neo-border: 2.5px solid #1a1a1a;
+  --neo-border-sm: 2px solid #1a1a1a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-plus-jakarta);
+  --font-heading: var(--font-bricolage);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-plus-jakarta), sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-bricolage), sans-serif;
+}
+
+.font-heading {
+  font-family: var(--font-bricolage), sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cccccc;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #aaaaaa;
+}
+
+::selection {
+  background: var(--mint);
+  color: var(--foreground);
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 1s infinite;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.2s ease;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease both;
+}
+
+.animate-spin-slow {
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes tab-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-tab-panel {
+  animation: tab-fade-in 0.18s ease-out;
+}
+
+.transition-neo {
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.neo-border {
+  border: var(--neo-border);
+}
+
+.neo-border-sm {
+  border: var(--neo-border-sm);
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--lav);
+  outline-offset: 2px;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--foreground) !important;
+  box-shadow: 0 0 0 3px rgba(199, 184, 234, 0.35);
 }

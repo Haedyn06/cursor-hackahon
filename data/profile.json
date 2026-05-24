@@ -1,0 +1,78 @@
+{
+  "name": "Alex Johnson",
+  "email": "alex@example.com",
+  "location": "San Francisco, CA",
+  "linkedin": "linkedin.com/in/alexj",
+  "github": "github.com/alexj",
+  "portfolio": "alexj.dev",
+  "targetRole": "Frontend Engineer",
+  "experience": "Mid Level (2-5 yrs)",
+  "about": "I'm a frontend engineer with 4 years of experience building accessible, high-performance web apps using React and TypeScript.",
+  "skills": [
+    "React",
+    "TypeScript",
+    "GraphQL",
+    "CSS",
+    "Next.js",
+    "Jest",
+    "Node.js",
+    "Figma"
+  ],
+  "experience_entries": [
+    {
+      "id": 1,
+      "title": "Frontend Engineer",
+      "company": "Acme Corp",
+      "dates": "Jan 2022 – Present",
+      "bullets": [
+        {
+          "id": 1,
+          "text": "Architected React + TypeScript component library adopted across 5 product teams",
+          "active": true
+        },
+        {
+          "id": 2,
+          "text": "Implemented GraphQL data layer, reducing redundant API calls by 40%",
+          "active": true
+        },
+        {
+          "id": 3,
+          "text": "Led accessibility audit achieving WCAG 2.1 AA across all core user flows",
+          "active": true
+        }
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "id": 1,
+      "title": "react-utils",
+      "url": "github.com/alexj/react-utils",
+      "desc": "TypeScript hook library with 500+ stars.",
+      "active": true
+    }
+  ],
+  "education": [
+    {
+      "id": 1,
+      "degree": "B.S. Computer Science",
+      "school": "UC Berkeley",
+      "dates": "2016–2020",
+      "gpa": "3.7"
+    }
+  ],
+  "resumeLibrary": [
+    {
+      "id": 1,
+      "label": "Stripe Application",
+      "job": "Frontend Engineer @ Stripe",
+      "date": "May 21, 2025"
+    },
+    {
+      "id": 2,
+      "label": "Figma Interview Resume",
+      "job": "Product Designer @ Figma",
+      "date": "May 15, 2025"
+    }
+  ]
+}
