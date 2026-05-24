@@ -104,5 +104,26 @@
     "dateApplied": "04/20/2026",
     "followUp": null,
     "excitement": 1
+  },
+
+    {
+    "id": "6",
+    "title": "Software Engineer",
+    "company": "Notion",
+    "location": "San Francisco, CA",
+    "status": "Rejected",
+    "matchScore": 65,
+    "source": "Company Site",
+    "dateAdded": "2 weeks ago",
+    "url": "https://notion.so/careers",
+    "jd": "Build the connected workspace at Notion.\n\nWe're looking for engineers who care deeply about craft and can work across the stack.\n\nRequirements:\n• React and TypeScript\n• Node.js backend experience\n• PostgreSQL\n• AWS infrastructure\n• Real-time collaboration systems",
+    "matchedKeywords": ["React", "Node.js", "TypeScript"],
+    "missingKeywords": ["PostgreSQL", "AWS", "CRDTs"],
+    "resumeGenerated": true,
+    "salary": "$0",
+    "deadline": null,
+    "dateApplied": "04/20/2026",
+    "followUp": null,
+    "excitement": 1
   }
 ]

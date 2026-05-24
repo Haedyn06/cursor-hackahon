@@ -16,6 +16,61 @@ import {
 } from "@/lib/constants";
 import { MOCK_JOBS, type MockJob } from "@/lib/mock-data";
 
+function StagePieChart({
+  count,
+  total,
+  color,
+  hasItems,
+}: {
+  count: number;
+  total: number;
+  color: string;
+  hasItems: boolean;
+}) {
+  const size = 76;
+  const stroke = 9;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const ratio = total > 0 && hasItems ? count / total : 0;
+  const dash = ratio * circumference;
+  const cx = size / 2;
+  const cy = size / 2;
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+      aria-hidden
+    >
+      <circle
+        cx={cx}
+        cy={cy}
+        r={radius}
+        fill="none"
+        stroke={hasItems ? "#e8e8e8" : "#ececec"}
+        strokeWidth={stroke}
+        opacity={hasItems ? 1 : 0.7}
+      />
+      {hasItems && ratio > 0 && (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeDasharray={`${dash} ${circumference - dash}`}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${cx} ${cy})`}
+          className="transition-[stroke-dasharray] duration-500 ease-out"
+        />
+      )}
+    </svg>
+  );
+}
+
 function ChevronPipeline({
   jobs,
   activeStage,
@@ -32,6 +87,8 @@ function ChevronPipeline({
     },
     {} as Record<string, number>,
   );
+
+  const total = TRACKER_STAGES.reduce((sum, s) => sum + counts[s.key], 0);
 
   const chevronClip = (isFirst: boolean, isLast: boolean) => {
     if (isLast) return undefined;
@@ -86,14 +143,22 @@ function ChevronPipeline({
                 }
               }}
             >
-              <div
-                className="font-heading font-extrabold leading-tight text-[var(--foreground)]"
-                style={{ fontSize: hasItems ? 28 : 18 }}
-              >
-                {hasItems ? count : "—"}
+              <div className="relative mx-auto mb-1 flex h-[76px] w-[76px] items-center justify-center">
+                <StagePieChart
+                  count={count}
+                  total={total}
+                  color={STATUS_COLORS[stage.key] ?? "#cccccc"}
+                  hasItems={hasItems}
+                />
+                <div
+                  className="relative z-10 font-heading font-extrabold leading-none text-[var(--foreground)]"
+                  style={{ fontSize: hasItems ? 28 : 18 }}
+                >
+                  {hasItems ? count : "—"}
+                </div>
               </div>
               <div
-                className="mt-0.5 text-[10px] font-extrabold tracking-[0.08em]"
+                className="text-[10px] font-extrabold tracking-[0.08em]"
                 style={{ color: hasItems ? "var(--foreground)" : "#bbbbbb" }}
               >
                 {stage.label}
