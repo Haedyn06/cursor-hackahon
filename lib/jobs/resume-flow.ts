@@ -34,6 +34,9 @@ export function buildResumeMatchSummary(params: {
   };
 }
 
+export const AUTO_TAILOR_INSTRUCTION =
+  "Automatically tailor this resume for the target job. Preserve at least 80% of the original imported resume content, structure, and facts. You may supplement from the candidate profile (~20%) only where it improves keyword match with verifiable profile facts. Maximize the ATS match score while keeping the resume truthful.";
+
 export function getResumeTabEmptyState(params: {
   hasLibraryResumes: boolean;
   hasSelectedResume: boolean;
@@ -42,8 +45,8 @@ export function getResumeTabEmptyState(params: {
     return {
       title: "Select a resume",
       description:
-        "Choose one of your saved resumes to see the match score and tailor it for this job.",
-      actionLabel: null,
+        "Choose one of your saved resumes to see the match score and tailor it for this job — or generate a fresh resume from your profile.",
+      actionLabel: "Generate from profile",
     };
   }
 
@@ -56,20 +59,20 @@ export function getResumeTabEmptyState(params: {
 
 export function matchExistingResumeToJob(resume: ResumeDocument, job: Job) {
   return computeResumeMatchForDescription(resume, {
-    title: job.title,
+    position: job.position,
     company: job.company,
-    description: job.jd.trim() || `${job.title} at ${job.company}`,
+    jobDesc: job.jobDesc.trim() || `${job.position} at ${job.company}`,
   });
 }
 
 export function computeResumeMatchForDescription(
   resume: ResumeDocument,
-  job: { title: string; company: string; description: string },
+  job: { position: string; company: string; jobDesc: string },
 ) {
   const keywords = extractKeywordsForJob({
-    title: job.title,
+    position: job.position,
     company: job.company,
-    description: job.description.trim() || `${job.title} at ${job.company}`,
+    jobDesc: job.jobDesc.trim() || `${job.position} at ${job.company}`,
   });
 
   return computeKeywordCoverage(resumeDocumentToPlainText(resume), keywords);

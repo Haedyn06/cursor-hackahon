@@ -12,7 +12,7 @@ import { useToast } from "@/components/providers";
 import { useJobs } from "@/components/providers/jobs-provider";
 import { generateTailoredCoverLetter } from "@/lib/ai/client";
 import { loadAiSession } from "@/lib/ai/session";
-import { buildStoredCoverLetterUpdate } from "@/lib/jobs/persist-generated-content";
+import { buildCoverLetterUpdate } from "@/lib/jobs/persist-generated-content";
 import { useAppProfile } from "@/lib/hooks/use-app-profile";
 import { useWizardJobPost } from "@/lib/hooks/use-wizard-job-post";
 import { prepareSourceMaterialInputs } from "@/lib/profile/source-material-input";
@@ -90,14 +90,23 @@ export function NewCoverLetterWizard({
         apiKey: session.apiKey,
         model: session.model,
         job: {
-          title: jobContext.title,
+          position: jobContext.position,
           company: jobContext.company,
-          description: jobContext.description,
+          jobDesc: jobContext.jobDesc,
+          location: jobContext.location,
+          incomeRange: jobContext.incomeRange,
+          workType: jobContext.workType,
+          environmentType: jobContext.environmentType,
         },
         profile: appProfile,
-        resume: jobPost.selectedJob?.storedResume?.document ?? null,
+        resume: jobPost.selectedJob?.resume?.document ?? null,
         sourceMaterials,
       });
+
+      if (jobPost.jobSource === "saved" && jobPost.selectedJobId) {
+        await updateJob(jobPost.selectedJobId, buildCoverLetterUpdate(result.content));
+        toast("Cover letter saved to job!");
+      }
 
       onComplete({
         id: Date.now(),
@@ -105,13 +114,6 @@ export function NewCoverLetterWizard({
         matchJob: jobContext.matchJob,
         content: result.content,
       });
-
-      if (jobPost.jobSource === "saved" && jobPost.selectedJobId) {
-        await updateJob(jobPost.selectedJobId, buildStoredCoverLetterUpdate(result.content));
-        toast("Cover letter generated and saved to job!");
-      } else {
-        toast("Cover letter generated!");
-      }
 
       onClose();
     } catch (error) {

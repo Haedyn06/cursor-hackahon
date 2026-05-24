@@ -11,10 +11,19 @@ export type ScrapedPage = {
 };
 
 export type ExtractedJobFields = {
-  title: string;
+  position: string;
   company: string;
   location: string;
-  salary: string;
-  source: string;
-  jd: string;
+  incomeRange: string;
+  workType: string;
+  environmentType: string;
+  jobDesc: string;
+};
+
+/** @deprecated Use position */
+export type LegacyExtractedJobFields = ExtractedJobFields & {
+  title?: string;
+  salary?: string;
+  source?: string;
+  jd?: string;
 };

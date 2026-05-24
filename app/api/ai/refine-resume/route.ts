@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { AiProviderError } from "@/lib/ai/errors";
 import { refineResumeWithAi } from "@/lib/ai/refine-resume-server";
+import { parseJobContext } from "@/lib/jobs/job-context";
+import { profileToSnapshot } from "@/lib/ai/resume-generation";
 import { isApiProviderId } from "@/lib/ai/types";
+import type { MockProfile } from "@/lib/mock-data";
 import type { ResumeDocument } from "@/lib/resume-document";
 
 export const maxDuration = 120;
@@ -21,11 +24,8 @@ export async function POST(request: Request) {
       model?: string;
       resume?: unknown;
       instruction?: string;
-      job?: {
-        title?: string;
-        company?: string;
-        description?: string;
-      };
+      job?: unknown;
+      profile?: MockProfile;
     };
 
     if (!body.providerId || !isApiProviderId(body.providerId)) {
@@ -50,13 +50,8 @@ export async function POST(request: Request) {
       model: body.model,
       resume: body.resume,
       instruction: body.instruction.trim(),
-      job: body.job?.title && body.job?.company
-        ? {
-            title: body.job.title,
-            company: body.job.company,
-            description: body.job.description ?? "",
-          }
-        : undefined,
+      job: parseJobContext(body.job) ?? undefined,
+      profile: body.profile ? profileToSnapshot(body.profile) : undefined,
     });
 
     return NextResponse.json(result);

@@ -88,6 +88,7 @@ export async function refineTailoredResume(params: {
   resume: ResumeDocument;
   instruction: string;
   job?: JobContext;
+  profile?: MockProfile;
 }): Promise<RefineResumeResult> {
   return postJson<RefineResumeResult>("/api/ai/refine-resume", params);
 }

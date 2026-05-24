@@ -74,7 +74,7 @@ function SavedJobList({
               active ? activeClassName : "bg-white hover:bg-[var(--background)]",
             )}
           >
-            <div className="text-sm font-bold">{job.title}</div>
+            <div className="text-sm font-bold">{job.position}</div>
             <div className="text-xs font-medium text-[#666]">{job.company}</div>
           </button>
         );
@@ -259,11 +259,11 @@ export function WizardJobPostInput({
 
           <div className="flex flex-col gap-3">
             <NeoInput
-              label="Job Title *"
+              label="Position *"
               placeholder="e.g. Frontend Engineer"
-              value={form.title}
+              value={form.position}
               onChange={(event) =>
-                setForm((current) => ({ ...current, title: event.target.value }))
+                setForm((current) => ({ ...current, position: event.target.value }))
               }
             />
             <NeoInput
@@ -277,9 +277,9 @@ export function WizardJobPostInput({
             <NeoInput
               label="Job Description"
               placeholder="Paste or import the full job description..."
-              value={form.jd}
+              value={form.jobDesc}
               onChange={(event) =>
-                setForm((current) => ({ ...current, jd: event.target.value }))
+                setForm((current) => ({ ...current, jobDesc: event.target.value }))
               }
               multiline
               rows={newJobMode === "manual" ? 6 : 4}

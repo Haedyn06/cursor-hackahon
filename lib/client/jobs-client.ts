@@ -2,6 +2,7 @@ import type { CreateJobInput, Job, UpdateJobInput } from "@/lib/types/job";
 import type { JobStatus } from "@/lib/constants";
 import type { ApiProviderId } from "@/lib/ai/types";
 import type { ExtractedJobFields, ScrapedPage } from "@/lib/scrape/types";
+import { normalizeJob, normalizeJobs } from "@/lib/jobs/normalize-job";
 
 async function parseResponse<T>(res: Response): Promise<T> {
   const body = (await res.json().catch(() => ({}))) as {
@@ -21,12 +22,13 @@ async function parseResponse<T>(res: Response): Promise<T> {
 
 export async function fetchJobs(): Promise<Job[]> {
   const res = await fetch("/api/jobs", { cache: "no-store" });
-  return parseResponse<Job[]>(res);
+  const jobs = await parseResponse<Job[]>(res);
+  return normalizeJobs(jobs);
 }
 
 export async function fetchJob(id: string): Promise<Job> {
   const res = await fetch(`/api/jobs/${id}`, { cache: "no-store" });
-  return parseResponse<Job>(res);
+  return normalizeJob(await parseResponse<Job>(res));
 }
 
 export async function createJob(input: CreateJobInput): Promise<Job> {
@@ -35,7 +37,7 @@ export async function createJob(input: CreateJobInput): Promise<Job> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  return parseResponse<Job>(res);
+  return normalizeJob(await parseResponse<Job>(res));
 }
 
 export async function updateJob(
@@ -47,7 +49,7 @@ export async function updateJob(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  return parseResponse<Job>(res);
+  return normalizeJob(await parseResponse<Job>(res));
 }
 
 export async function updateJobStatus(
@@ -127,7 +129,10 @@ export async function importJobFromUrl(params: {
     throw new Error(body.error ?? "Failed to import job.");
   }
 
-  return body;
+  return {
+    ...body,
+    job: body.job ? normalizeJob(body.job) : undefined,
+  };
 }
 
 export async function importJobFromPaste(params: {
@@ -152,5 +157,8 @@ export async function importJobFromPaste(params: {
     throw new Error(body.error ?? "Failed to import pasted job.");
   }
 
-  return body;
+  return {
+    ...body,
+    job: body.job ? normalizeJob(body.job) : undefined,
+  };
 }

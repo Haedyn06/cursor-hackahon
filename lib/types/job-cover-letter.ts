@@ -1,10 +1,16 @@
-export type JobStoredCoverLetter = {
+export type JobCoverLetter = {
   content: string;
   updatedAt: string;
 };
 
-export function hasStoredCoverLetter(
-  stored: JobStoredCoverLetter | null | undefined,
-): stored is JobStoredCoverLetter {
-  return !!stored?.content?.trim();
+/** @deprecated Use `JobCoverLetter` */
+export type JobStoredCoverLetter = JobCoverLetter;
+
+export function hasCoverLetter(
+  coverLetter: JobCoverLetter | null | undefined,
+): coverLetter is JobCoverLetter {
+  return !!coverLetter?.content?.trim();
 }
+
+/** @deprecated Use `hasCoverLetter` */
+export const hasStoredCoverLetter = hasCoverLetter;

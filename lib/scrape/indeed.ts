@@ -57,15 +57,47 @@ export function mapIndeedToScrapedPage(
   };
 }
 
+function looksLikeIncomeRange(value: string): boolean {
+  return /[$€£]|\d+\s*(k|\/hr|\/hour|per year|yearly|annually)/i.test(value);
+}
+
+function looksLikeEmploymentType(value: string): boolean {
+  return /full[- ]?time|part[- ]?time|contract|intern|temporary|permanent|casual/i.test(
+    value,
+  );
+}
+
 export function mapIndeedToExtracted(
   meta: IndeedJobMetadata,
 ): ExtractedJobFields {
+  const salaryHint = meta.type_of_salary?.trim() ?? "";
+  const workHint = meta.type_of_work?.trim() ?? "";
+
+  let incomeRange = "";
+  let workType = workHint;
+  let environmentType = "";
+
+  if (looksLikeIncomeRange(salaryHint)) {
+    incomeRange = salaryHint;
+  } else if (looksLikeEmploymentType(salaryHint)) {
+    environmentType = salaryHint;
+  }
+
+  if (!environmentType && looksLikeEmploymentType(workHint)) {
+    environmentType = workHint;
+    if (/remote|hybrid|on[- ]?site|in[- ]?person/i.test(workHint)) {
+      workType = workHint;
+      environmentType = salaryHint && looksLikeEmploymentType(salaryHint) ? salaryHint : "";
+    }
+  }
+
   return {
-    title: meta.job_name || "Untitled role",
+    position: meta.job_name || "Untitled role",
     company: meta.company || "Unknown company",
     location: meta.location || "Remote",
-    salary: meta.type_of_salary || "$0",
-    source: "Indeed",
-    jd: meta.job_details,
+    incomeRange,
+    workType,
+    environmentType,
+    jobDesc: meta.job_details,
   };
 }

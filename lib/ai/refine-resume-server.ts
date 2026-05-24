@@ -2,7 +2,7 @@ import "server-only";
 
 import { completeStructuredJson } from "@/lib/ai/structured-generation";
 import type { ApiProviderId } from "@/lib/ai/types";
-import type { JobContext } from "@/lib/ai/resume-generation";
+import type { JobContext, ProfileSnapshot } from "@/lib/ai/resume-generation";
 import {
   buildResumeRefineMessages,
   parseResumeRefineResponse,
@@ -19,6 +19,7 @@ export async function refineResumeWithAi(params: {
   resume: ResumeDocument;
   instruction: string;
   job?: JobContext;
+  profile?: ProfileSnapshot;
 }): Promise<RefineResumeResult> {
   const { system, user } = buildResumeRefineMessages(params);
 

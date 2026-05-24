@@ -4,9 +4,13 @@
  */
 
 export type JobKeywordSource = {
-  title?: string;
+  position?: string;
   company?: string;
-  description: string;
+  jobDesc: string;
+  /** @deprecated Use position */
+  title?: string;
+  /** @deprecated Use jobDesc */
+  description?: string;
 };
 
 const KNOWN_TERMS = [
@@ -237,9 +241,11 @@ export function extractJobKeywords(description: string): string[] {
 
 export function extractKeywordsForJob(job: JobKeywordSource): string[] {
   const keywords = new Set<string>();
-  collectKeywordsFromText(job.description, keywords);
-  if (job.title?.trim()) {
-    collectKeywordsFromText(job.title, keywords);
+  const jobDesc = job.jobDesc || job.description || "";
+  const position = job.position || job.title || "";
+  collectKeywordsFromText(jobDesc, keywords);
+  if (position.trim()) {
+    collectKeywordsFromText(position, keywords);
   }
   if (job.company?.trim()) {
     addKeyword(keywords, job.company);

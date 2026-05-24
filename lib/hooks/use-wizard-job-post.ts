@@ -13,6 +13,7 @@ import {
   type WizardJobSource,
   type WizardNewJobMode,
 } from "@/lib/jobs/wizard-job-post";
+import type { ExtractedJobFields } from "@/lib/scrape/types";
 import { isIndeedJobUrl } from "@/lib/scrape/indeed";
 
 async function fileToBase64(file: File): Promise<string> {
@@ -68,23 +69,17 @@ export function useWizardJobPost(open: boolean) {
     form,
   });
 
-  const applyExtractedFields = useCallback(
-    (extracted: {
-      title: string;
-      company: string;
-      jd: string;
-      url?: string;
-    }) => {
-      setForm((current) => ({
-        ...current,
-        title: extracted.title || current.title,
-        company: extracted.company || current.company,
-        jd: extracted.jd || current.jd,
-        url: extracted.url || current.url,
-      }));
-    },
-    [],
-  );
+  const applyExtractedFields = useCallback((extracted: ExtractedJobFields) => {
+    setForm((current) => ({
+      ...current,
+      position: extracted.position || current.position,
+      company: extracted.company || current.company,
+      jobDesc: extracted.jobDesc || current.jobDesc,
+      incomeRange: extracted.incomeRange || current.incomeRange,
+      workType: extracted.workType || current.workType,
+      environmentType: extracted.environmentType || current.environmentType,
+    }));
+  }, []);
 
   const importFromLink = useCallback(async () => {
     const url = form.url.trim();
@@ -119,12 +114,11 @@ export function useWizardJobPost(open: boolean) {
           : {}),
       });
 
-      applyExtractedFields({
-        title: result.extracted.title,
-        company: result.extracted.company,
-        jd: result.extracted.jd,
+      applyExtractedFields(result.extracted);
+      setForm((current) => ({
+        ...current,
         url: result.scraped.finalUrl || url,
-      });
+      }));
       toast("Job posting imported!");
     } catch (error) {
       const message =
@@ -164,12 +158,7 @@ export function useWizardJobPost(open: boolean) {
         model: session.model,
       });
 
-      applyExtractedFields({
-        title: result.extracted.title,
-        company: result.extracted.company,
-        jd: result.extracted.jd,
-        url: form.url.trim() || undefined,
-      });
+      applyExtractedFields(result.extracted);
       toast("Job posting extracted!");
     } catch (error) {
       const message =
@@ -211,7 +200,7 @@ export function useWizardJobPost(open: boolean) {
         }
 
         const text = body.text?.trim() ?? "";
-        setForm((current) => ({ ...current, jd: text }));
+        setForm((current) => ({ ...current, jobDesc: text }));
 
         const session = loadAiSession();
         if (session && text.length >= 80) {
@@ -223,11 +212,7 @@ export function useWizardJobPost(open: boolean) {
             model: session.model,
           });
 
-          applyExtractedFields({
-            title: result.extracted.title,
-            company: result.extracted.company,
-            jd: result.extracted.jd,
-          });
+          applyExtractedFields(result.extracted);
         }
 
         toast("Job description loaded from file.");

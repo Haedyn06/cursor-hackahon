@@ -27,66 +27,102 @@ import {
   type JobStatus,
 } from "@/lib/constants";
 import { useJobs } from "@/components/providers/jobs-provider";
+import { useResumeBuilderLibrary } from "@/components/providers/resume-builder-library-provider";
 import { AtsResumeTemplate } from "@/components/resume/ats-resume-template";
 import { generateTailoredResume, refineTailoredResume, generateTailoredCoverLetter, refineTailoredCoverLetter, generateInterviewPrepGuide, refineInterviewPrepGuide } from "@/lib/ai/client";
 import { loadAiSession } from "@/lib/ai/session";
 import { useAppProfile } from "@/lib/hooks/use-app-profile";
 import { prepareSourceMaterialInputs } from "@/lib/profile/source-material-input";
+import { jobToAiContext } from "@/lib/jobs/job-context";
+import { loadImportedResumeDocument } from "@/lib/resumes/load-imported-resume";
 import {
+  AUTO_TAILOR_INSTRUCTION,
   computeResumeMatchForDescription,
   getResumeTabEmptyState,
   matchExistingResumeToJob,
 } from "@/lib/jobs/resume-flow";
-import type { JobStoredCoverLetter } from "@/lib/types/job-cover-letter";
-import { hasStoredCoverLetter } from "@/lib/types/job-cover-letter";
-import type { JobStoredInterviewPrep } from "@/lib/types/job-interview-prep";
+import {
+  buildCoverLetterUpdate,
+  buildInterviewPrepUpdate,
+  buildResumeUpdate,
+} from "@/lib/jobs/persist-generated-content";
+import { ImportResumePanel } from "@/components/resumes/import-resume-panel";
+import { hasCoverLetter } from "@/lib/types/job-cover-letter";
+import type { JobInterviewPrep } from "@/lib/types/job-interview-prep";
 import {
   countInterviewQuestions,
-  hasStoredInterviewPrep,
+  hasInterviewPrep,
   interviewPrepToPlainText,
 } from "@/lib/types/job-interview-prep";
-import type { JobStoredResume } from "@/lib/types/job-resume";
-import { hasStoredResume } from "@/lib/types/job-resume";
+import { hasResume } from "@/lib/types/job-resume";
 import type { ResumeDocument } from "@/lib/resume-document";
 import { exportPlainText, exportResume, exportTextDocument } from "@/lib/pdf-export";
+import { jobSearchText } from "@/lib/jobs/normalize-job";
+import {
+  buildLibraryCoverLetterFromJob,
+  buildLibraryInterviewPrepFromJob,
+  buildLibraryResumeFromJob,
+} from "@/lib/jobs/sync-to-builder-library";
 import type { Job } from "@/lib/types/job";
+
+function visibleKeywordSlice(keywords: string[], limit = 12) {
+  if (keywords.length <= limit) {
+    return { items: keywords, extra: 0 };
+  }
+  return { items: keywords.slice(0, limit), extra: keywords.length - limit };
+}
 
 function ResumeTab({ job }: { job: Job }) {
   const toast = useToast();
   const { confirm, dialog: confirmDialog } = useConfirm();
   const { updateJob } = useJobs();
+  const { saveGeneratedResume: saveToBuilderLibrary } = useResumeBuilderLibrary();
   const { pickFormat, dialog: downloadDialog } = useDownloadFormat();
   const { profile: appProfile, loading: profileLoading } = useAppProfile();
   const onboardingState = useQuery(api.onboarding.getOnboardingState);
   const getProfileSourceDownloadUrl = useMutation(
     api.onboarding.getProfileSourceDownloadUrl,
   );
+  const getResumeDownloadUrl = useMutation(api.onboarding.getResumeDownloadUrl);
   const exportRef = useRef<HTMLDivElement>(null);
   const [generating, setGenerating] = useState(false);
+  const [loadingResumeId, setLoadingResumeId] = useState<string | null>(null);
+  const [tailoring, setTailoring] = useState(false);
+  const [libraryMatchScores, setLibraryMatchScores] = useState<
+    Record<
+      string,
+      {
+        matchScore: number;
+        matchedKeywords: string[];
+        missingKeywords: string[];
+      }
+    >
+  >({});
+  const [importPreviewMode, setImportPreviewMode] = useState(false);
   const realResumes = onboardingState?.importedResumes ?? [];
   const [selectedResumeId, setSelectedResumeId] = useState<string | null>(
-    hasStoredResume(job.storedResume) ? `stored-${job.id}` : null,
+    hasResume(job.resume) ? `stored-${job.id}` : null,
   );
-  const [generated, setGenerated] = useState(hasStoredResume(job.storedResume));
+  const [generated, setGenerated] = useState(hasResume(job.resume));
   const [resumeDocument, setResumeDocument] = useState<ResumeDocument | null>(
-    job.storedResume?.document ?? null,
+    job.resume?.document ?? null,
   );
   const [resumeSourceLabel, setResumeSourceLabel] = useState(
-    hasStoredResume(job.storedResume) ? `${job.company} — tailored resume` : "",
+    hasResume(job.resume) ? `${job.company} — tailored resume` : "",
   );
   const [usingExistingResume, setUsingExistingResume] = useState(false);
-  const [showResumeSelection, setShowResumeSelection] = useState(!hasStoredResume(job.storedResume));
+  const [showResumeSelection, setShowResumeSelection] = useState(!hasResume(job.resume));
   const [activeResumeTitle, setActiveResumeTitle] = useState(
-    hasStoredResume(job.storedResume) ? `${job.company} — tailored resume` : "",
+    hasResume(job.resume) ? `${job.company} — tailored resume` : "",
   );
   const [resumeMatchScore, setResumeMatchScore] = useState<number | null>(
-    job.storedResume?.matchScore ?? job.matchScore,
+    job.resume?.matchScore ?? job.matchScore,
   );
   const [resumeMatchedKeywords, setResumeMatchedKeywords] = useState<string[]>(
-    job.storedResume?.matchedKeywords ?? job.matchedKeywords,
+    job.resume?.matchedKeywords ?? [],
   );
   const [resumeMissingKeywords, setResumeMissingKeywords] = useState<string[]>(
-    job.storedResume?.missingKeywords ?? job.missingKeywords,
+    job.resume?.missingKeywords ?? [],
   );
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState<
@@ -94,7 +130,7 @@ function ResumeTab({ job }: { job: Job }) {
   >([
     {
       role: "ai",
-      text: hasStoredResume(job.storedResume)
+      text: hasResume(job.resume)
         ? "Your saved resume is loaded. Ask me to adjust tone, add keywords, or emphasize specific experience."
         : "Generate a resume first, then ask me to refine it here.",
     },
@@ -102,16 +138,17 @@ function ResumeTab({ job }: { job: Job }) {
   const [streaming, setStreaming] = useState(false);
 
   useEffect(() => {
-    if (hasStoredResume(job.storedResume)) {
+    if (hasResume(job.resume)) {
       setGenerated(true);
-      setResumeDocument(job.storedResume.document);
-      setResumeMatchScore(job.storedResume.matchScore);
-      setResumeMatchedKeywords(job.storedResume.matchedKeywords);
-      setResumeMissingKeywords(job.storedResume.missingKeywords);
+      setResumeDocument(job.resume.document);
+      setResumeMatchScore(job.resume.matchScore);
+      setResumeMatchedKeywords(job.resume.matchedKeywords);
+      setResumeMissingKeywords(job.resume.missingKeywords);
       setSelectedResumeId(`stored-${job.id}`);
       setResumeSourceLabel(`${job.company} — tailored resume`);
       setActiveResumeTitle(`${job.company} — tailored resume`);
       setUsingExistingResume(false);
+      setImportPreviewMode(false);
       setShowResumeSelection(false);
       return;
     }
@@ -119,44 +156,164 @@ function ResumeTab({ job }: { job: Job }) {
     setGenerated(false);
     setResumeDocument(null);
     setResumeMatchScore(job.matchScore);
-    setResumeMatchedKeywords(job.matchedKeywords);
-    setResumeMissingKeywords(job.missingKeywords);
+    setResumeMatchedKeywords([]);
+    setResumeMissingKeywords([]);
     setSelectedResumeId(null);
     setResumeSourceLabel("");
     setActiveResumeTitle("");
     setUsingExistingResume(false);
+    setImportPreviewMode(false);
     setShowResumeSelection(true);
-  }, [job.id, job.storedResume?.updatedAt, job.company, job.matchScore, job.matchedKeywords, job.missingKeywords]);
+  }, [job.id, job.resume?.updatedAt, job.company, job.matchScore]);
 
-  const selectExistingResume = (resume: (typeof realResumes)[number]) => {
-    const existingResume = job.storedResume?.document;
-    if (!existingResume) {
-      toast("Generate or save a resume first, then you can tailor it here.", "warn");
+  const loadLibraryResume = async (
+    resume: (typeof realResumes)[number],
+    mode: "score" | "tailor",
+  ) => {
+    if (!resume.storageId) {
+      toast("This resume has no file attached.", "error");
       return;
     }
 
-    const match = matchExistingResumeToJob(existingResume, job);
-    const label = resume.displayName || resume.fileName;
-    setSelectedResumeId(String(resume._id));
-    setResumeSourceLabel(label);
-    setActiveResumeTitle(label);
-    setResumeDocument(existingResume);
-    setResumeMatchScore(match.matchScore);
-    setResumeMatchedKeywords(match.matchedKeywords);
-    setResumeMissingKeywords(match.missingKeywords);
-    setGenerated(true);
-    setUsingExistingResume(true);
-    setShowResumeSelection(false);
-    setMessages([
+    const resumeId = String(resume._id);
+    setLoadingResumeId(resumeId);
+    try {
+      const downloadUrl = await getResumeDownloadUrl({
+        storageId: resume.storageId,
+      });
+      if (!downloadUrl) {
+        throw new Error("Could not download resume file.");
+      }
+
+      const parsed = await loadImportedResumeDocument({
+        downloadUrl,
+        fileName: resume.fileName,
+        mimeType: resume.mimeType,
+      });
+
+      const document = parsed.document;
+      const match = matchExistingResumeToJob(document, job);
+      const label = resume.displayName || resume.fileName;
+
+      if (mode === "score") {
+        setLibraryMatchScores((current) => ({
+          ...current,
+          [resumeId]: {
+            matchScore: match.matchScore,
+            matchedKeywords: match.matchedKeywords,
+            missingKeywords: match.missingKeywords,
+          },
+        }));
+        toast(`${label}: ${match.matchScore}% match (unmodified)`);
+        return;
+      }
+
+      setSelectedResumeId(resumeId);
+      setResumeSourceLabel(label);
+      setActiveResumeTitle(label);
+      setResumeDocument(document);
+      setResumeMatchScore(match.matchScore);
+      setResumeMatchedKeywords(match.matchedKeywords);
+      setResumeMissingKeywords(match.missingKeywords);
+      setGenerated(true);
+      setUsingExistingResume(true);
+      setImportPreviewMode(true);
+      setShowResumeSelection(false);
+      setMessages([
+        {
+          role: "ai",
+          text: `Showing your unmodified "${label}" (${match.matchScore}% match). Use "Improve resume with AI" below when you're ready, or tell me what to change in this chat.`,
+        },
+      ]);
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "Could not load resume.",
+        "error",
+      );
+    } finally {
+      setLoadingResumeId(null);
+    }
+  };
+
+  const autoTailorResume = async () => {
+    if (!resumeDocument) {
+      toast("Select a resume from your library first.", "warn");
+      return;
+    }
+
+    const session = loadAiSession();
+    if (!session) {
+      toast("Connect an AI provider in Settings first.", "error");
+      return;
+    }
+
+    setTailoring(true);
+    setMessages((current) => [
+      ...current,
       {
         role: "ai",
-        text: `Loaded \"${label}\" for this job. Ask me to tailor it, improve the score, or generate a brand new version instead.`,
+        text: "Tailoring your resume for this job — keeping your original content as the base…",
       },
     ]);
+
+    try {
+      const result = await refineTailoredResume({
+        providerId: session.providerId,
+        apiKey: session.apiKey,
+        model: session.model,
+        resume: resumeDocument,
+        instruction: AUTO_TAILOR_INSTRUCTION,
+        job: jobToAiContext(job),
+        profile: appProfile ?? undefined,
+      });
+
+      const match = computeResumeMatchForDescription(result.resume, jobToAiContext(job));
+
+      setResumeDocument(result.resume);
+      setResumeMatchScore(match.matchScore);
+      setResumeMatchedKeywords(match.matchedKeywords);
+      setResumeMissingKeywords(match.missingKeywords);
+      setUsingExistingResume(false);
+      setImportPreviewMode(false);
+      setMessages((current) => [
+        ...current.slice(0, -1),
+        {
+          role: "ai",
+          text: `${result.reply} Match score is now ${match.matchScore}%.`,
+        },
+      ]);
+
+      await persistResume({
+        document: result.resume,
+        matchScore: match.matchScore,
+        matchedKeywords: match.matchedKeywords,
+        missingKeywords: match.missingKeywords,
+      });
+
+      toast(`Resume tailored — ${match.matchScore}% match`);
+    } catch (error) {
+      setMessages((current) => [
+        ...current.slice(0, -1),
+        {
+          role: "ai",
+          text:
+            error instanceof Error
+              ? `Couldn't tailor the resume: ${error.message}`
+              : "Couldn't tailor the resume. Try again or refine manually below.",
+        },
+      ]);
+      toast(
+        error instanceof Error ? error.message : "Failed to tailor resume.",
+        "error",
+      );
+    } finally {
+      setTailoring(false);
+    }
   };
 
   const openResumeSelection = () => {
     setShowResumeSelection(true);
+    setImportPreviewMode(false);
   };
 
   const emptyState = getResumeTabEmptyState({
@@ -164,13 +321,16 @@ function ResumeTab({ job }: { job: Job }) {
     hasSelectedResume: !!selectedResumeId,
   });
 
-  const shouldShowSelectionFirst = showResumeSelection || (!selectedResumeId && realResumes.length > 0);
+  const shouldShowSelectionFirst =
+    showResumeSelection || (!selectedResumeId && realResumes.length > 0);
 
-  const selectionSummary = usingExistingResume
-    ? "Selected resume"
-    : hasStoredResume(job.storedResume)
-      ? "Current tailored resume"
-      : "Selected resume";
+  const selectionSummary = importPreviewMode
+    ? "Imported resume (unmodified)"
+    : usingExistingResume
+      ? "Selected resume"
+      : hasResume(job.resume)
+        ? "Current tailored resume"
+        : "Selected resume";
 
   const activeDocument = resumeDocument;
   const activeMatchScore = resumeMatchScore ?? 0;
@@ -183,21 +343,8 @@ function ResumeTab({ job }: { job: Job }) {
     matchedKeywords: string[];
     missingKeywords: string[];
   }) => {
-    const stored: JobStoredResume = {
-      document: payload.document,
-      matchScore: payload.matchScore,
-      matchedKeywords: payload.matchedKeywords,
-      missingKeywords: payload.missingKeywords,
-      updatedAt: new Date().toISOString(),
-    };
-
-    await updateJob(job.id, {
-      storedResume: stored,
-      resumeGenerated: true,
-      matchScore: payload.matchScore,
-      matchedKeywords: payload.matchedKeywords,
-      missingKeywords: payload.missingKeywords,
-    });
+    await updateJob(job.id, buildResumeUpdate(payload));
+    saveToBuilderLibrary(buildLibraryResumeFromJob(job, payload));
   };
 
   const generate = async () => {
@@ -225,11 +372,7 @@ function ResumeTab({ job }: { job: Job }) {
         providerId: session.providerId,
         apiKey: session.apiKey,
         model: session.model,
-        job: {
-          title: job.title,
-          company: job.company,
-          description: job.jd.trim() || `${job.title} at ${job.company}`,
-        },
+        job: jobToAiContext(job),
         profile: appProfile,
         sourceMaterials,
       });
@@ -239,6 +382,8 @@ function ResumeTab({ job }: { job: Job }) {
       setResumeMatchedKeywords(result.matchedKeywords);
       setResumeMissingKeywords(result.missingKeywords);
       setGenerated(true);
+      setImportPreviewMode(false);
+      setUsingExistingResume(false);
       setMessages([
         {
           role: "ai",
@@ -274,8 +419,7 @@ function ResumeTab({ job }: { job: Job }) {
 
     try {
       await updateJob(job.id, {
-        storedResume: null,
-        resumeGenerated: false,
+        resume: null,
       });
       setResumeDocument(null);
       setGenerated(false);
@@ -314,27 +458,23 @@ function ResumeTab({ job }: { job: Job }) {
         providerId: session.providerId,
         apiKey: session.apiKey,
         model: session.model,
-        resume: activeDocument,
+        resume: resumeDocument,
         instruction: msg,
-        job: {
-          title: job.title,
-          company: job.company,
-          description: job.jd.trim() || `${job.title} at ${job.company}`,
-        },
+        job: jobToAiContext(job),
+        profile: appProfile ?? undefined,
       });
 
       setResumeDocument(result.resume);
       setMessages((m) => [...m, { role: "ai", text: result.reply }]);
 
-      const match = computeResumeMatchForDescription(result.resume, {
-        title: job.title,
-        company: job.company,
-        description: job.jd.trim() || `${job.title} at ${job.company}`,
-      });
+      const match = computeResumeMatchForDescription(result.resume, jobToAiContext(job));
 
       setResumeMatchScore(match.matchScore);
       setResumeMatchedKeywords(match.matchedKeywords);
       setResumeMissingKeywords(match.missingKeywords);
+
+      setImportPreviewMode(false);
+      setUsingExistingResume(false);
 
       await persistResume({
         document: result.resume,
@@ -360,14 +500,14 @@ function ResumeTab({ job }: { job: Job }) {
 
   const handleDownload = async () => {
     if (!activeDocument) return;
-    const format = await pickFormat(`${job.company} — ${job.title}`);
+    const format = await pickFormat(`${job.company} — ${job.position}`);
     if (!format) return;
 
     try {
       await exportResume(
         exportRef.current,
         activeDocument,
-        `${job.company}-${job.title}`,
+        `${job.company}-${job.position}`,
         format,
       );
       toast(`Downloaded resume as ${format.toUpperCase()}`);
@@ -383,50 +523,132 @@ function ResumeTab({ job }: { job: Job }) {
     return (
       <>
         {confirmDialog}
-        <div className="flex flex-1 flex-col gap-5 p-6">
+        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-6 pb-10">
           <div className="flex items-start justify-between gap-4 rounded-2xl bg-white p-5 neo-border">
             <div>
               <div className="mb-1 font-heading text-[22px] font-extrabold">{emptyState.title}</div>
               <p className="max-w-[440px] text-sm font-medium text-[#666]">{emptyState.description}</p>
             </div>
-            {emptyState.actionLabel && (
-              <NeoButton variant="primary" size="lg" onClick={() => void generate()}>
-                {emptyState.actionLabel}
+            {emptyState.actionLabel ? (
+              <NeoButton
+                variant="primary"
+                size="lg"
+                disabled={generating}
+                onClick={() => void generate()}
+              >
+                {generating ? "Generating…" : emptyState.actionLabel}
               </NeoButton>
-            )}
+            ) : null}
           </div>
 
-          {realResumes.length > 0 && (
+          {realResumes.length > 0 ? (
             <div className="rounded-2xl bg-white p-5 neo-border">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
-                  <div className="font-heading text-lg font-extrabold">Your resumes</div>
+                  <div className="font-heading text-lg font-extrabold">Your resume library</div>
                   <p className="text-xs font-medium text-[#777]">
-                    Pick one to see match score and tailor it for this job.
+                    Check match score on the original file, or open tailor preview to improve it with AI.
                   </p>
                 </div>
                 <NeoButton variant="secondary" size="sm" onClick={() => void generate()}>
-                  Generate New Resume
+                  Generate from profile
                 </NeoButton>
               </div>
               <div className="flex flex-col gap-3">
-                {realResumes.map((resume) => (
-                  <NeoCard
-                    key={String(resume._id)}
-                    className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-bold">{resume.displayName || resume.fileName}</div>
-                      <div className="truncate text-[11px] text-[#888]">{resume.fileName}</div>
-                      <div className="text-[11px] text-[#aaa]">{resume.mimeType || "Imported resume"}</div>
-                    </div>
-                    <NeoButton variant="mint" size="sm" className="sm:shrink-0" onClick={() => selectExistingResume(resume)}>
-                      Tailor this resume
-                    </NeoButton>
-                  </NeoCard>
-                ))}
+                {realResumes.map((resume) => {
+                  const resumeId = String(resume._id);
+                  const scoreResult = libraryMatchScores[resumeId];
+                  const isLoading = loadingResumeId === resumeId;
+
+                  return (
+                    <NeoCard key={resumeId} className="flex flex-col gap-3 p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-bold">
+                            {resume.displayName || resume.fileName}
+                          </div>
+                          <div className="truncate text-[11px] text-[#888]">
+                            {resume.fileName}
+                          </div>
+                          <div className="text-[11px] text-[#aaa]">
+                            {resume.mimeType || "Imported resume"}
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 flex-wrap gap-2">
+                          <NeoButton
+                            variant="secondary"
+                            size="sm"
+                            disabled={isLoading}
+                            onClick={() => void loadLibraryResume(resume, "score")}
+                          >
+                            {isLoading ? "Loading…" : "Check match score"}
+                          </NeoButton>
+                          <NeoButton
+                            variant="mint"
+                            size="sm"
+                            disabled={isLoading}
+                            onClick={() => void loadLibraryResume(resume, "tailor")}
+                          >
+                            Tailor resume
+                          </NeoButton>
+                        </div>
+                      </div>
+
+                      {scoreResult ? (
+                        <div className="rounded-xl border-2 border-[var(--foreground)] bg-[var(--background)] p-3">
+                          <div className="mb-2 flex flex-wrap items-center gap-3">
+                            <MatchScore score={scoreResult.matchScore} size="sm" />
+                            <span className="text-xs font-bold text-[#666]">
+                              Unmodified match for this job
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {(() => {
+                              const matched = visibleKeywordSlice(scoreResult.matchedKeywords);
+                              const missing = visibleKeywordSlice(scoreResult.missingKeywords);
+                              return (
+                                <>
+                                  {matched.items.map((keyword) => (
+                                    <NeoBadge
+                                      key={`m-${keyword}`}
+                                      color="var(--mint)"
+                                      className="text-[10px]"
+                                    >
+                                      ✓ {keyword}
+                                    </NeoBadge>
+                                  ))}
+                                  {matched.extra > 0 ? (
+                                    <NeoBadge color="var(--mint-l)" className="text-[10px]">
+                                      +{matched.extra} matched
+                                    </NeoBadge>
+                                  ) : null}
+                                  {missing.items.map((keyword) => (
+                                    <NeoBadge
+                                      key={`x-${keyword}`}
+                                      color="var(--peach)"
+                                      className="text-[10px]"
+                                    >
+                                      ✕ {keyword}
+                                    </NeoBadge>
+                                  ))}
+                                  {missing.extra > 0 ? (
+                                    <NeoBadge color="var(--peach-l)" className="text-[10px]">
+                                      +{missing.extra} missing
+                                    </NeoBadge>
+                                  ) : null}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      ) : null}
+                    </NeoCard>
+                  );
+                })}
               </div>
             </div>
+          ) : (
+            <ImportResumePanel compact />
           )}
         </div>
       </>
@@ -437,7 +659,7 @@ function ResumeTab({ job }: { job: Job }) {
     return (
       <>
         {confirmDialog}
-        <div className="flex flex-1 flex-col items-center justify-center gap-4">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto">
           <div className="flex h-[72px] w-[72px] items-center justify-center rounded-[20px] bg-[var(--lav-l)] text-[32px] neo-border">
             📄
           </div>
@@ -459,7 +681,7 @@ function ResumeTab({ job }: { job: Job }) {
     return (
       <>
         {confirmDialog}
-        <div className="flex flex-1 flex-col items-center justify-center gap-4">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto">
         <div className="flex h-[72px] w-[72px] animate-pulse-soft items-center justify-center rounded-[20px] bg-[var(--lav)] text-[32px] neo-border">
           ✦
         </div>
@@ -493,8 +715,8 @@ function ResumeTab({ job }: { job: Job }) {
     <>
       {downloadDialog}
       {confirmDialog}
-      <div className="flex flex-1 overflow-hidden">
-      <div className="flex-1 overflow-y-auto border-r-2 border-[var(--foreground)] p-6">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto border-r-2 border-[var(--foreground)] p-6">
         <div className="mb-5 space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl bg-white p-4 neo-border">
             <div>
@@ -505,10 +727,15 @@ function ResumeTab({ job }: { job: Job }) {
             </div>
             <div className="flex flex-wrap gap-2">
               <NeoButton variant="secondary" size="sm" onClick={openResumeSelection}>
-                Select another resume
+                Back to library
               </NeoButton>
-              <NeoButton variant="mint" size="sm" onClick={() => void generate()} disabled={generating}>
-                Generate new one
+              <NeoButton
+                variant="mint"
+                size="sm"
+                onClick={() => void generate()}
+                disabled={generating}
+              >
+                {generating ? "Generating…" : "Generate from profile"}
               </NeoButton>
             </div>
           </div>
@@ -535,17 +762,14 @@ function ResumeTab({ job }: { job: Job }) {
           </div>
         </div>
 
-        <div className="mb-4 rounded-2xl bg-white p-4 neo-border">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <div className="font-heading text-base font-extrabold">Tailor this resume</div>
-            <NeoButton variant="secondary" size="sm" onClick={openResumeSelection}>
-              Show resume library
-            </NeoButton>
+        {importPreviewMode ? (
+          <div className="mb-4 rounded-2xl border-2 border-dashed border-[var(--foreground)] bg-[var(--mint-l)] p-4">
+            <p className="text-sm font-medium text-[#555]">
+              Previewing your original resume — nothing has been changed yet. Improve it with AI below or ask the chat what to update.
+            </p>
           </div>
-          <p className="text-sm font-medium text-[#666]">
-            This tab now uses your selected resume as the starting point. Refine it with AI below or generate a new tailored version.
-          </p>
-        </div>
+        ) : null}
+
         <div className="overflow-x-auto pb-4">
           <AtsResumeTemplate
             ref={exportRef}
@@ -553,19 +777,49 @@ function ResumeTab({ job }: { job: Job }) {
             variant="screen"
           />
         </div>
+
+        {importPreviewMode ? (
+          <div className="mb-4 rounded-2xl bg-white p-4 neo-border">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="font-heading text-base font-extrabold">Ready to tailor?</div>
+                <p className="text-sm font-medium text-[#666]">
+                  Improve the whole resume with AI (~80% your file, ~20% profile), or refine section-by-section in the chat.
+                </p>
+              </div>
+              <NeoButton
+                variant="mint"
+                size="sm"
+                disabled={tailoring || streaming}
+                onClick={() => void autoTailorResume()}
+              >
+                {tailoring ? "Improving…" : "✦ Improve resume with AI"}
+              </NeoButton>
+            </div>
+          </div>
+        ) : null}
+
         <div className="mt-4 flex flex-wrap gap-2.5">
           <NeoButton variant="secondary" size="sm" onClick={() => void handleDownload()}>
             Download
           </NeoButton>
-          <NeoButton variant="mint" size="sm" onClick={openResumeSelection}>
-            Show resume library
+          <NeoButton variant="secondary" size="sm" onClick={openResumeSelection}>
+            Back to library
           </NeoButton>
-          <NeoButton variant="secondary" size="sm" onClick={() => void generate()} disabled={generating}>
-            ↺ Regenerate
-          </NeoButton>
-          <NeoButton variant="danger" size="sm" onClick={() => void removeResume()}>
-            Remove
-          </NeoButton>
+          {!importPreviewMode ? (
+            <NeoButton variant="secondary" size="sm" onClick={() => void generate()} disabled={generating}>
+              {generating ? "Generating…" : "Generate from profile"}
+            </NeoButton>
+          ) : (
+            <NeoButton variant="mint" size="sm" onClick={() => void generate()} disabled={generating}>
+              {generating ? "Generating…" : "Generate from profile"}
+            </NeoButton>
+          )}
+          {hasResume(job.resume) && !importPreviewMode ? (
+            <NeoButton variant="danger" size="sm" onClick={() => void removeResume()}>
+              Remove
+            </NeoButton>
+          ) : null}
         </div>
       </div>
       <div className="flex w-[260px] flex-col bg-[var(--background)]">
@@ -620,6 +874,7 @@ function CoverLetterTab({ job }: { job: Job }) {
   const toast = useToast();
   const { confirm, dialog: confirmDialog } = useConfirm();
   const { updateJob } = useJobs();
+  const { saveGeneratedCoverLetter: saveToBuilderLibrary } = useResumeBuilderLibrary();
   const { pickFormat, dialog: downloadDialog } = useDownloadFormat();
   const { profile: appProfile, loading: profileLoading } = useAppProfile();
   const onboardingState = useQuery(api.onboarding.getOnboardingState);
@@ -627,15 +882,15 @@ function CoverLetterTab({ job }: { job: Job }) {
     api.onboarding.getProfileSourceDownloadUrl,
   );
   const [generating, setGenerating] = useState(false);
-  const [generated, setGenerated] = useState(hasStoredCoverLetter(job.storedCoverLetter));
-  const [content, setContent] = useState(job.storedCoverLetter?.content ?? "");
+  const [generated, setGenerated] = useState(hasCoverLetter(job.coverLetter));
+  const [content, setContent] = useState(job.coverLetter?.content ?? "");
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState<
     { role: "ai" | "user"; text: string }[]
   >([
     {
       role: "ai",
-      text: hasStoredCoverLetter(job.storedCoverLetter)
+      text: hasCoverLetter(job.coverLetter)
         ? "Your saved cover letter is loaded. Ask me to adjust tone, shorten it, or emphasize specific experience."
         : "Generate a cover letter first, then ask me to refine it here.",
     },
@@ -643,26 +898,19 @@ function CoverLetterTab({ job }: { job: Job }) {
   const [streaming, setStreaming] = useState(false);
 
   useEffect(() => {
-    if (hasStoredCoverLetter(job.storedCoverLetter)) {
+    if (hasCoverLetter(job.coverLetter)) {
       setGenerated(true);
-      setContent(job.storedCoverLetter.content);
+      setContent(job.coverLetter.content);
       return;
     }
 
     setGenerated(false);
     setContent("");
-  }, [job.id, job.storedCoverLetter?.updatedAt]);
+  }, [job.id, job.coverLetter?.updatedAt]);
 
   const persistCoverLetter = async (letterContent: string) => {
-    const stored: JobStoredCoverLetter = {
-      content: letterContent,
-      updatedAt: new Date().toISOString(),
-    };
-
-    await updateJob(job.id, {
-      storedCoverLetter: stored,
-      coverLetterGenerated: true,
-    });
+    await updateJob(job.id, buildCoverLetterUpdate(letterContent));
+    saveToBuilderLibrary(buildLibraryCoverLetterFromJob(job, letterContent));
   };
 
   const generate = async () => {
@@ -690,13 +938,9 @@ function CoverLetterTab({ job }: { job: Job }) {
         providerId: session.providerId,
         apiKey: session.apiKey,
         model: session.model,
-        job: {
-          title: job.title,
-          company: job.company,
-          description: job.jd.trim() || `${job.title} at ${job.company}`,
-        },
+        job: jobToAiContext(job),
         profile: appProfile,
-        resume: job.storedResume?.document ?? null,
+        resume: job.resume?.document ?? null,
         sourceMaterials,
       });
 
@@ -731,8 +975,7 @@ function CoverLetterTab({ job }: { job: Job }) {
 
     try {
       await updateJob(job.id, {
-        storedCoverLetter: null,
-        coverLetterGenerated: false,
+        coverLetter: null,
       });
       setContent("");
       setGenerated(false);
@@ -773,11 +1016,7 @@ function CoverLetterTab({ job }: { job: Job }) {
         model: session.model,
         content,
         instruction: msg,
-        job: {
-          title: job.title,
-          company: job.company,
-          description: job.jd.trim() || `${job.title} at ${job.company}`,
-        },
+        job: jobToAiContext(job),
       });
 
       setContent(result.content);
@@ -817,7 +1056,7 @@ function CoverLetterTab({ job }: { job: Job }) {
     try {
       await exportTextDocument(
         content,
-        `${job.company}-${job.title}-cover-letter`,
+        `${job.company}-${job.position}-cover-letter`,
         format,
       );
       toast(`Downloaded cover letter as ${format.toUpperCase()}`);
@@ -831,7 +1070,7 @@ function CoverLetterTab({ job }: { job: Job }) {
 
   const handleBlur = () => {
     if (!generated || !content.trim()) return;
-    if (content === job.storedCoverLetter?.content) return;
+    if (content === job.coverLetter?.content) return;
     void persistCoverLetter(content).catch(() => {
       toast("Failed to save edits.", "error");
     });
@@ -841,7 +1080,7 @@ function CoverLetterTab({ job }: { job: Job }) {
     return (
       <>
         {confirmDialog}
-        <div className="flex flex-1 flex-col items-center justify-center gap-4">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto">
           <div className="flex h-[72px] w-[72px] items-center justify-center rounded-[20px] bg-[var(--peach-l)] text-[32px] neo-border">
             ✉️
           </div>
@@ -863,7 +1102,7 @@ function CoverLetterTab({ job }: { job: Job }) {
     return (
       <>
         {confirmDialog}
-        <div className="flex flex-1 flex-col items-center justify-center gap-4">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto">
           <div className="flex h-[72px] w-[72px] animate-pulse-soft items-center justify-center rounded-[20px] bg-[var(--peach)] text-[32px] neo-border">
             ✦
           </div>
@@ -893,8 +1132,8 @@ function CoverLetterTab({ job }: { job: Job }) {
     <>
       {confirmDialog}
       {downloadDialog}
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-y-auto border-r-2 border-[var(--foreground)] p-6">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto border-r-2 border-[var(--foreground)] p-6">
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -973,26 +1212,29 @@ function InterviewPrepTab({ job }: { job: Job }) {
   const toast = useToast();
   const { confirm, dialog: confirmDialog } = useConfirm();
   const { updateJob } = useJobs();
+  const { saveGeneratedInterviewPrep: saveToBuilderLibrary } = useResumeBuilderLibrary();
   const { profile: appProfile, loading: profileLoading } = useAppProfile();
   const [generating, setGenerating] = useState(false);
-  const [generated, setGenerated] = useState(hasStoredInterviewPrep(job.storedInterviewPrep));
+  const [generated, setGenerated] = useState(hasInterviewPrep(job.interviewPrep));
   const [categories, setCategories] = useState(
-    job.storedInterviewPrep?.categories ?? [],
+    job.interviewPrep?.categories ?? [],
   );
   const [questions, setQuestions] = useState(
-    job.storedInterviewPrep?.questions ?? {},
+    job.interviewPrep?.questions ?? {},
   );
   const [activeCategory, setActiveCategory] = useState(
-    job.storedInterviewPrep?.categories[0]?.id ?? "behavioral",
+    job.interviewPrep?.categories[0]?.id ?? "behavioral",
   );
-  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
+  const [expandedQuestionIndex, setExpandedQuestionIndex] = useState<number | null>(
+    null,
+  );
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState<
     { role: "ai" | "user"; text: string }[]
   >([
     {
       role: "ai",
-      text: hasStoredInterviewPrep(job.storedInterviewPrep)
+      text: hasInterviewPrep(job.interviewPrep)
         ? "Your saved prep guide is loaded. Ask me to add questions, deepen technical topics, or tailor answers to your background."
         : "Generate interview prep first, then ask me to refine it here.",
     },
@@ -1000,18 +1242,18 @@ function InterviewPrepTab({ job }: { job: Job }) {
   const [streaming, setStreaming] = useState(false);
 
   useEffect(() => {
-    if (hasStoredInterviewPrep(job.storedInterviewPrep)) {
+    if (hasInterviewPrep(job.interviewPrep)) {
       setGenerated(true);
-      setCategories(job.storedInterviewPrep.categories);
-      setQuestions(job.storedInterviewPrep.questions);
-      setActiveCategory(job.storedInterviewPrep.categories[0]?.id ?? "behavioral");
+      setCategories(job.interviewPrep.categories);
+      setQuestions(job.interviewPrep.questions);
+      setActiveCategory(job.interviewPrep.categories[0]?.id ?? "behavioral");
       return;
     }
 
     setGenerated(false);
     setCategories([]);
     setQuestions({});
-  }, [job.id, job.storedInterviewPrep?.updatedAt]);
+  }, [job.id, job.interviewPrep?.updatedAt]);
 
   const prepContent = { categories, questions };
   const questionCount = countInterviewQuestions(questions);
@@ -1021,16 +1263,8 @@ function InterviewPrepTab({ job }: { job: Job }) {
     categories: typeof categories;
     questions: typeof questions;
   }) => {
-    const stored: JobStoredInterviewPrep = {
-      categories: content.categories,
-      questions: content.questions,
-      updatedAt: new Date().toISOString(),
-    };
-
-    await updateJob(job.id, {
-      storedInterviewPrep: stored,
-      interviewPrepGenerated: true,
-    });
+    await updateJob(job.id, buildInterviewPrepUpdate(content));
+    saveToBuilderLibrary(buildLibraryInterviewPrepFromJob(job, content));
   };
 
   const generate = async () => {
@@ -1054,19 +1288,15 @@ function InterviewPrepTab({ job }: { job: Job }) {
         providerId: session.providerId,
         apiKey: session.apiKey,
         model: session.model,
-        job: {
-          title: job.title,
-          company: job.company,
-          description: job.jd.trim() || `${job.title} at ${job.company}`,
-        },
+        job: jobToAiContext(job),
         profile: appProfile,
-        resume: job.storedResume?.document ?? null,
+        resume: job.resume?.document ?? null,
       });
 
       setCategories(result.categories);
       setQuestions(result.questions);
       setActiveCategory(result.categories[0]?.id ?? "behavioral");
-      setExpanded({});
+      setExpandedQuestionIndex(null);
       setGenerated(true);
       setMessages([
         {
@@ -1097,13 +1327,12 @@ function InterviewPrepTab({ job }: { job: Job }) {
 
     try {
       await updateJob(job.id, {
-        storedInterviewPrep: null,
-        interviewPrepGenerated: false,
+        interviewPrep: null,
       });
       setCategories([]);
       setQuestions({});
       setGenerated(false);
-      setExpanded({});
+      setExpandedQuestionIndex(null);
       setMessages([
         {
           role: "ai",
@@ -1141,11 +1370,7 @@ function InterviewPrepTab({ job }: { job: Job }) {
         model: session.model,
         prep: prepContent,
         instruction: msg,
-        job: {
-          title: job.title,
-          company: job.company,
-          description: job.jd.trim() || `${job.title} at ${job.company}`,
-        },
+        job: jobToAiContext(job),
       });
 
       setCategories(result.categories);
@@ -1153,7 +1378,7 @@ function InterviewPrepTab({ job }: { job: Job }) {
       if (!result.categories.some((cat) => cat.id === activeCategory)) {
         setActiveCategory(result.categories[0]?.id ?? "behavioral");
       }
-      setExpanded({});
+      setExpandedQuestionIndex(null);
       setMessages((m) => [...m, { role: "ai", text: result.reply }]);
       await persistInterviewPrep({
         categories: result.categories,
@@ -1179,7 +1404,7 @@ function InterviewPrepTab({ job }: { job: Job }) {
     if (questionCount === 0) return;
     exportPlainText(
       interviewPrepToPlainText(prepContent),
-      `${job.company}-${job.title}-interview-prep`,
+      `${job.company}-${job.position}-interview-prep`,
     );
     toast("Downloaded as TXT");
   };
@@ -1188,7 +1413,7 @@ function InterviewPrepTab({ job }: { job: Job }) {
     return (
       <>
         {confirmDialog}
-        <div className="flex flex-1 flex-col items-center justify-center gap-4">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto">
           <div className="flex h-[72px] w-[72px] items-center justify-center rounded-[20px] bg-[var(--yellow-l)] text-[32px] neo-border">
             🎤
           </div>
@@ -1208,7 +1433,7 @@ function InterviewPrepTab({ job }: { job: Job }) {
     return (
       <>
         {confirmDialog}
-        <div className="flex flex-1 flex-col items-center justify-center gap-4">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto">
           <div className="flex h-[72px] w-[72px] animate-pulse-soft items-center justify-center rounded-[20px] bg-[var(--yellow)] text-[32px] neo-border">
             ✦
           </div>
@@ -1237,8 +1462,8 @@ function InterviewPrepTab({ job }: { job: Job }) {
   return (
     <>
       {confirmDialog}
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex flex-1 flex-col overflow-hidden border-r-2 border-[var(--foreground)]">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-r-2 border-[var(--foreground)]">
           <div className="flex shrink-0 items-center justify-between gap-3 border-b-2 border-[var(--foreground)] bg-white px-6 py-3">
             <span className="text-xs font-bold text-[#666]">
               {questionCount} question{questionCount === 1 ? "" : "s"}
@@ -1267,7 +1492,7 @@ function InterviewPrepTab({ job }: { job: Job }) {
                 type="button"
                 onClick={() => {
                   setActiveCategory(cat.id);
-                  setExpanded({});
+                  setExpandedQuestionIndex(null);
                 }}
                 className="cursor-pointer rounded-full px-4 py-1.5 font-sans text-xs font-bold neo-border-sm"
                 style={{
@@ -1283,34 +1508,40 @@ function InterviewPrepTab({ job }: { job: Job }) {
               </button>
             ))}
           </div>
-          <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-6">
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-6">
             {activeQuestions.length === 0 ? (
               <p className="text-sm font-medium text-[#888]">
                 No questions in this category yet. Ask AI Refine to add some.
               </p>
             ) : (
-              activeQuestions.map((item, i) => (
-                <div key={i} className="overflow-hidden rounded-2xl bg-white neo-border">
+              activeQuestions.map((item, i) => {
+                const isExpanded = expandedQuestionIndex === i;
+                return (
+                <div key={i} className="rounded-2xl bg-white neo-border">
                   <button
                     type="button"
-                    onClick={() => setExpanded((p) => ({ ...p, [i]: !p[i] }))}
+                    onClick={() =>
+                      setExpandedQuestionIndex(isExpanded ? null : i)
+                    }
+                    aria-expanded={isExpanded}
                     className="flex w-full cursor-pointer items-center justify-between gap-3 border-none bg-transparent px-5 py-4 text-left"
                   >
                     <span className="text-sm font-bold">{item.q}</span>
-                    <span className="shrink-0 text-[#888]">{expanded[i] ? "▲" : "▼"}</span>
+                    <span className="shrink-0 text-[#888]">{isExpanded ? "▲" : "▼"}</span>
                   </button>
-                  {expanded[i] && (
+                  {isExpanded ? (
                     <div className="border-t-2 border-[var(--foreground)] px-5 pt-3 pb-4">
                       <NeoBadge color="var(--yellow)" className="mb-2 text-[11px]">
                         Answer framework
                       </NeoBadge>
-                      <p className="text-[13px] leading-relaxed font-medium text-[#444]">
+                      <p className="whitespace-pre-wrap text-[13px] leading-relaxed font-medium text-[#444]">
                         {item.a}
                       </p>
                     </div>
-                  )}
+                  ) : null}
                 </div>
-              ))
+              );
+              })
             )}
           </div>
         </div>
@@ -1372,6 +1603,8 @@ function JobDetailPanel({
   onDelete: (id: string) => void;
 }) {
   const [activeTab, setActiveTab] = useState("info");
+  const onboardingState = useQuery(api.onboarding.getOnboardingState);
+  const libraryResumes = onboardingState?.importedResumes ?? [];
 
   if (!job) {
     return (
@@ -1395,34 +1628,36 @@ function JobDetailPanel({
   ];
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden bg-[var(--background)]">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--background)]">
       <div className="shrink-0 border-b-[2.5px] border-[var(--foreground)] bg-white px-7 pt-5">
         <div className="mb-3 flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <h1 className="mb-1 font-heading text-[28px] font-extrabold tracking-tight">
-              {job.title}
+              {job.position}
             </h1>
             <div className="flex flex-wrap items-center gap-2.5 text-sm font-medium text-[#555]">
               <strong className="text-[var(--foreground)]">{job.company}</strong>
               <span>—</span>
               <span>{job.location}</span>
-              <span className="text-[#bbb]">·</span>
-              <span>Added {job.dateAdded}</span>
-              {job.source && (
-                <NeoBadge color="#ffffff" className="text-[11px]">
-                  via {job.source}
+              {job.incomeRange ? (
+                <>
+                  <span className="text-[#bbb]">·</span>
+                  <span>{job.incomeRange}</span>
+                </>
+              ) : null}
+              {job.workType ? (
+                <>
+                  <span className="text-[#bbb]">·</span>
+                  <NeoBadge color="#ffffff" className="text-[11px]">
+                    {job.workType}
+                  </NeoBadge>
+                </>
+              ) : null}
+              {job.environmentType ? (
+                <NeoBadge color="var(--mint-l)" className="text-[11px]">
+                  {job.environmentType}
                 </NeoBadge>
-              )}
-              {job.url && (
-                <a
-                  href={job.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-xs font-bold text-[var(--foreground)] underline-offset-2 hover:underline"
-                >
-                  ↗ View posting
-                </a>
-              )}
+              ) : null}
               {job.matchScore !== null && job.matchScore !== undefined && (
                 <MatchScore score={job.matchScore} size="sm" />
               )}
@@ -1445,68 +1680,94 @@ function JobDetailPanel({
         </div>
         <NeoTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
-      <div className="flex flex-1 flex-col overflow-hidden bg-[var(--background)]">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--background)]">
         <div
           className={cn(
-            "animate-tab-panel flex flex-1 flex-col overflow-hidden",
+            "animate-tab-panel flex min-h-0 flex-1 flex-col overflow-hidden",
             activeTab !== "info" && "hidden",
           )}
         >
-          <div key={job.id} className="flex flex-1 gap-6 overflow-y-auto p-7">
+          <div key={job.id} className="flex min-h-0 flex-1 gap-6 overflow-y-auto p-7">
             <div className="flex-1">
               <SectionHeader label="Job Description" color="var(--mint)" />
               <div className="rounded-xl bg-white p-5 text-sm leading-[1.75] font-medium whitespace-pre-line neo-border">
-                {job.jd || "No job description provided."}
+                {job.jobDesc || "No job description provided."}
               </div>
             </div>
-            <div className="w-[260px] shrink-0">
+            <div className="w-[260px] shrink-0 space-y-4">
+              <div>
+                <SectionHeader label="Job Details" color="var(--yellow)" />
+                <NeoCard className="space-y-2 p-4 text-xs font-medium text-[#555]">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-[#888]">Location</span>
+                    <span className="text-right font-bold text-[var(--foreground)]">
+                      {job.location || "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-[#888]">Income</span>
+                    <span className="text-right font-bold text-[var(--foreground)]">
+                      {job.incomeRange || "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-[#888]">Work type</span>
+                    <span className="text-right font-bold text-[var(--foreground)]">
+                      {job.workType || "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-[#888]">Environment</span>
+                    <span className="text-right font-bold text-[var(--foreground)]">
+                      {job.environmentType || "—"}
+                    </span>
+                  </div>
+                </NeoCard>
+              </div>
+              <div>
               <SectionHeader label="Resume Match" color="var(--lav)" />
               <NeoCard className="p-4">
-                {hasStoredResume(job.storedResume) ? (
+                {hasResume(job.resume) ? (
                   <div className="space-y-3">
-                    <div>
-                      <div className="mb-1 text-[11px] font-bold text-[#888]">START WITH</div>
-                      <div className="text-sm font-bold text-[var(--foreground)]">
-                        Your saved resume
+                    <div className="flex items-center gap-3">
+                      <MatchScore score={job.resume.matchScore} size="sm" />
+                      <div>
+                        <div className="text-sm font-bold text-[var(--foreground)]">
+                          Tailored resume saved
+                        </div>
+                        <p className="text-xs text-[#777]">
+                          Open the Resume tab to refine or download.
+                        </p>
                       </div>
-                      <p className="mt-1 text-xs text-[#777]">
-                        Select Resume to view the match score, tailor it with AI, or generate a new version.
-                      </p>
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <NeoButton
-                        variant="mint"
-                        size="sm"
-                        onClick={() => setActiveTab("resume")}
-                      >
-                        Select Resume
-                      </NeoButton>
-                      <NeoButton
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setActiveTab("resume")}
-                      >
-                        Show Tailored Resume
-                      </NeoButton>
-                    </div>
+                    <NeoButton
+                      variant="mint"
+                      size="sm"
+                      onClick={() => setActiveTab("resume")}
+                    >
+                      View tailored resume
+                    </NeoButton>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <p className="text-center text-xs text-[#888]">
-                      Select a resume first, then Rezume will show the match score and keyword coverage here.
+                    <p className="text-xs text-[#888]">
+                      {libraryResumes.length > 0
+                        ? `Pick one of ${libraryResumes.length} imported resume${libraryResumes.length === 1 ? "" : "s"} to see match score, then auto-tailor for this job.`
+                        : "Import a resume in Profile or the Resume Library, then select it here to tailor."}
                     </p>
-                    <NeoButton variant="secondary" size="sm" onClick={() => setActiveTab("resume")}>
-                      Open Resume Tab
+                    <NeoButton variant="mint" size="sm" onClick={() => setActiveTab("resume")}>
+                      {libraryResumes.length > 0 ? "Select & tailor resume" : "Open resume tab"}
                     </NeoButton>
                   </div>
                 )}
               </NeoCard>
+              </div>
             </div>
           </div>
         </div>
         <div
           className={cn(
-            "animate-tab-panel flex flex-1 flex-col overflow-hidden",
+            "animate-tab-panel flex min-h-0 flex-1 flex-col overflow-y-auto",
             activeTab !== "resume" && "hidden",
           )}
         >
@@ -1514,7 +1775,7 @@ function JobDetailPanel({
         </div>
         <div
           className={cn(
-            "animate-tab-panel flex flex-1 flex-col overflow-hidden",
+            "animate-tab-panel flex min-h-0 flex-1 flex-col overflow-hidden",
             activeTab !== "cover" && "hidden",
           )}
         >
@@ -1522,7 +1783,7 @@ function JobDetailPanel({
         </div>
         <div
           className={cn(
-            "animate-tab-panel flex flex-1 flex-col overflow-hidden",
+            "animate-tab-panel flex min-h-0 flex-1 flex-col overflow-y-auto",
             activeTab !== "interview" && "hidden",
           )}
         >
@@ -1533,21 +1794,6 @@ function JobDetailPanel({
   );
 }
 
-function ExcitementStars({ value }: { value: number }) {
-  return (
-    <div className="flex gap-0.5" aria-label={`Excitement ${value} of 5`}>
-      {[1, 2, 3, 4, 5].map((n) => (
-        <span
-          key={n}
-          className="text-[11px] leading-none"
-          style={{ color: n <= value ? "#f0a500" : "#dddddd" }}
-        >
-          ★
-        </span>
-      ))}
-    </div>
-  );
-}
 
 const KANBAN_COLUMNS: { status: JobStatus; label: string; hint: string }[] = [
   ...TRACKER_STAGES.map((stage) => ({
@@ -1598,11 +1844,11 @@ function KanbanJobCard({
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg font-heading text-sm font-extrabold neo-border-sm"
           style={{ background: `${accent}88` }}
         >
-          {job.company.charAt(0).toUpperCase()}
+          {(job.company?.charAt(0)?.toUpperCase() || "?")}
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="truncate font-heading text-[13px] font-extrabold leading-snug">
-            {job.title}
+            {job.position || "Untitled role"}
           </h3>
           <p className="truncate text-xs font-medium text-[#666]">{job.company}</p>
         </div>
@@ -1623,22 +1869,22 @@ function KanbanJobCard({
             <span className="truncate">{job.location}</span>
           </span>
         ) : null}
-        {job.salary && job.salary !== "$0" ? (
+        {job.incomeRange ? (
           <span className="inline-flex items-center rounded-full bg-[var(--background)] px-2 py-0.5 text-[10px] font-semibold text-[#666]">
-            {job.salary}
+            {job.incomeRange}
           </span>
         ) : null}
-        {job.resumeGenerated && hasStoredResume(job.storedResume) ? (
+        {hasResume(job.resume) ? (
           <span className="inline-flex items-center rounded-full bg-[var(--lav-l)] px-2 py-0.5 text-[10px] font-bold text-[var(--foreground)]">
             📄 Resume
           </span>
         ) : null}
-        {job.coverLetterGenerated && hasStoredCoverLetter(job.storedCoverLetter) ? (
+        {hasCoverLetter(job.coverLetter) ? (
           <span className="inline-flex items-center rounded-full bg-[var(--peach-l)] px-2 py-0.5 text-[10px] font-bold text-[var(--foreground)]">
             ✉️ Letter
           </span>
         ) : null}
-        {job.interviewPrepGenerated && hasStoredInterviewPrep(job.storedInterviewPrep) ? (
+        {hasInterviewPrep(job.interviewPrep) ? (
           <span className="inline-flex items-center rounded-full bg-[var(--yellow-l)] px-2 py-0.5 text-[10px] font-bold text-[var(--foreground)]">
             🎤 Prep
           </span>
@@ -1646,8 +1892,9 @@ function KanbanJobCard({
       </div>
 
       <div className="flex items-center justify-between gap-2 border-t border-[#ececec] pt-2.5">
-        <ExcitementStars value={job.excitement} />
-        <span className="text-[10px] font-medium text-[#aaa]">{job.dateAdded}</span>
+        <span className="truncate text-[10px] font-medium text-[#888]">
+          {[job.workType, job.environmentType].filter(Boolean).join(" · ") || "—"}
+        </span>
       </div>
 
       <div
@@ -1696,7 +1943,7 @@ function KanbanView({
   const activeCount = jobs.filter((job) => job.status !== "Rejected").length;
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden bg-[var(--background)]">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[var(--background)]">
       <div className="flex shrink-0 flex-wrap items-center gap-3 border-b-[2.5px] border-[var(--foreground)] bg-white px-6 py-4">
         <div>
           <h2 className="font-heading text-lg font-extrabold">Pipeline board</h2>
@@ -1815,8 +2062,7 @@ export function JobTrackerView() {
 
   const filtered = jobs.filter(
     (j) =>
-      j.title.toLowerCase().includes(search.toLowerCase()) ||
-      j.company.toLowerCase().includes(search.toLowerCase()),
+      jobSearchText(j).includes(search.toLowerCase()),
   );
 
   const selectedJob = jobs.find((j) => j.id === selectedId) ?? filtered[0];
@@ -1834,7 +2080,7 @@ export function JobTrackerView() {
     const job = jobs.find((j) => j.id === id);
     const confirmed = await confirm({
       title: "Remove job?",
-      message: `Remove "${job?.title ?? "this job"}" at ${job?.company ?? "this company"}? This can't be undone.`,
+      message: `Remove "${job?.position ?? "this job"}" at ${job?.company ?? "this company"}? This can't be undone.`,
       confirmLabel: "Remove",
     });
     if (!confirmed) return;
@@ -1860,7 +2106,7 @@ export function JobTrackerView() {
   }
 
   return (
-    <div className="flex flex-1 overflow-hidden">
+    <div className="flex min-h-0 flex-1 overflow-hidden">
       {dialog}
 
       {viewMode === "detail" && (
@@ -1956,11 +2202,11 @@ export function JobTrackerView() {
                 >
                   <div className="mb-0.5 flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1 text-sm font-bold text-[var(--foreground)]">
-                      {job.title}
+                      {job.position}
                     </div>
                     <button
                       type="button"
-                      aria-label={`Remove ${job.title}`}
+                      aria-label={`Remove ${job.position}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         void handleDeleteJob(job.id);

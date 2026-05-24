@@ -5,12 +5,16 @@ import { NeoBadge } from "@/components/ui/neo-badge";
 import { refineTailoredResume } from "@/lib/ai/client";
 import { loadAiSession } from "@/lib/ai/session";
 import { computeResumeMatchForDescription } from "@/lib/jobs/resume-flow";
+import { normalizeResumeRefineContext } from "@/lib/jobs/normalize-job";
 import type { ResumeDocument } from "@/lib/resume-document";
 
 export type ResumeRefineJobContext = {
-  title: string;
-  company: string;
-  description: string;
+  position?: string;
+  title?: string;
+  company?: string;
+  jobDesc?: string;
+  description?: string;
+  jd?: string;
 };
 
 type ResumeRefineChatProps = {
@@ -28,10 +32,11 @@ type ResumeRefineChatProps = {
 
 export function ResumeRefineChat({
   resume,
-  job,
+  job: rawJob,
   onResumeUpdated,
   accentColor = "var(--lav)",
 }: ResumeRefineChatProps) {
+  const job = normalizeResumeRefineContext(rawJob);
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState<
     { role: "ai" | "user"; text: string }[]

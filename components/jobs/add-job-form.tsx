@@ -12,21 +12,15 @@ import { isIndeedJobUrl } from "@/lib/scrape/indeed";
 import { cn } from "@/lib/utils";
 import type { CreateJobInput } from "@/lib/types/job";
 
-const SOURCES = [
-  "LinkedIn",
-  "Indeed",
-  "Company Site",
-  "GitHub Jobs",
-  "Referral",
-  "Other",
-];
-
 const EMPTY_FORM = {
-  title: "",
+  position: "",
   company: "",
+  jobDesc: "",
+  location: "",
+  incomeRange: "",
+  workType: "",
+  environmentType: "",
   url: "",
-  jd: "",
-  source: "LinkedIn",
 };
 
 type AddMode = "ai" | "paste" | "file" | "manual";
@@ -137,7 +131,7 @@ function ModeToggle({
   ];
 
   return (
-    <div className="mb-5 flex overflow-hidden rounded-full neo-border">
+    <div className="mb-5 flex flex-wrap overflow-hidden rounded-full neo-border">
       {options.map((opt, idx) => {
         const active = mode === opt.id;
         return (
@@ -146,7 +140,7 @@ function ModeToggle({
             type="button"
             onClick={() => onChange(opt.id)}
             className={cn(
-              "flex flex-1 cursor-pointer items-center justify-center gap-1.5 border-none px-4 py-2.5 font-sans text-[13px] font-bold transition-[background,color,transform] duration-200 ease-out",
+              "flex min-w-[calc(50%-1px)] flex-1 cursor-pointer items-center justify-center gap-1.5 border-none px-3 py-2.5 font-sans text-[12px] font-bold transition-[background,color,transform] duration-200 ease-out sm:min-w-0 sm:flex-1 sm:px-4 sm:text-[13px]",
               active
                 ? "bg-[var(--foreground)] text-white"
                 : "bg-white text-[var(--foreground)] hover:bg-[var(--mint-l)]",
@@ -196,10 +190,10 @@ function JobFormFields({
         </div>
       )}
       <NeoInput
-        label="Job Title *"
+        label="Position *"
         placeholder="e.g. Frontend Engineer"
-        value={form.title}
-        onChange={onChange("title")}
+        value={form.position}
+        onChange={onChange("position")}
       />
       <NeoInput
         label="Company *"
@@ -208,28 +202,34 @@ function JobFormFields({
         onChange={onChange("company")}
       />
       <NeoInput
-        label="Job URL"
-        placeholder="https://..."
-        value={form.url}
-        onChange={onChange("url")}
+        label="Location"
+        placeholder="e.g. Remote, San Francisco"
+        value={form.location}
+        onChange={onChange("location")}
       />
-      <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-bold">Source</label>
-        <select
-          value={form.source}
-          onChange={onChange("source")}
-          className="rounded-full bg-white px-4 py-2.5 font-sans text-sm outline-none neo-border transition-shadow duration-150"
-        >
-          {SOURCES.map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
-      </div>
+      <NeoInput
+        label="Income range"
+        placeholder="e.g. $120k–$150k"
+        value={form.incomeRange}
+        onChange={onChange("incomeRange")}
+      />
+      <NeoInput
+        label="Work type"
+        placeholder="e.g. Remote, Hybrid, On-site"
+        value={form.workType}
+        onChange={onChange("workType")}
+      />
+      <NeoInput
+        label="Environment type"
+        placeholder="e.g. Full-time, Contract"
+        value={form.environmentType}
+        onChange={onChange("environmentType")}
+      />
       <NeoInput
         label="Job Description *"
         placeholder="Paste the full job description here..."
-        value={form.jd}
-        onChange={onChange("jd")}
+        value={form.jobDesc}
+        onChange={onChange("jobDesc")}
         multiline
         rows={10}
       />
@@ -267,14 +267,16 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
   }, [open]);
 
   const handleAdd = async () => {
-    if (!form.title || !form.company || saving) return;
+    if (!form.position || !form.company || saving) return;
 
     const input: CreateJobInput = {
-      title: form.title,
+      position: form.position,
       company: form.company,
-      url: form.url || jobUrl,
-      jd: form.jd,
-      source: form.source,
+      jobDesc: form.jobDesc,
+      location: form.location,
+      incomeRange: form.incomeRange,
+      workType: form.workType,
+      environmentType: form.environmentType,
       status: "Saved",
     };
 
@@ -329,7 +331,7 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
       });
 
       onCreated?.(job);
-      toast(`${job.title} @ ${job.company} imported!`);
+      toast(`${job.position} @ ${job.company} imported!`);
       onClose();
     } catch (error) {
       const message =
@@ -366,7 +368,7 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
       });
 
       onCreated?.(job);
-      toast(`${job.title} @ ${job.company} imported!`);
+      toast(`${job.position} @ ${job.company} imported!`);
       onClose();
     } catch (error) {
       const message =
@@ -415,7 +417,7 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
 
       const session = loadAiSession();
       if (!session) {
-        setForm((current) => ({ ...current, jd: text }));
+        setForm((current) => ({ ...current, jobDesc: text }));
         setMode("manual");
         toast("Text extracted — fill in title and company, then save.");
         return;
@@ -429,7 +431,7 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
       });
 
       onCreated?.(job);
-      toast(`${job.title} @ ${job.company} imported!`);
+      toast(`${job.position} @ ${job.company} imported!`);
       onClose();
     } catch (error) {
       const message =
@@ -455,7 +457,7 @@ export function AddJobForm({ open, onClose, onCreated }: AddJobFormProps) {
   const canAnalyze = jobUrl.trim().length > 8;
   const canAnalyzePaste = pastedPosting.trim().length >= 80;
   const canSave =
-    !!form.title && !!form.company && (mode === "manual" || analyzed) && !saving;
+    !!form.position && !!form.company && (mode === "manual" || analyzed) && !saving;
 
   return (
     <SlideOver open={open} onClose={onClose} title="Add Job" width={480}>

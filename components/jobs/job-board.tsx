@@ -18,6 +18,7 @@ import {
 } from "@/lib/constants";
 import { useJobs } from "@/components/providers/jobs-provider";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { jobSearchText } from "@/lib/jobs/normalize-job";
 import type { Job } from "@/lib/types/job";
 
 function StagePieChart({
@@ -204,43 +205,16 @@ function TrackerCheckbox({
   );
 }
 
-function StarRating({
-  value,
-  onChange,
-}: {
-  value: number;
-  onChange: (n: number) => void;
-}) {
-  return (
-    <div className="flex gap-0.5">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <button
-          key={n}
-          type="button"
-          onClick={() => onChange(n === value ? 0 : n)}
-          className="cursor-pointer border-none bg-transparent p-0.5 text-base leading-none transition-[color,transform] duration-150 hover:scale-110"
-          style={{ color: n <= value ? "#f0a500" : "#dddddd" }}
-          aria-label={`Rate ${n} stars`}
-        >
-          ★
-        </button>
-      ))}
-    </div>
-  );
-}
-
 type SortKey = keyof Job;
 
 type TrackerFilters = {
   statuses: JobStatus[];
   location: string;
-  minExcitement: number;
 };
 
 const EMPTY_FILTERS: TrackerFilters = {
   statuses: [],
   location: "",
-  minExcitement: 0,
 };
 
 function compareJobs(
@@ -255,8 +229,6 @@ function compareJobs(
     const orderA = STATUS_SORT_ORDER[a.status] ?? 99;
     const orderB = STATUS_SORT_ORDER[b.status] ?? 99;
     cmp = orderA - orderB;
-  } else if (sortBy === "excitement") {
-    cmp = a.excitement - b.excitement;
   } else if (sortBy === "matchScore") {
     cmp = (a.matchScore ?? -1) - (b.matchScore ?? -1);
   } else {
@@ -343,33 +315,6 @@ function TrackerFilterPanel({
           />
         </div>
 
-        <div className="mb-4">
-          <label className="mb-2 block text-[11px] font-bold tracking-wide text-[#888]">
-            MIN. EXCITEMENT
-          </label>
-          <div className="flex gap-1">
-            {[0, 1, 2, 3, 4, 5].map((level) => (
-              <button
-                key={level}
-                type="button"
-                onClick={() =>
-                  onChange({ ...filters, minExcitement: level })
-                }
-                className="flex-1 cursor-pointer rounded-lg border-2 py-1.5 text-xs font-bold transition-[background] duration-150"
-                style={{
-                  borderColor: "var(--foreground)",
-                  background:
-                    filters.minExcitement === level
-                      ? "var(--mint)"
-                      : "#ffffff",
-                }}
-              >
-                {level === 0 ? "Any" : `${level}+`}
-              </button>
-            ))}
-          </div>
-        </div>
-
         <div className="flex justify-end gap-2">
           <NeoButton variant="secondary" size="sm" onClick={onClear}>
             Clear
@@ -428,7 +373,7 @@ export function JobBoardView() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [activeStage, setActiveStage] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<SortKey>("dateAdded");
+  const [sortBy, setSortBy] = useState<SortKey>("position");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [filters, setFilters] = useState<TrackerFilters>(EMPTY_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
@@ -438,14 +383,6 @@ export function JobBoardView() {
       await updateJobStatus(id, status);
     } catch {
       toast("Failed to update status.", "error");
-    }
-  };
-
-  const handleExcitementChange = async (id: string, excitement: number) => {
-    try {
-      await updateJob(id, { excitement });
-    } catch {
-      toast("Failed to update excitement.", "error");
     }
   };
 
@@ -483,34 +420,20 @@ export function JobBoardView() {
   };
 
   const hasActiveFilters =
-    filters.statuses.length > 0 ||
-    filters.location.trim() !== "" ||
-    filters.minExcitement > 0;
+    filters.statuses.length > 0 || filters.location.trim() !== "";
 
   const activeFilterCount =
-    filters.statuses.length +
-    (filters.location.trim() ? 1 : 0) +
-    (filters.minExcitement > 0 ? 1 : 0);
+    filters.statuses.length + (filters.location.trim() ? 1 : 0);
 
   let filtered = jobs.filter((j) => {
-    const matchSearch =
-      j.title.toLowerCase().includes(search.toLowerCase()) ||
-      j.company.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = jobSearchText(j).includes(search.toLowerCase());
     const matchStage = !activeStage || j.status === activeStage;
     const matchStatusFilter =
       filters.statuses.length === 0 || filters.statuses.includes(j.status);
     const matchLocation =
       !filters.location.trim() ||
       j.location.toLowerCase().includes(filters.location.toLowerCase());
-    const matchExcitement =
-      filters.minExcitement === 0 || j.excitement >= filters.minExcitement;
-    return (
-      matchSearch &&
-      matchStage &&
-      matchStatusFilter &&
-      matchLocation &&
-      matchExcitement
-    );
+    return matchSearch && matchStage && matchStatusFilter && matchLocation;
   });
 
   filtered = [...filtered].sort((a, b) =>
@@ -707,8 +630,8 @@ export function JobBoardView() {
                       />
                     </th>
                     <ColHeader
-                      label="Job Position"
-                      sortKey="title"
+                      label="Position"
+                      sortKey="position"
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
@@ -723,8 +646,8 @@ export function JobBoardView() {
                       className="min-w-[120px]"
                     />
                     <ColHeader
-                      label="Max. Salary"
-                      sortKey="salary"
+                      label="Income"
+                      sortKey="incomeRange"
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
@@ -739,6 +662,22 @@ export function JobBoardView() {
                       className="min-w-[130px]"
                     />
                     <ColHeader
+                      label="Work type"
+                      sortKey="workType"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                      className="min-w-[110px]"
+                    />
+                    <ColHeader
+                      label="Environment"
+                      sortKey="environmentType"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                      className="min-w-[110px]"
+                    />
+                    <ColHeader
                       label="Status"
                       sortKey="status"
                       sortBy={sortBy}
@@ -747,44 +686,12 @@ export function JobBoardView() {
                       className="min-w-[110px]"
                     />
                     <ColHeader
-                      label="Date Saved"
-                      sortKey="dateAdded"
+                      label="Match"
+                      sortKey="matchScore"
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
-                      className="min-w-[110px]"
-                    />
-                    <ColHeader
-                      label="Deadline"
-                      sortKey="deadline"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                      className="min-w-[100px]"
-                    />
-                    <ColHeader
-                      label="Date Applied"
-                      sortKey="dateApplied"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                      className="min-w-[120px]"
-                    />
-                    <ColHeader
-                      label="Follow Up"
-                      sortKey="followUp"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                      className="min-w-[110px]"
-                    />
-                    <ColHeader
-                      label="Excitement"
-                      sortKey="excitement"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                      className="min-w-[130px] border-r-0"
+                      className="min-w-[90px] border-r-0"
                     />
                   </tr>
                 </thead>
@@ -792,7 +699,7 @@ export function JobBoardView() {
                   {filtered.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={11}
+                        colSpan={9}
                         className="py-12 text-center text-sm font-semibold text-[#aaa]"
                       >
                         No jobs found. Try adjusting your search or filters.
@@ -826,7 +733,7 @@ export function JobBoardView() {
                             <TrackerCheckbox
                               checked={isSelected}
                               onChange={() => toggleSelect(job.id)}
-                              ariaLabel={`Select ${job.title}`}
+                              ariaLabel={`Select ${job.position}`}
                             />
                           </td>
                           <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle">
@@ -834,17 +741,23 @@ export function JobBoardView() {
                               href={`/jobs?selected=${job.id}`}
                               className="font-sans text-[13px] font-bold text-[var(--foreground)] underline underline-offset-[3px] transition-opacity duration-150 hover:opacity-70"
                             >
-                              {job.title}
+                              {job.position || "Untitled role"}
                             </Link>
                           </td>
                           <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px] font-medium text-[#555]">
                             {job.company}
                           </td>
                           <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px] text-[#555]">
-                            {job.salary}
+                            {job.incomeRange || "—"}
                           </td>
                           <td className="max-w-[130px] border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px] text-[#555]">
                             <span className="block truncate">{job.location}</span>
+                          </td>
+                          <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px] text-[#555]">
+                            {job.workType || "—"}
+                          </td>
+                          <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px] text-[#555]">
+                            {job.environmentType || "—"}
                           </td>
                           <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle">
                             <select
@@ -869,38 +782,12 @@ export function JobBoardView() {
                               <option value="Rejected">Rejected</option>
                             </select>
                           </td>
-                          <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px] text-[#555]">
-                            {job.dateAdded}
-                          </td>
-                          <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px] text-[#aaa]">
-                            {job.deadline || "N/A"}
-                          </td>
-                          <td
-                            className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px]"
-                            style={{ color: job.dateApplied ? "#555555" : "#aaaaaa" }}
-                          >
-                            {job.dateApplied || "—"}
-                          </td>
-                          <td className="border-b-2 border-r-2 border-[var(--foreground)] px-3 py-3 align-middle text-[13px] text-[#aaa]">
-                            {job.followUp ? (
-                              <span className="text-[#555]">{job.followUp}</span>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => toast("Set follow-up date!")}
-                                className="cursor-pointer border-none bg-transparent p-0 font-sans text-xs font-semibold text-[#bbbbbb] transition-colors duration-150 hover:text-[var(--foreground)]"
-                              >
-                                Add date
-                              </button>
-                            )}
-                          </td>
                           <td className="border-b-2 border-[var(--foreground)] px-3 py-3 align-middle">
-                            <StarRating
-                              value={job.excitement}
-                              onChange={(val) =>
-                                void handleExcitementChange(job.id, val)
-                              }
-                            />
+                            {job.matchScore !== null ? (
+                              <MatchScore score={job.matchScore} size="xs" />
+                            ) : (
+                              <span className="text-[13px] text-[#aaa]">—</span>
+                            )}
                           </td>
                         </tr>
                       );
@@ -920,7 +807,7 @@ export function JobBoardView() {
               >
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <div>
-                    <div className="text-sm font-extrabold">{job.title}</div>
+                    <div className="text-sm font-extrabold">{job.position || "Untitled role"}</div>
                     <div className="text-xs font-medium text-[#666]">
                       {job.company}
                     </div>
@@ -932,12 +819,19 @@ export function JobBoardView() {
                     {job.status}
                   </NeoBadge>
                 </div>
-                <div className="mb-2.5 text-xs text-[#888]">{job.location}</div>
+                <div className="mb-2.5 text-xs text-[#888]">
+                  {[job.location, job.workType, job.environmentType]
+                    .filter(Boolean)
+                    .join(" · ") || "—"}
+                </div>
                 <div className="flex items-center justify-between">
-                  <StarRating
-                    value={job.excitement}
-                    onChange={() => {}}
-                  />
+                  {job.incomeRange ? (
+                    <span className="text-xs font-semibold text-[#666]">
+                      {job.incomeRange}
+                    </span>
+                  ) : (
+                    <span />
+                  )}
                   {job.matchScore !== null && job.matchScore !== undefined && (
                     <MatchScore score={job.matchScore} size="xs" />
                   )}

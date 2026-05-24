@@ -7,16 +7,22 @@ export type InterviewPrepContent = {
   questions: Record<string, InterviewQuestion[]>;
 };
 
-export type JobStoredInterviewPrep = InterviewPrepContent & {
+export type JobInterviewPrep = InterviewPrepContent & {
   updatedAt: string;
 };
 
-export function hasStoredInterviewPrep(
-  stored: JobStoredInterviewPrep | null | undefined,
-): stored is JobStoredInterviewPrep {
-  if (!stored?.categories?.length) return false;
-  return Object.values(stored.questions).some((items) => items.length > 0);
+/** @deprecated Use `JobInterviewPrep` */
+export type JobStoredInterviewPrep = JobInterviewPrep;
+
+export function hasInterviewPrep(
+  interviewPrep: JobInterviewPrep | null | undefined,
+): interviewPrep is JobInterviewPrep {
+  if (!interviewPrep?.categories?.length) return false;
+  return Object.values(interviewPrep.questions).some((items) => items.length > 0);
 }
+
+/** @deprecated Use `hasInterviewPrep` */
+export const hasStoredInterviewPrep = hasInterviewPrep;
 
 export function countInterviewQuestions(
   questions: Record<string, InterviewQuestion[]>,

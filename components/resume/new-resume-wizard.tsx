@@ -12,7 +12,7 @@ import { useToast } from "@/components/providers";
 import { useJobs } from "@/components/providers/jobs-provider";
 import { generateTailoredResume as generateTailoredResumeApi } from "@/lib/ai/client";
 import { loadAiSession } from "@/lib/ai/session";
-import { buildStoredResumeUpdate } from "@/lib/jobs/persist-generated-content";
+import { buildResumeUpdate } from "@/lib/jobs/persist-generated-content";
 import { useAppProfile } from "@/lib/hooks/use-app-profile";
 import { useWizardJobPost } from "@/lib/hooks/use-wizard-job-post";
 import { prepareSourceMaterialInputs } from "@/lib/profile/source-material-input";
@@ -126,17 +126,34 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
         apiKey: session.apiKey,
         model: session.model,
         job: {
-          title: jobContext.title,
+          position: jobContext.position,
           company: jobContext.company,
-          description: jobContext.description,
+          jobDesc: jobContext.jobDesc,
+          location: jobContext.location,
+          incomeRange: jobContext.incomeRange,
+          workType: jobContext.workType,
+          environmentType: jobContext.environmentType,
         },
         profile: appProfile,
         sourceMaterials,
       });
 
+      if (jobPost.jobSource === "saved" && jobPost.selectedJobId) {
+        await updateJob(
+          jobPost.selectedJobId,
+          buildResumeUpdate({
+            document: result.resume,
+            matchScore: result.matchScore,
+            matchedKeywords: result.matchedKeywords,
+            missingKeywords: result.missingKeywords,
+          }),
+        );
+        toast("Resume saved to job!");
+      }
+
       onComplete({
         id: Date.now(),
-        title: `${jobContext.company} — ${jobContext.title}`,
+        title: `${jobContext.company} — ${jobContext.position}`,
         matchJob: jobContext.matchJob,
         templateName: selectedTemplate.name,
         templateId: selectedTemplate.id,
@@ -146,26 +163,13 @@ export function NewResumeWizard({ open, onClose, onComplete }: NewResumeWizardPr
         matchedKeywords: result.matchedKeywords,
         missingKeywords: result.missingKeywords,
         jobContext: {
-          title: jobContext.title,
+          position: jobContext.position,
           company: jobContext.company,
-          description: jobContext.description,
+          jobDesc: jobContext.jobDesc,
         },
       });
 
-      if (jobPost.jobSource === "saved" && jobPost.selectedJobId) {
-        await updateJob(
-          jobPost.selectedJobId,
-          buildStoredResumeUpdate({
-            document: result.resume,
-            matchScore: result.matchScore,
-            matchedKeywords: result.matchedKeywords,
-            missingKeywords: result.missingKeywords,
-          }),
-        );
-        toast("Resume generated and saved to job!");
-      } else {
-        toast("Resume generated!");
-      }
+      onClose();
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to generate resume.";

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { AiProviderError } from "@/lib/ai/errors";
 import { refineInterviewPrepWithAi } from "@/lib/ai/refine-interview-prep-server";
+import { parseJobContext } from "@/lib/jobs/job-context";
 import { isApiProviderId } from "@/lib/ai/types";
 import type { InterviewPrepContent } from "@/lib/types/job-interview-prep";
 
@@ -21,11 +22,7 @@ export async function POST(request: Request) {
       model?: string;
       prep?: unknown;
       instruction?: string;
-      job?: {
-        title?: string;
-        company?: string;
-        description?: string;
-      };
+      job?: unknown;
     };
 
     if (!body.providerId || !isApiProviderId(body.providerId)) {
@@ -50,13 +47,7 @@ export async function POST(request: Request) {
       model: body.model,
       prep: body.prep,
       instruction: body.instruction.trim(),
-      job: body.job?.title && body.job?.company
-        ? {
-            title: body.job.title,
-            company: body.job.company,
-            description: body.job.description ?? "",
-          }
-        : undefined,
+      job: parseJobContext(body.job) ?? undefined,
     });
 
     return NextResponse.json(result);

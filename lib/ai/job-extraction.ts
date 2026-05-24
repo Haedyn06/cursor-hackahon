@@ -36,20 +36,22 @@ export function buildJobExtractionMessages(input: JobExtractionInput): {
 
 Rules:
 - Use ONLY information present in the page content. Do not invent employers, salaries, or requirements.
-- If a field is missing, use an empty string except source which should be your best guess from the site.
-- Put the full job description (requirements, responsibilities, qualifications) in "jd".
-- Keep jd as plain text with line breaks where helpful.
-- source must be one of: LinkedIn, Indeed, Company Site, GitHub Jobs, Referral, Other
+- If a field is missing, use an empty string.
+- Put the full job description (requirements, responsibilities, qualifications) in "jobDesc".
+- Keep jobDesc as plain text with line breaks where helpful.
+- workType examples: Remote, Hybrid, On-site, Flexible
+- environmentType examples: Full-time, Part-time, Contract, Internship, Temporary
 - Return ONLY valid JSON with no markdown fences or commentary.
 
 JSON schema:
 {
-  "title": string,
+  "position": string,
   "company": string,
   "location": string,
-  "salary": string,
-  "source": string,
-  "jd": string
+  "incomeRange": string,
+  "workType": string,
+  "environmentType": string,
+  "jobDesc": string
 }`;
 
   const user = `JOB POSTING URL
@@ -76,22 +78,31 @@ export function parseJobExtractionResponse(
   }
 
   const record = payload as Record<string, unknown>;
-  const title = asString(record.title);
-  const company = asString(record.company);
-  const jd = asString(record.jd) || input.pageText.slice(0, 8000);
+  const position =
+    asString(record.position) ||
+    asString(record.title) ||
+    input.pageTitle ||
+    "Untitled role";
+  const company = asString(record.company) || "Unknown company";
+  const jobDesc =
+    asString(record.jobDesc) ||
+    asString(record.jd) ||
+    input.pageText.slice(0, 8000);
 
-  if (!title && !company) {
-    throw new Error("AI could not identify a job title or company from this page.");
+  if (!position && !company) {
+    throw new Error("AI could not identify a job position or company from this page.");
   }
 
-  const inferredSource = inferSourceFromUrl(input.url);
+  void inferSourceFromUrl(input.url);
 
   return {
-    title: title || input.pageTitle || "Untitled role",
-    company: company || "Unknown company",
+    position,
+    company,
     location: asString(record.location, "Remote"),
-    salary: asString(record.salary, "$0"),
-    source: asString(record.source, inferredSource) || inferredSource,
-    jd,
+    incomeRange:
+      asString(record.incomeRange) || asString(record.salary, ""),
+    workType: asString(record.workType),
+    environmentType: asString(record.environmentType),
+    jobDesc,
   };
 }

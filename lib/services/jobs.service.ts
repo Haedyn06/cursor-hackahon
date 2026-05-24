@@ -3,37 +3,14 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
 import type { JobStatus } from "@/lib/constants";
 import type { CreateJobInput, Job, UpdateJobInput } from "@/lib/types/job";
-import type { JobStoredCoverLetter } from "@/lib/types/job-cover-letter";
-import type { JobStoredInterviewPrep } from "@/lib/types/job-interview-prep";
-import type { JobStoredResume } from "@/lib/types/job-resume";
-import { applyStatusMetadata, formatJobDate } from "@/lib/services/job-status";
+import { normalizeJob, type RawJobRecord } from "@/lib/jobs/normalize-job";
+import { applyStatusMetadata } from "@/lib/services/job-status";
 
 const CLERK_CONVEX_TEMPLATE = "convex";
 
-type ConvexJob = {
+type ConvexJob = RawJobRecord & {
   _id: Id<"jobs">;
-  title: string;
-  company: string;
-  location: string;
-  status: string;
-  matchScore: number | null;
-  source: string;
-  dateAdded: string;
-  url: string;
-  jd: string;
-  matchedKeywords: string[];
-  missingKeywords: string[];
-  resumeGenerated: boolean;
-  salary: string;
-  deadline: string | null;
-  dateApplied: string | null;
-  followUp: string | null;
-  excitement: number;
-  coverLetterGenerated?: boolean;
-  interviewPrepGenerated?: boolean;
-  storedResume?: JobStoredResume | null;
-  storedCoverLetter?: JobStoredCoverLetter | null;
-  storedInterviewPrep?: JobStoredInterviewPrep | null;
+  userId: Id<"users">;
 };
 
 export type JobsServiceOptions = {
@@ -62,74 +39,39 @@ function requireToken(options?: JobsServiceOptions) {
 }
 
 function toJob(job: ConvexJob): Job {
-  return {
-    id: job._id,
-    title: job.title,
-    company: job.company,
-    location: job.location,
-    status: job.status as JobStatus,
-    matchScore: job.matchScore,
-    source: job.source,
-    dateAdded: job.dateAdded,
-    url: job.url,
-    jd: job.jd,
-    matchedKeywords: job.matchedKeywords,
-    missingKeywords: job.missingKeywords,
-    resumeGenerated: job.resumeGenerated,
-    storedResume: (job.storedResume as JobStoredResume | undefined) ?? null,
-    coverLetterGenerated: job.coverLetterGenerated ?? false,
-    storedCoverLetter:
-      (job.storedCoverLetter as JobStoredCoverLetter | undefined) ?? null,
-    interviewPrepGenerated: job.interviewPrepGenerated ?? false,
-    storedInterviewPrep:
-      (job.storedInterviewPrep as JobStoredInterviewPrep | undefined) ?? null,
-    salary: job.salary,
-    deadline: job.deadline,
-    dateApplied: job.dateApplied,
-    followUp: job.followUp,
-    excitement: job.excitement,
-  };
+  return normalizeJob(job);
 }
 
-function buildBaseJob(input: CreateJobInput): Job {
+function buildBaseJob(input: CreateJobInput, userId = ""): Job {
   const status: JobStatus = input.status ?? "Saved";
   return {
     id: "",
-    title: input.title.trim(),
+    userId,
+    position: input.position.trim(),
     company: input.company.trim(),
     location: input.location?.trim() || "Remote",
     status,
     matchScore: null,
-    source: input.source?.trim() || "Other",
-    dateAdded: formatJobDate(),
-    url: input.url?.trim() || "",
-    jd: input.jd?.trim() || "",
-    matchedKeywords: [],
-    missingKeywords: [],
-    resumeGenerated: false,
-    storedResume: null,
-    coverLetterGenerated: false,
-    storedCoverLetter: null,
-    interviewPrepGenerated: false,
-    storedInterviewPrep: null,
-    salary: input.salary?.trim() || "$0",
-    deadline: input.deadline ?? null,
-    dateApplied: null,
-    followUp: null,
-    excitement: 0,
+    jobDesc: input.jobDesc?.trim() || "",
+    resume: null,
+    coverLetter: null,
+    interviewPrep: null,
+    incomeRange: input.incomeRange?.trim() || "",
+    workType: input.workType?.trim() || "",
+    environmentType: input.environmentType?.trim() || "",
   };
 }
 
 function toConvexPatch(input: UpdateJobInput): UpdateJobInput {
   return {
     ...input,
-    title: input.title?.trim(),
+    position: input.position?.trim(),
     company: input.company?.trim(),
     location: input.location?.trim(),
-    source: input.source?.trim(),
-    url: input.url?.trim(),
-    jd: input.jd?.trim(),
-    salary: input.salary?.trim(),
+    jobDesc: input.jobDesc?.trim(),
+    incomeRange: input.incomeRange?.trim(),
+    workType: input.workType?.trim(),
+    environmentType: input.environmentType?.trim(),
   };
 }
 
@@ -154,8 +96,8 @@ export async function createJob(
   input: CreateJobInput,
   options?: JobsServiceOptions,
 ): Promise<Job> {
-  if (!input.title.trim() || !input.company.trim()) {
-    throw new JobsServiceError("Title and company are required.", 400);
+  if (!input.position.trim() || !input.company.trim()) {
+    throw new JobsServiceError("Position and company are required.", 400);
   }
 
   const token = requireToken(options);
@@ -168,25 +110,15 @@ export async function createJob(
   const created = await fetchMutation(
     api.jobs.createJob,
     {
-      title: jobToCreate.title,
       company: jobToCreate.company,
-      location: jobToCreate.location,
+      position: jobToCreate.position,
+      jobDesc: jobToCreate.jobDesc,
       status: jobToCreate.status,
       matchScore: jobToCreate.matchScore,
-      source: jobToCreate.source,
-      dateAdded: jobToCreate.dateAdded,
-      url: jobToCreate.url,
-      jd: jobToCreate.jd,
-      matchedKeywords: jobToCreate.matchedKeywords,
-      missingKeywords: jobToCreate.missingKeywords,
-      resumeGenerated: jobToCreate.resumeGenerated,
-      coverLetterGenerated: false,
-      interviewPrepGenerated: false,
-      salary: jobToCreate.salary,
-      deadline: jobToCreate.deadline,
-      dateApplied: jobToCreate.dateApplied,
-      followUp: jobToCreate.followUp,
-      excitement: jobToCreate.excitement,
+      incomeRange: jobToCreate.incomeRange,
+      location: jobToCreate.location,
+      workType: jobToCreate.workType,
+      environmentType: jobToCreate.environmentType,
     },
     { token },
   );

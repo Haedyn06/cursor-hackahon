@@ -61,11 +61,11 @@ JSON schema:
 
   const jobBlock = params.job
     ? `TARGET JOB
-Title: ${params.job.title}
+Title: ${params.job.position}
 Company: ${params.job.company}
 
 Job Description:
-${params.job.description.trim() || "No description provided."}
+${params.job.jobDesc.trim() || "No description provided."}
 
 `
     : "";

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { AiProviderError } from "@/lib/ai/errors";
 import { generateTailoredCoverLetter } from "@/lib/ai/generate-cover-letter";
-import type { JobContext } from "@/lib/ai/resume-generation";
+import { parseJobContext } from "@/lib/jobs/job-context";
 import {
   buildSourceMaterialContextFromRequest,
   parseSourceMaterialRequestItems,
@@ -12,16 +12,6 @@ import type { ResumeDocument } from "@/lib/resume-document";
 
 export const maxDuration = 120;
 export const runtime = "nodejs";
-
-function isJobContext(value: unknown): value is JobContext {
-  if (!value || typeof value !== "object") return false;
-  const job = value as JobContext;
-  return (
-    typeof job.title === "string" &&
-    typeof job.company === "string" &&
-    typeof job.description === "string"
-  );
-}
 
 function isProfile(value: unknown): value is MockProfile {
   if (!value || typeof value !== "object") return false;
@@ -59,7 +49,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "API key is required." }, { status: 400 });
     }
 
-    if (!isJobContext(body.job)) {
+    const job = parseJobContext(body.job);
+    if (!job) {
       return NextResponse.json({ error: "Invalid job context." }, { status: 400 });
     }
 
@@ -86,7 +77,7 @@ export async function POST(request: Request) {
       providerId: body.providerId,
       apiKey: body.apiKey,
       model: body.model,
-      job: body.job,
+      job,
       profile: body.profile,
       resume,
       sourceMaterialContext,

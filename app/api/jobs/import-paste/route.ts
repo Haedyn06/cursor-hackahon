@@ -50,13 +50,13 @@ export async function POST(request: Request) {
 
     const job = await createJob(
       {
-        title: extracted.title,
+        position: extracted.position,
         company: extracted.company,
         location: extracted.location,
-        url,
-        jd: extracted.jd,
-        source: extracted.source,
-        salary: extracted.salary,
+        jobDesc: extracted.jobDesc,
+        incomeRange: extracted.incomeRange,
+        workType: extracted.workType,
+        environmentType: extracted.environmentType,
         status: "Saved",
       },
       await getJobsServiceOptions(),

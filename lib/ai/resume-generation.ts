@@ -9,11 +9,9 @@ import {
 } from "@/lib/ai/job-keywords";
 import type { ResumeDocument } from "@/lib/resume-document";
 
-export type JobContext = {
-  title: string;
-  company: string;
-  description: string;
-};
+import type { JobContext } from "@/lib/jobs/job-context";
+
+export type { JobContext } from "@/lib/jobs/job-context";
 
 export type ProfileSnapshot = {
   name: string;
@@ -165,11 +163,11 @@ JSON schema:
 }`;
 
   const user = `TARGET ROLE
-Title: ${job.title}
+Title: ${job.position}
 Company: ${job.company}
 
 JOB DESCRIPTION
-${job.description.trim() || "No detailed description provided. Tailor using the title and company context only."}
+${job.jobDesc.trim() || "No detailed description provided. Tailor using the position and company context only."}
 
 PRIORITY KEYWORDS (incorporate every term you can truthfully support — mirror exact spelling/casing from the JD)
 ${keywordBlock}
@@ -294,7 +292,7 @@ function snapshotToFallbackDocument(
   return {
     name: profile.name,
     contactLine,
-    summary: `${profile.targetRole} targeting ${job.title} at ${job.company}. ${profile.about}`,
+    summary: `${profile.targetRole} targeting ${job.position} at ${job.company}. ${profile.about}`,
     experience: profile.experience_entries.map((entry) => ({
       title: entry.title,
       company: entry.company,

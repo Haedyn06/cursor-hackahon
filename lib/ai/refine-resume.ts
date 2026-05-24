@@ -1,5 +1,6 @@
 import { extractJsonPayload } from "@/lib/ai/json-response";
 import type { JobContext } from "@/lib/ai/resume-generation";
+import type { ProfileSnapshot } from "@/lib/ai/resume-generation";
 import { curateTailoredSkills, extractKeywordsForJob } from "@/lib/ai/job-keywords";
 import type { ResumeDocument } from "@/lib/resume-document";
 
@@ -149,6 +150,7 @@ export function buildResumeRefineMessages(params: {
   resume: ResumeDocument;
   instruction: string;
   job?: JobContext;
+  profile?: ProfileSnapshot;
 }): { system: string; user: string } {
   const system = `You are an elite resume editor and ATS optimization specialist helping a candidate refine a tailored resume.
 
@@ -156,6 +158,7 @@ Rules:
 - Apply the user's requested edits to the resume JSON.
 - Do NOT invent new employers, degrees, dates, or credentials.
 - You MAY rephrase bullets, expand detail, reorder sections, adjust tone, and aggressively tune keywords to the job.
+- When tailoring from an imported resume, preserve at least 80% of the original resume's facts, structure, and wording. Profile data may influence at most ~20% — only to fill gaps with verifiable profile facts.
 - When a job description is provided, handpick 18–28 skills from the current resume/profile skills — JD-matching skills first. Mirror exact JD terminology where truthful.
 - Weave priority keywords and industry buzzwords into summary and bullets naturally.
 - Prefer fuller, keyword-rich achievement bullets (4–6 per role) over short generic ones.
@@ -185,17 +188,35 @@ JSON schema:
             ? `\nPRIORITY KEYWORDS\n${keywords.map((k, i) => `${i + 1}. ${k}`).join("\n")}\n`
             : "";
         return `TARGET JOB
-Title: ${params.job.title}
+Title: ${params.job.position}
 Company: ${params.job.company}
 
 Job Description:
-${params.job.description.trim() || "No description provided."}
+${params.job.jobDesc.trim() || "No description provided."}
 ${keywordList}
 `;
       })()
     : "";
 
-  const user = `${jobBlock}CURRENT RESUME (JSON)
+  const profileBlock = params.profile
+    ? `SUPPLEMENTAL PROFILE (max ~20% influence — only verifiable facts)
+${JSON.stringify(
+        {
+          about: params.profile.about,
+          skills: params.profile.skills,
+          experience: params.profile.experience_entries,
+          projects: params.profile.projects,
+          education: params.profile.education,
+          certifications: params.profile.certifications,
+        },
+        null,
+        2,
+      )}
+
+`
+    : "";
+
+  const user = `${jobBlock}${profileBlock}CURRENT RESUME (JSON)
 ${JSON.stringify(params.resume, null, 2)}
 
 USER REQUEST

@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import { createPortal } from "react-dom";
 import { api } from "@/convex/_generated/api";
 import { useToast } from "@/components/providers";
+import { useResumeBuilderLibrary } from "@/components/providers/resume-builder-library-provider";
 import { NeoButton } from "@/components/ui/neo-button";
 import { NeoCard } from "@/components/ui/neo-card";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ import {
   type GeneratedCoverLetter,
 } from "@/components/resume/cover-letter-preview-panel";
 import { NewInterviewPrepWizard } from "@/components/resume/new-interview-prep-wizard";
+import { ImportResumePanel } from "@/components/resumes/import-resume-panel";
 import {
   InterviewPrepPreviewPanel,
   buildMockInterviewPrep,
@@ -141,9 +143,9 @@ function resumeFromLibrary(
   const { title, company } = parseMatchJob(doc.matchJob);
   const document = buildMockResume(title, company);
   const match = computeResumeMatchForDescription(document, {
-    title,
+    position: title,
     company,
-    description: `${title} at ${company}`,
+    jobDesc: `${title} at ${company}`,
   });
   return {
     id: doc.id,
@@ -159,7 +161,25 @@ function resumeFromLibrary(
   };
 }
 
-function coverLetterFromLibrary(doc: MockDocument): GeneratedCoverLetter {
+function contentCacheById<T extends { id: number }>(
+  store: Record<string, T>,
+): Record<number, T> {
+  const cache: Record<number, T> = {};
+  for (const [key, value] of Object.entries(store)) {
+    cache[Number(key)] = value;
+  }
+  return cache;
+}
+
+function coverLetterFromLibrary(
+  doc: MockDocument,
+  cache: Record<number, GeneratedCoverLetter>,
+): GeneratedCoverLetter {
+  const cached = cache[doc.id];
+  if (cached) {
+    return cached;
+  }
+
   const { title, company } = parseMatchJob(doc.matchJob);
   return {
     id: doc.id,
@@ -169,7 +189,15 @@ function coverLetterFromLibrary(doc: MockDocument): GeneratedCoverLetter {
   };
 }
 
-function interviewPrepFromLibrary(doc: MockDocument): GeneratedInterviewPrep {
+function interviewPrepFromLibrary(
+  doc: MockDocument,
+  cache: Record<number, GeneratedInterviewPrep>,
+): GeneratedInterviewPrep {
+  const cached = cache[doc.id];
+  if (cached) {
+    return cached;
+  }
+
   const { title, company } = parseMatchJob(doc.matchJob);
   const mock = buildMockInterviewPrep(title, company);
   return {
@@ -874,6 +902,21 @@ function DocumentSection({
 export function ResumeLibraryView() {
   const toast = useToast();
   const onboardingState = useQuery(api.onboarding.getOnboardingState);
+  const {
+    hydrated: libraryHydrated,
+    resumes: generatedResumes,
+    coverLetters,
+    interviewPrep,
+    resumeContent,
+    coverLetterContent,
+    interviewPrepContent,
+    saveGeneratedResume: persistGeneratedResume,
+    saveGeneratedCoverLetter: persistGeneratedCoverLetter,
+    saveGeneratedInterviewPrep: persistGeneratedInterviewPrep,
+    setResumes,
+    setCoverLetters,
+    setInterviewPrep,
+  } = useResumeBuilderLibrary();
   const { pickFormat, dialog: downloadDialog } = useDownloadFormat();
   const [activeTab, setActiveTab] = useState<LibraryTab>("resumes");
   const [resumeSearch, setResumeSearch] = useState("");
@@ -884,7 +927,19 @@ export function ResumeLibraryView() {
   const [interviewViewMode, setInterviewViewMode] = useState<"grid" | "list">(
     "list",
   );
-  const [resumes, setResumes] = useState<MockDocument[]>([]);
+
+  const generatedResumeCache = useMemo(
+    () => contentCacheById(resumeContent),
+    [resumeContent],
+  );
+  const generatedCoverLetterCache = useMemo(
+    () => contentCacheById(coverLetterContent),
+    [coverLetterContent],
+  );
+  const generatedInterviewPrepCache = useMemo(
+    () => contentCacheById(interviewPrepContent),
+    [interviewPrepContent],
+  );
 
   const importedResumeLibrary = useMemo(() => {
     if (!onboardingState?.importedResumes) {
@@ -903,25 +958,22 @@ export function ResumeLibraryView() {
   }, [onboardingState]);
 
   const resumeDocuments = useMemo(() => {
-    const base = importedResumeLibrary;
     return [
-      ...resumes,
-      ...base.filter((item) => !resumes.some((entry) => entry.id === item.id)),
+      ...generatedResumes,
+      ...importedResumeLibrary.filter(
+        (item) => !generatedResumes.some((entry) => entry.id === item.id),
+      ),
     ];
-  }, [importedResumeLibrary, resumes]);
+  }, [generatedResumes, importedResumeLibrary]);
 
   const saveResumeDocuments = (
     updater: (items: MockDocument[]) => MockDocument[],
   ) => {
-    setResumes((current) => updater(current.length > 0 ? current : resumeDocuments));
+    setResumes((current) =>
+      updater(current.length > 0 ? current : resumeDocuments),
+    );
   };
 
-  const [generatedResumeCache, setGeneratedResumeCache] = useState<
-    Record<number, GeneratedResume>
-  >({});
-
-  const [coverLetters, setCoverLetters] = useState<MockDocument[]>([]);
-  const [interviewPrep, setInterviewPrep] = useState<MockDocument[]>([]);
   const [showNewResumeWizard, setShowNewResumeWizard] = useState(false);
   const [showNewCoverLetterWizard, setShowNewCoverLetterWizard] = useState(false);
   const [previewResume, setPreviewResume] = useState<GeneratedResume | null>(
@@ -935,50 +987,21 @@ export function ResumeLibraryView() {
     useState<GeneratedInterviewPrep | null>(null);
 
   const saveGeneratedResume = (generated: GeneratedResume) => {
-    setGeneratedResumeCache((cache) => ({ ...cache, [generated.id]: generated }));
-    saveResumeDocuments((items) => [
-      {
-        id: generated.id,
-        title: generated.title,
-        matchJob: generated.matchJob,
-        edited: new Date().toLocaleDateString("en-US"),
-        color: "var(--mint)",
-      },
-      ...items.filter((item) => item.id !== generated.id),
-    ]);
+    persistGeneratedResume(generated);
     setActiveTab("resumes");
     setPreviewResume(null);
     toast("Resume saved to library!");
   };
 
   const saveGeneratedCoverLetter = (generated: GeneratedCoverLetter) => {
-    setCoverLetters((letters) => [
-      {
-        id: generated.id,
-        title: generated.title,
-        matchJob: generated.matchJob,
-        edited: new Date().toLocaleDateString("en-US"),
-        color: "var(--yellow)",
-      },
-      ...letters.filter((item) => item.id !== generated.id),
-    ]);
+    persistGeneratedCoverLetter(generated);
     setActiveTab("cover-letters");
     setPreviewCoverLetter(null);
     toast("Cover letter saved to library!");
   };
 
   const saveGeneratedInterviewPrep = (generated: GeneratedInterviewPrep) => {
-    setInterviewPrep((items) => [
-      {
-        id: generated.id,
-        title: generated.title,
-        matchJob: generated.matchJob,
-        edited: new Date().toLocaleDateString("en-US"),
-        color: "var(--lav)",
-        questionCount: countInterviewQuestions(generated.questions),
-      },
-      ...items.filter((item) => item.id !== generated.id),
-    ]);
+    persistGeneratedInterviewPrep(generated);
     setActiveTab("interview-prep");
     setPreviewInterviewPrep(null);
     toast("Interview prep saved to library!");
@@ -1018,7 +1041,7 @@ export function ResumeLibraryView() {
     if (format) toast(`Downloading ${title} as ${format.toUpperCase()}...`);
   };
 
-  if (onboardingState === undefined) {
+  if (onboardingState === undefined || !libraryHydrated) {
     return null;
   }
 
@@ -1066,8 +1089,7 @@ export function ResumeLibraryView() {
         open={showNewResumeWizard}
         onClose={() => setShowNewResumeWizard(false)}
         onComplete={(resume) => {
-          setGeneratedResumeCache((cache) => ({ ...cache, [resume.id]: resume }));
-          setPreviewResume(resume);
+          saveGeneratedResume(resume);
           setShowNewResumeWizard(false);
         }}
       />
@@ -1075,7 +1097,7 @@ export function ResumeLibraryView() {
         open={showNewCoverLetterWizard}
         onClose={() => setShowNewCoverLetterWizard(false)}
         onComplete={(coverLetter) => {
-          setPreviewCoverLetter(coverLetter);
+          saveGeneratedCoverLetter(coverLetter);
           setShowNewCoverLetterWizard(false);
         }}
       />
@@ -1083,7 +1105,7 @@ export function ResumeLibraryView() {
         open={showNewInterviewPrepWizard}
         onClose={() => setShowNewInterviewPrepWizard(false)}
         onComplete={(prep) => {
-          setPreviewInterviewPrep(prep);
+          saveGeneratedInterviewPrep(prep);
           setShowNewInterviewPrepWizard(false);
         }}
       />
@@ -1126,6 +1148,10 @@ export function ResumeLibraryView() {
           </div>
           <div className="p-6">
             {activeTab === "resumes" && (
+              <>
+                <div className="mb-6">
+                  <ImportResumePanel />
+                </div>
               <DocumentSection
                 kind="resume"
                 documents={resumeDocuments}
@@ -1155,6 +1181,7 @@ export function ResumeLibraryView() {
                   )
                 }
               />
+              </>
             )}
             {activeTab === "cover-letters" && (
               <DocumentSection
@@ -1175,7 +1202,9 @@ export function ResumeLibraryView() {
                 }
                 onToast={toast}
                 onOpenDocument={(doc) =>
-                  setPreviewCoverLetter(coverLetterFromLibrary(doc))
+                  setPreviewCoverLetter(
+                    coverLetterFromLibrary(doc, generatedCoverLetterCache),
+                  )
                 }
                 onPracticeDocument={() => {}}
                 onRenameDocument={(doc, title) =>
@@ -1207,7 +1236,9 @@ export function ResumeLibraryView() {
                 onToast={toast}
                 onOpenDocument={() => {}}
                 onPracticeDocument={(doc) =>
-                  setPreviewInterviewPrep(interviewPrepFromLibrary(doc))
+                  setPreviewInterviewPrep(
+                    interviewPrepFromLibrary(doc, generatedInterviewPrepCache),
+                  )
                 }
                 onRenameDocument={(doc, title) =>
                   setInterviewPrep((items) =>

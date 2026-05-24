@@ -570,6 +570,32 @@ export const savePastedResume = mutation({
   },
 });
 
+export const saveUploadedResume = mutation({
+  args: {
+    storageId: v.id("_storage"),
+    fileName: v.string(),
+    displayName: v.string(),
+    mimeType: v.optional(v.string()),
+    sizeBytes: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await ensureCurrentUser(ctx);
+    const now = Date.now();
+    await ctx.db.insert("importedResumes", {
+      userId: user._id,
+      storageId: args.storageId,
+      fileName: args.fileName,
+      displayName: args.displayName,
+      mimeType: args.mimeType,
+      sizeBytes: args.sizeBytes,
+      sourceType: "upload",
+      status: "imported",
+      createdAt: now,
+    });
+    return { ok: true };
+  },
+});
+
 export const clearImportedResumes = mutation({
   args: {},
   handler: async (ctx) => {

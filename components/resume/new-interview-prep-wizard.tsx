@@ -10,7 +10,7 @@ import { useToast } from "@/components/providers";
 import { useJobs } from "@/components/providers/jobs-provider";
 import { generateInterviewPrepGuide } from "@/lib/ai/client";
 import { loadAiSession } from "@/lib/ai/session";
-import { buildStoredInterviewPrepUpdate } from "@/lib/jobs/persist-generated-content";
+import { buildInterviewPrepUpdate } from "@/lib/jobs/persist-generated-content";
 import { useAppProfile } from "@/lib/hooks/use-app-profile";
 import { useWizardJobPost } from "@/lib/hooks/use-wizard-job-post";
 import type { GeneratedInterviewPrep } from "@/components/resume/interview-prep-preview-panel";
@@ -79,13 +79,28 @@ export function NewInterviewPrepWizard({
         apiKey: session.apiKey,
         model: session.model,
         job: {
-          title: jobContext.title,
+          position: jobContext.position,
           company: jobContext.company,
-          description: jobContext.description,
+          jobDesc: jobContext.jobDesc,
+          location: jobContext.location,
+          incomeRange: jobContext.incomeRange,
+          workType: jobContext.workType,
+          environmentType: jobContext.environmentType,
         },
         profile: appProfile,
-        resume: jobPost.selectedJob?.storedResume?.document ?? null,
+        resume: jobPost.selectedJob?.resume?.document ?? null,
       });
+
+      if (jobPost.jobSource === "saved" && jobPost.selectedJobId) {
+        await updateJob(
+          jobPost.selectedJobId,
+          buildInterviewPrepUpdate({
+            categories: result.categories,
+            questions: result.questions,
+          }),
+        );
+        toast("Interview prep saved to job!");
+      }
 
       onComplete({
         id: Date.now(),
@@ -95,19 +110,6 @@ export function NewInterviewPrepWizard({
         categories: result.categories,
         questions: result.questions,
       });
-
-      if (jobPost.jobSource === "saved" && jobPost.selectedJobId) {
-        await updateJob(
-          jobPost.selectedJobId,
-          buildStoredInterviewPrepUpdate({
-            categories: result.categories,
-            questions: result.questions,
-          }),
-        );
-        toast("Interview prep generated and saved to job!");
-      } else {
-        toast("Interview prep generated!");
-      }
 
       onClose();
     } catch (error) {

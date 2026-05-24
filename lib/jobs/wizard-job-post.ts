@@ -1,30 +1,40 @@
 import type { Job } from "@/lib/types/job";
+import { jobDescription, jobMatchLabel } from "@/lib/jobs/job-context";
 
 export type WizardJobSource = "saved" | "new" | null;
 export type WizardNewJobMode = "manual" | "link" | "paste" | "file";
 
 export type WizardJobForm = {
-  title: string;
+  position: string;
   company: string;
-  jd: string;
+  jobDesc: string;
   url: string;
   pastedText: string;
+  incomeRange: string;
+  workType: string;
+  environmentType: string;
 };
 
 export type WizardJobContext = {
-  title: string;
+  position: string;
   company: string;
   matchJob: string;
-  description: string;
-  url?: string;
+  jobDesc: string;
+  location?: string;
+  incomeRange?: string;
+  workType?: string;
+  environmentType?: string;
 };
 
 export const EMPTY_WIZARD_JOB_FORM: WizardJobForm = {
-  title: "",
+  position: "",
   company: "",
-  jd: "",
+  jobDesc: "",
   url: "",
   pastedText: "",
+  incomeRange: "",
+  workType: "",
+  environmentType: "",
 };
 
 export function resolveWizardJobContext(params: {
@@ -35,13 +45,14 @@ export function resolveWizardJobContext(params: {
 }): WizardJobContext | null {
   if (params.jobSource === "saved" && params.selectedJob) {
     return {
-      title: params.selectedJob.title,
+      position: params.selectedJob.position,
       company: params.selectedJob.company,
-      matchJob: `${params.selectedJob.title} @ ${params.selectedJob.company}`,
-      description:
-        params.selectedJob.jd.trim() ||
-        `${params.selectedJob.title} at ${params.selectedJob.company}`,
-      url: params.selectedJob.url || undefined,
+      matchJob: jobMatchLabel(params.selectedJob),
+      jobDesc: jobDescription(params.selectedJob),
+      location: params.selectedJob.location || undefined,
+      incomeRange: params.selectedJob.incomeRange || undefined,
+      workType: params.selectedJob.workType || undefined,
+      environmentType: params.selectedJob.environmentType || undefined,
     };
   }
 
@@ -50,22 +61,24 @@ export function resolveWizardJobContext(params: {
   }
 
   const { form, newJobMode } = params;
-  const title = form.title.trim();
+  const position = form.position.trim();
   const company = form.company.trim();
-  const jd =
-    form.jd.trim() ||
+  const jobDesc =
+    form.jobDesc.trim() ||
     (newJobMode === "paste" ? form.pastedText.trim() : "");
 
-  if (!title || !company) {
+  if (!position || !company) {
     return null;
   }
 
   return {
-    title,
+    position,
     company,
-    matchJob: `${title} @ ${company}`,
-    description: jd || `${title} at ${company}`,
-    url: form.url.trim() || undefined,
+    matchJob: `${position} @ ${company}`,
+    jobDesc: jobDesc || `${position} at ${company}`,
+    incomeRange: form.incomeRange.trim() || undefined,
+    workType: form.workType.trim() || undefined,
+    environmentType: form.environmentType.trim() || undefined,
   };
 }
 
@@ -83,27 +96,28 @@ export function canContinueWizardJobStep(params: {
     return false;
   }
 
-  const title = params.form.title.trim();
+  const position = params.form.position.trim();
   const company = params.form.company.trim();
 
   if (params.newJobMode === "manual") {
-    return !!title && !!company;
+    return !!position && !!company;
   }
 
   if (params.newJobMode === "link") {
-    return !!title && !!company && params.form.jd.trim().length >= 40;
+    return !!position && !!company && params.form.jobDesc.trim().length >= 40;
   }
 
   if (params.newJobMode === "paste") {
     return (
-      !!title &&
+      !!position &&
       !!company &&
-      (params.form.jd.trim().length >= 40 || params.form.pastedText.trim().length >= 80)
+      (params.form.jobDesc.trim().length >= 40 ||
+        params.form.pastedText.trim().length >= 80)
     );
   }
 
   if (params.newJobMode === "file") {
-    return !!title && !!company && params.form.jd.trim().length >= 40;
+    return !!position && !!company && params.form.jobDesc.trim().length >= 40;
   }
 
   return false;

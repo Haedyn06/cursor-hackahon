@@ -8,6 +8,7 @@ import { NeoBadge } from "@/components/ui/neo-badge";
 import { NeoButton } from "@/components/ui/neo-button";
 import { NeoCard } from "@/components/ui/neo-card";
 import { NeoInput } from "@/components/ui/neo-input";
+import { ImportResumePanel } from "@/components/resumes/import-resume-panel";
 import {
   CollapsibleSection,
   ProfileFormEntry,
@@ -1748,47 +1749,44 @@ export function ProfileView() {
           <CollapsibleSection
             id="section-library"
             label="Resume Library"
-            description="Saved resumes tied to your applications"
+            description="Import resumes to use when tailoring for jobs"
             color="var(--lav)"
             open={openSections.library}
             onOpenChange={(open) => setSectionOpen("library", open)}
           >
-            <div className="flex flex-col gap-3">
-              {profile.resumeLibrary.map((resume) => (
-                <NeoCard
-                  key={resume.id}
-                  className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="flex min-w-0 gap-3">
-                    <div className="flex h-12 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--lav-l)] text-lg neo-border-sm">
-                      📄
-                    </div>
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-bold">{resume.label}</div>
-                      <div className="truncate text-[11px] text-[#888]">{resume.job}</div>
-                      <div className="text-[11px] text-[#aaa]">{resume.date}</div>
-                    </div>
-                  </div>
-                  <div className="flex gap-1.5 sm:shrink-0">
-                    <NeoButton
-                      variant="secondary"
-                      size="sm"
-                      className="px-2.5 py-1 text-[11px]"
-                      onClick={() => toast("Downloading...")}
+            <div className="flex flex-col gap-4">
+              <ImportResumePanel compact />
+              <div className="flex flex-col gap-3">
+                {(onboardingState?.importedResumes ?? []).length === 0 ? (
+                  <p className="text-xs font-medium text-[#888]">
+                    No imported resumes yet. Upload one above to add it to your library.
+                  </p>
+                ) : (
+                  (onboardingState?.importedResumes ?? []).map((resume) => (
+                    <NeoCard
+                      key={String(resume._id)}
+                      className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
                     >
-                      Download
-                    </NeoButton>
-                    <NeoButton
-                      variant="mint"
-                      size="sm"
-                      className="px-2.5 py-1 text-[11px]"
-                      onClick={() => toast("Set as base!")}
-                    >
-                      Use as base
-                    </NeoButton>
-                  </div>
-                </NeoCard>
-              ))}
+                      <div className="flex min-w-0 gap-3">
+                        <div className="flex h-12 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--lav-l)] text-lg neo-border-sm">
+                          📄
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-bold">
+                            {resume.displayName || resume.fileName}
+                          </div>
+                          <div className="truncate text-[11px] text-[#888]">
+                            {resume.fileName}
+                          </div>
+                          <div className="text-[11px] text-[#aaa]">
+                            {resume.sourceType === "paste" ? "Pasted" : "Uploaded"}
+                          </div>
+                        </div>
+                      </div>
+                    </NeoCard>
+                  ))
+                )}
+              </div>
             </div>
           </CollapsibleSection>
           </ProfileSectionStack>

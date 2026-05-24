@@ -1,67 +1,34 @@
 [
   {
     "id": "4",
-    "title": "Frontend Engineer II",
+    "userId": "demo-user",
+    "position": "Frontend Engineer II",
     "company": "Linear",
     "location": "Remote",
     "status": "Rejected",
     "matchScore": 79,
-    "source": "LinkedIn",
-    "dateAdded": "5 days ago",
-    "url": "https://linear.app/careers",
-    "jd": "Linear is the issue tracker built for high-performance teams. We're hiring senior frontend engineers.\n\nYou'll work on our Electron + web app, helping teams move faster.\n\nRequirements:\n• React and TypeScript\n• GraphQL experience\n• Electron or desktop app experience\n• Performance optimization\n• High attention to detail",
-    "matchedKeywords": [
-      "React",
-      "TypeScript",
-      "GraphQL",
-      "Performance"
-    ],
-    "missingKeywords": [
-      "Electron"
-    ],
-    "resumeGenerated": true,
-    "salary": "$0",
-    "deadline": null,
-    "dateApplied": null,
-    "followUp": null,
-    "excitement": 5,
-    "storedResume": null,
-    "coverLetterGenerated": false,
-    "storedCoverLetter": null,
-    "interviewPrepGenerated": false,
-    "storedInterviewPrep": null
+    "jobDesc": "Linear is the issue tracker built for high-performance teams. We're hiring senior frontend engineers.\n\nYou'll work on our Electron + web app, helping teams move faster.\n\nRequirements:\n• React and TypeScript\n• GraphQL experience\n• Electron or desktop app experience\n• Performance optimization\n• High attention to detail",
+    "resume": null,
+    "coverLetter": null,
+    "interviewPrep": null,
+    "incomeRange": "",
+    "workType": "Remote",
+    "environmentType": "Full-time"
   },
   {
     "id": "5",
-    "title": "Software Engineer",
+    "userId": "demo-user",
+    "position": "Software Engineer",
     "company": "Notion",
     "location": "San Francisco, CA",
     "status": "Accepted",
     "matchScore": 65,
-    "source": "Company Site",
-    "dateAdded": "2 weeks ago",
-    "url": "https://notion.so/careers",
-    "jd": "Build the connected workspace at Notion.\n\nWe're looking for engineers who care deeply about craft and can work across the stack.\n\nRequirements:\n• React and TypeScript\n• Node.js backend experience\n• PostgreSQL\n• AWS infrastructure\n• Real-time collaboration systems",
-    "matchedKeywords": [
-      "React",
-      "Node.js",
-      "TypeScript"
-    ],
-    "missingKeywords": [
-      "PostgreSQL",
-      "AWS",
-      "CRDTs"
-    ],
-    "resumeGenerated": true,
-    "salary": "$0",
-    "deadline": null,
-    "dateApplied": "04/20/2026",
-    "followUp": null,
-    "excitement": 1,
-    "storedResume": null,
-    "coverLetterGenerated": false,
-    "storedCoverLetter": null,
-    "interviewPrepGenerated": false,
-    "storedInterviewPrep": null
+    "jobDesc": "Build the connected workspace at Notion.\n\nWe're looking for engineers who care deeply about craft and can work across the stack.\n\nRequirements:\n• React and TypeScript\n• Node.js backend experience\n• PostgreSQL\n• AWS infrastructure\n• Real-time collaboration systems",
+    "resume": null,
+    "coverLetter": null,
+    "interviewPrep": null,
+    "incomeRange": "",
+    "workType": "Hybrid",
+    "environmentType": "Full-time"
   }
 ]

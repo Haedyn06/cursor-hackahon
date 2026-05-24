@@ -42,8 +42,9 @@ test("resume match summary uses stored match results after resume selection", ()
 test("resume tab empty state switches to selection-first copy when resumes exist", () => {
   assert.deepEqual(getResumeTabEmptyState({ hasLibraryResumes: true, hasSelectedResume: false }), {
     title: "Select a resume",
-    description: "Choose one of your saved resumes to see the match score and tailor it for this job.",
-    actionLabel: null,
+    description:
+      "Choose one of your saved resumes to see the match score and tailor it for this job — or generate a fresh resume from your profile.",
+    actionLabel: "Generate from profile",
   });
 });
 

@@ -128,11 +128,11 @@ ${JSON.stringify(params.resume, null, 2)}
     : "";
 
   const user = `JOB POSTING
-Title: ${params.job.title}
+Title: ${params.job.position}
 Company: ${params.job.company}
 
 Job Description:
-${params.job.description.trim() || "No detailed description provided. Tailor using the title and company context only."}
+${params.job.jobDesc.trim() || "No detailed description provided. Tailor using the title and company context only."}
 
 CANDIDATE PROFILE
 ${JSON.stringify(params.profile, null, 2)}

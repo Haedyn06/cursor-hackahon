@@ -11,6 +11,7 @@ import {
 } from "react";
 import type { JobStatus } from "@/lib/constants";
 import * as jobsClient from "@/lib/client/jobs-client";
+import { normalizeJob } from "@/lib/jobs/normalize-job";
 import type { CreateJobInput, Job, UpdateJobInput } from "@/lib/types/job";
 
 type JobsContextValue = {
@@ -65,7 +66,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const createJob = useCallback(async (input: CreateJobInput) => {
-    const job = await jobsClient.createJob(input);
+    const job = normalizeJob(await jobsClient.createJob(input));
     setJobs((prev) => [job, ...prev]);
     return job;
   }, []);
@@ -84,8 +85,9 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       if (!result.job) {
         throw new Error("Job was not created.");
       }
-      setJobs((prev) => [result.job!, ...prev]);
-      return result.job;
+      const job = normalizeJob(result.job);
+      setJobs((prev) => [job, ...prev]);
+      return job;
     },
     [],
   );
@@ -105,20 +107,21 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       if (!result.job) {
         throw new Error("Job was not created.");
       }
-      setJobs((prev) => [result.job!, ...prev]);
-      return result.job;
+      const job = normalizeJob(result.job);
+      setJobs((prev) => [job, ...prev]);
+      return job;
     },
     [],
   );
 
   const updateJob = useCallback(async (id: string, input: UpdateJobInput) => {
-    const job = await jobsClient.updateJob(id, input);
+    const job = normalizeJob(await jobsClient.updateJob(id, input));
     setJobs((prev) => prev.map((item) => (item.id === id ? job : item)));
     return job;
   }, []);
 
   const updateJobStatus = useCallback(async (id: string, status: JobStatus) => {
-    const job = await jobsClient.updateJobStatus(id, status);
+    const job = normalizeJob(await jobsClient.updateJobStatus(id, status));
     setJobs((prev) => prev.map((item) => (item.id === id ? job : item)));
     return job;
   }, []);

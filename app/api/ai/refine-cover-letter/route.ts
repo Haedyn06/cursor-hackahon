@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { AiProviderError } from "@/lib/ai/errors";
 import { refineCoverLetterWithAi } from "@/lib/ai/refine-cover-letter-server";
+import { parseJobContext } from "@/lib/jobs/job-context";
 import { isApiProviderId } from "@/lib/ai/types";
 
 export const maxDuration = 120;
@@ -14,11 +15,7 @@ export async function POST(request: Request) {
       model?: string;
       content?: string;
       instruction?: string;
-      job?: {
-        title?: string;
-        company?: string;
-        description?: string;
-      };
+      job?: unknown;
     };
 
     if (!body.providerId || !isApiProviderId(body.providerId)) {
@@ -43,13 +40,7 @@ export async function POST(request: Request) {
       model: body.model,
       content: body.content.trim(),
       instruction: body.instruction.trim(),
-      job: body.job?.title && body.job?.company
-        ? {
-            title: body.job.title,
-            company: body.job.company,
-            description: body.job.description ?? "",
-          }
-        : undefined,
+      job: parseJobContext(body.job) ?? undefined,
     });
 
     return NextResponse.json(result);
