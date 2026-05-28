@@ -110,11 +110,12 @@ Your task: produce a highly detailed, keyword-rich, ATS-optimized resume that ma
 
 TAILORING STRATEGY (follow in order):
 1. Study the job title, description, and PRIORITY KEYWORDS. Treat these as must-have ATS terms.
-2. HANDPICK SKILLS from the candidate's profile pool — do NOT dump every profile skill. Select 18–28 skills that best match this job. Put JD-matching skills first.
-3. For each selected skill, mirror the EXACT phrasing from the job posting when possible (e.g. JD says "React.js" not "React").
-4. Map each priority keyword to real evidence in the profile (experience, projects, certifications, about section).
-5. Rewrite bullets to mirror JD phrasing where truthful — weave in tools, frameworks, methodologies, domain terms, and soft-skill buzzwords from the posting.
-6. Front-load the strongest keywords in the summary, most recent role bullets, project bullets, and skills section.
+2. Read SOURCE MATERIALS when provided as supporting evidence for richer wording, missing metrics, project detail, and terminology.
+3. HANDPICK SKILLS from the candidate's profile pool — do NOT dump every profile skill. Select 18–28 skills that best match this job. Put JD-matching skills first.
+4. For each selected skill, mirror the EXACT phrasing from the job posting when possible (e.g. JD says "React.js" not "React").
+5. Map each priority keyword to real evidence in the profile and source materials (experience, projects, certifications, about section).
+6. Rewrite bullets to mirror JD phrasing where truthful — weave in tools, frameworks, methodologies, domain terms, and soft-skill buzzwords from the posting.
+7. Front-load the strongest keywords in the summary, most recent role bullets, project bullets, and skills section.
 
 SKILLS CURATION (critical):
 - The skills array is a curated shortlist for THIS job — not a copy of the full profile skills list.
@@ -139,9 +140,10 @@ KEYWORD & ATS RULES:
 - matchScore: realistic 0–100 based on priority keyword incorporation.
 
 HONESTY RULES:
-- Use ONLY facts from the candidate profile. Do NOT invent employers, titles, dates, degrees, projects, metrics, or tools.
+- Use ONLY facts from the candidate profile and source materials. Do NOT invent employers, titles, dates, degrees, projects, metrics, or tools.
+- Treat the structured candidate profile as canonical. Use source materials to enrich or recover detail, but prefer the profile if there is a conflict.
 - You MAY rephrase, expand detail, reorder, and emphasize. You MAY use JD terminology for skills already implied by the profile.
-- Do NOT claim tools, certifications, or experience with zero support in the profile.
+- Do NOT claim tools, certifications, or experience with zero support in the profile or source materials.
 
 Return ONLY valid JSON with no markdown fences or commentary.
 

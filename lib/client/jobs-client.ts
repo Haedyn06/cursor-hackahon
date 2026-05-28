@@ -85,6 +85,11 @@ export type ImportJobFromUrlResult = {
   job?: Job;
 };
 
+export type ImportJobFromPasteResult = {
+  extracted: ExtractedJobFields;
+  job?: Job;
+};
+
 export async function scrapeJobPage(url: string): Promise<ScrapedPage> {
   const res = await fetch("/api/jobs/scrape", {
     method: "POST",
@@ -162,3 +167,4 @@ export async function importJobFromPaste(params: {
     job: body.job ? normalizeJob(body.job) : undefined,
   };
 }
+

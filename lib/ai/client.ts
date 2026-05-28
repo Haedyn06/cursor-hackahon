@@ -16,6 +16,7 @@ import type { MockProfile } from "@/lib/mock-data";
 import type { ProfileExportDocument } from "@/lib/profile-export-document";
 import type { SourceMaterialRequestItem } from "@/lib/ai/source-material-request";
 import type { OnboardingProfileState } from "@/lib/onboarding-storage";
+import type { SourceMaterialRequestInput } from "@/lib/profile/source-material-input";
 
 type ApiErrorBody = {
   error?: string;
