@@ -85,6 +85,11 @@ export type ImportJobFromUrlResult = {
   job?: Job;
 };
 
+export type ImportJobFromPasteResult = {
+  extracted: ExtractedJobFields;
+  job?: Job;
+};
+
 export async function scrapeJobPage(url: string): Promise<ScrapedPage> {
   const res = await fetch("/api/jobs/scrape", {
     method: "POST",
@@ -161,4 +166,29 @@ export async function importJobFromPaste(params: {
     ...body,
     job: body.job ? normalizeJob(body.job) : undefined,
   };
+}
+
+export async function importJobFromPaste(params: {
+  url?: string;
+  pageText: string;
+  providerId: ApiProviderId;
+  apiKey: string;
+  model?: string;
+  create?: boolean;
+}): Promise<ImportJobFromPasteResult> {
+  const res = await fetch("/api/jobs/import-paste", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+
+  const body = (await res.json().catch(() => ({}))) as ImportJobFromPasteResult & {
+    error?: string;
+  };
+
+  if (!res.ok) {
+    throw new Error(body.error ?? "Failed to import pasted job posting.");
+  }
+
+  return body;
 }

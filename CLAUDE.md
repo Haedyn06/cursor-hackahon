@@ -4,6 +4,57 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
+## Principles
+
+1. Think Before Coding
+Don't assume. Don't hide confusion. Surface tradeoffs.
+
+Before implementing:
+
+State your assumptions explicitly. If uncertain, ask.
+If multiple interpretations exist, present them - don't pick silently.
+If a simpler approach exists, say so. Push back when warranted.
+If something is unclear, stop. Name what's confusing. Ask.
+2. Simplicity First
+Minimum code that solves the problem. Nothing speculative.
+
+No features beyond what was asked.
+No abstractions for single-use code.
+No "flexibility" or "configurability" that wasn't requested.
+No error handling for impossible scenarios.
+If you write 200 lines and it could be 50, rewrite it.
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+3. Surgical Changes
+Touch only what you must. Clean up only your own mess.
+
+When editing existing code:
+
+Don't "improve" adjacent code, comments, or formatting.
+Don't refactor things that aren't broken.
+Match existing style, even if you'd do it differently.
+If you notice unrelated dead code, mention it - don't delete it.
+When your changes create orphans:
+
+Remove imports/variables/functions that YOUR changes made unused.
+Don't remove pre-existing dead code unless asked.
+The test: Every changed line should trace directly to the user's request.
+
+4. Goal-Driven Execution
+Define success criteria. Loop until verified.
+
+Transform tasks into verifiable goals:
+
+"Add validation" → "Write tests for invalid inputs, then make them pass"
+"Fix the bug" → "Write a test that reproduces it, then make it pass"
+"Refactor X" → "Ensure tests pass before and after"
+For multi-step tasks, state a brief plan:
+
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
 ## Commands
 
 ```bash
@@ -18,15 +69,17 @@ There is currently no test script configured in `package.json`.
 
 ## Current Repo State
 
-- The checked-in code is still a minimal Next.js 16 App Router starter.
-- `app/layout.tsx` defines the global shell and fonts.
-- `app/page.tsx` is still starter content and does not yet reflect the product proposal.
+- The application is deployed on Vercel using the `production` branch (not `main`).
+- It is a fully functional full-stack application built around the Rezume product vision.
+- `app/page.tsx` & `app/layout.tsx` implement the main application shell, landing page, Clerk integration, and a ConvexClientProvider wrapper.
+- The backend (`convex/`) contains schemas and query/mutation logic for core entities: jobs, users, onboarding, and settings.
+- The domain logic (`lib/`) and frontend (`components/`) contain extensive implementations for AI resume and cover letter generation, document parsing (docx, PDF), and job tracking.
 - `app/globals.css` sets global tokens/styles and imports Tailwind v4 via `@import "tailwindcss"`.
 
-## Intended Product Direction
+## Product Stack and Core Flow
 
-- This repo is meant to become **Rezume**, an AI-powered resume builder and job application tracker.
-- Planned primary stack: **Next.js + shadcn/ui + Tailwind + Clerk + Convex**.
+- **Rezume**: An AI-powered resume builder and job application tracker.
+- Stack: **Next.js 16 + Tailwind v4 + Clerk + Convex**.
 - Core flow: sign in, choose AI provider + API key, build an “ultimate profile,” add job postings, generate tailored resumes / cover letters / interview prep, and track application status.
 
 ## Durable Product Constraints

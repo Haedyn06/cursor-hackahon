@@ -26,7 +26,8 @@ export function buildCoverLetterGenerationMessages(params: {
 Your task: write a tailored, professional cover letter for a specific job application.
 
 Rules:
-- Use ONLY facts from the candidate profile (and optional resume). Do NOT invent employers, degrees, dates, or achievements.
+- Use ONLY facts from the candidate profile, source materials, and optional resume. Do NOT invent employers, degrees, dates, or achievements.
+- Treat the structured candidate profile as canonical. Use source materials as supporting evidence for stronger examples, wording, and missing detail.
 - Sound like a real person — confident, specific, and warm. Avoid clichés and generic filler.
 - Reference the target company and role naturally; show genuine interest without flattery.
 - Keep it concise: roughly 3–4 paragraphs, suitable for one page.
